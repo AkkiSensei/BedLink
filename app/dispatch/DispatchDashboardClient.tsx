@@ -6,6 +6,8 @@ import { refreshRequestsAction, fetchRankedCandidatesAction } from './actions'
 import EmergencyRequestForm from './EmergencyRequestForm'
 import RankedCandidatesList from './RankedCandidatesList'
 import ActiveOfferCard from './ActiveOfferCard'
+import RequestHistoryList from './RequestHistoryList'
+import RequestDetailView from './RequestDetailView'
 
 interface DispatchDashboardClientProps {
   initialRequests: DispatchBedRequestView[]
@@ -228,7 +230,11 @@ export default function DispatchDashboardClient({
           }}
         >
           <EmergencyRequestForm onRequestCreated={handleRequestCreated} />
-
+          <RequestHistoryList
+            requests={requests}
+            selectedRequestId={selectedRequestId}
+            onSelectRequest={setSelectedRequestId}
+          />
         </section>
 
         {/* Right Column: Active Offer & Ranked Alternatives */}
@@ -240,32 +246,30 @@ export default function DispatchDashboardClient({
             gap: '1.5rem',
           }}
         >
-          <div
-            id="active-offer-container"
-            style={{
-              backgroundColor: '#ffffff',
-              borderRadius: '10px',
-              border: '1px solid #e2e8f0',
-              padding: '1.25rem',
-              boxShadow: '0 1px 3px 0 rgba(0,0,0,0.05)',
-            }}
-          >
-            <h2
+          {selectedRequest ? (
+            <RequestDetailView request={selectedRequest} />
+          ) : (
+            <div
               style={{
-                fontSize: '1rem',
-                fontWeight: 700,
-                color: '#0f172a',
-                margin: '0 0 0.5rem 0',
+                backgroundColor: '#ffffff',
+                borderRadius: '10px',
+                border: '1px solid #e2e8f0',
+                padding: '2rem',
+                textAlign: 'center',
+                boxShadow: '0 1px 3px 0 rgba(0,0,0,0.05)',
+                color: '#64748b',
               }}
             >
-              Operational Status
-            </h2>
-            <p style={{ fontSize: '0.85rem', color: '#64748b', margin: 0 }}>
-              {selectedRequest
-                ? `Viewing BedRequest #${selectedRequest.id.slice(0, 8)} (${selectedRequest.status.toUpperCase()})`
-                : 'No emergency requests recorded. Enter requirements on the left to begin.'}
-            </p>
-          </div>
+              <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>🚑</div>
+              <h2 style={{ fontSize: '1.1rem', fontWeight: 800, color: '#0f172a', margin: '0 0 0.5rem 0' }}>
+                No Bed Request Selected
+              </h2>
+              <p style={{ fontSize: '0.85rem', margin: 0, maxWidth: '420px', marginLeft: 'auto', marginRight: 'auto' }}>
+                Submit a new emergency bed request using the form on the left or select an active dispatch record from recent requests.
+              </p>
+            </div>
+          )}
+
 
           {selectedRequest && selectedRequest.active_reservation && (
             <ActiveOfferCard
