@@ -1,9 +1,10 @@
 'use client'
 
-import React, { useState } from 'react'
-import type { DispatchBedRequestView } from '@/lib/operations/types'
-import { refreshRequestsAction } from './actions'
+import React, { useState, useEffect } from 'react'
+import type { DispatchBedRequestView, DispatchRankedCandidateView } from '@/lib/operations/types'
+import { refreshRequestsAction, fetchRankedCandidatesAction } from './actions'
 import EmergencyRequestForm from './EmergencyRequestForm'
+import RankedCandidatesList from './RankedCandidatesList'
 
 interface DispatchDashboardClientProps {
   initialRequests: DispatchBedRequestView[]
@@ -20,10 +21,44 @@ export default function DispatchDashboardClient({
   const [selectedRequestId, setSelectedRequestId] = useState<string | null>(
     initialRequests[0]?.id ?? null
   )
-  const [isRefreshing, setIsRefreshing] = useState(false)
+  const [rankedCandidates, setRankedCandidates] = useState<DispatchRankedCandidateView[]>([])
+  const [isLoadingCandidates, setIsLoadingCandidates] = useState<boolean>(false)
+  const [isRefreshing, setIsRefreshing] = useState<boolean>(false)
   const [statusMessage, setStatusMessage] = useState<string | null>(null)
 
   const selectedRequest = requests.find((r) => r.id === selectedRequestId) ?? requests[0] ?? null
+
+  // Fetch authoritative ranked hospital candidates whenever selected request changes
+  useEffect(() => {
+    if (!selectedRequest?.id) {
+      setRankedCandidates([])
+      return
+    }
+
+    let isMounted = true
+    setIsLoadingCandidates(true)
+
+    fetchRankedCandidatesAction(selectedRequest.id)
+      .then((res) => {
+        if (isMounted) {
+          if (res.success && res.candidates) {
+            setRankedCandidates(res.candidates)
+          } else {
+            setRankedCandidates([])
+          }
+        }
+      })
+      .catch(() => {
+        if (isMounted) setRankedCandidates([])
+      })
+      .finally(() => {
+        if (isMounted) setIsLoadingCandidates(false)
+      })
+
+    return () => {
+      isMounted = false
+    }
+  }, [selectedRequest?.id])
 
   const handleRequestCreated = (newRequest: DispatchBedRequestView) => {
     setRequests((prev) => [newRequest, ...prev.filter((r) => r.id !== newRequest.id)])
@@ -230,6 +265,13 @@ export default function DispatchDashboardClient({
                 : 'No emergency requests recorded. Enter requirements on the left to begin.'}
             </p>
           </div>
+
+          {selectedRequest && (
+            <RankedCandidatesList
+              candidates={rankedCandidates}
+              isLoading={isLoadingCandidates}
+            />
+          )}
         </section>
       </main>
     </div>
