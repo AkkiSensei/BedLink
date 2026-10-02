@@ -7,7 +7,7 @@
   "author": "Bug Dealers",
   "repository": {
     "type": "git",
-    "url": "https://github.com/AkkiSensei/BugDealers-BedLink.git"
+    "url": "https://github.com/AkkiSensei/T17-BedLink.git"
   },
   "homepage": "https://bedlink-one.vercel.app",
   "scripts": {
@@ -19,7 +19,8 @@
     "lint": "tsc --project tsconfig.next.json --noEmit",
     "test": "vitest run",
     "test:unit": "vitest run",
-    "test:all": "tsx scripts/verify-db.ts && tsx scripts/verify-auth.ts && tsx scripts/verify-ranking.ts && tsx scripts/verify-reservations.ts && tsx scripts/verify-operations.ts && tsx scripts/verify-security.ts && tsx scripts/verify-nurse-ui.ts && tsx scripts/verify-dispatch-ui.ts && tsx scripts/verify-hospital-ui.ts && tsx scripts/verify-realtime.ts",
+    "test:phone": "tsx scripts/verify-phone-adaptive-qa.ts",
+    "test:all": "tsx scripts/verify-db.ts && tsx scripts/verify-auth.ts && tsx scripts/verify-ranking.ts && tsx scripts/verify-reservations.ts && tsx scripts/verify-operations.ts && tsx scripts/verify-security.ts && tsx scripts/verify-nurse-ui.ts && tsx scripts/verify-dispatch-ui.ts && tsx scripts/verify-hospital-ui.ts && tsx scripts/verify-realtime.ts && tsx scripts/verify-phone-adaptive-qa.ts",
     "test:db": "tsx scripts/verify-db.ts",
     "test:auth": "tsx scripts/verify-auth.ts",
     "test:ranking": "tsx scripts/verify-ranking.ts",

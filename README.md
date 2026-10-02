@@ -181,11 +181,40 @@ npm run test:nurse          # Phase 7: Nurse operational interface (25 tests)
 npm run test:dispatch       # Phase 8: Dispatch operational interface (41 tests)
 npm run test:hospital       # Phase 9: Hospital response console (37 tests)
 npm run test:realtime       # Phase 10: Realtime WebSocket synchronization (42 tests)
+npm run test:phone          # Phase 11: Phone & Cheap Android adaptive QA (27 tests)
 ```
 
 ---
 
-## 9. Technology Stack
+## 9. Physical Device & Cheap-Android Testing Guide
+
+BedLink is engineered with an adaptive single-tree architecture that works seamlessly across cheap Android phones (2 GB RAM, slow 4G, 360px display), tablets, and high-resolution laptops.
+
+### How to Test on a Physical Phone
+
+1. **Vercel Production Preview**:
+   Open [https://bedlink-one.vercel.app](https://bedlink-one.vercel.app) directly on your mobile device (Chrome, Safari, or Samsung Internet).
+2. **Local LAN Testing**:
+   Run `npm run dev -- --host` on your workstation. Open the printed local network URL (e.g., `http://192.168.1.x:3000`) on any phone connected to the same Wi-Fi.
+3. **USB Remote Debugging**:
+   Connect your Android phone via USB, enable USB Debugging in Developer Options, and open `chrome://inspect` in desktop Chrome to inspect layout, performance, and touch telemetry in real time.
+
+### Mobile Verification Checklist
+
+| Item | Requirement | Verification Method |
+| :--- | :--- | :--- |
+| **One-Screen Law** | Document root never scrolls (`100dvh`). Only marked `[data-scroll-region]` panels scroll. | Scroll on body/header; confirm zero document pull-to-refresh or bounce. |
+| **Thumb-Zone Controls** | Primary actions (Nurse Confirm, Accept, Reject) are >= 56px and located in lower 40% of viewport. | Tap with single thumb; confirm reachability. |
+| **Bottom Tab Navigation** | 56px tab bar with safe-area insets (`env(safe-area-inset-bottom)`) on phone layouts. | Rotate portrait/landscape; confirm bar adapts. |
+| **Live Request Mini-Banner** | Floats directly above bottom tabs when an active reservation hold is running. | Create emergency request; confirm tappable countdown banner appears. |
+| **Mobile Numeric PIN Entry** | PIN inputs trigger native numeric virtual keyboard without obscuring inputs. | Tap PIN boxes; confirm numeric soft keyboard opens. |
+| **Haptic Feedback** | Subtle vibrations for tap, accept success, and reject signals (`navigator.vibrate`). | Tap buttons on Android device; feel haptic response. |
+| **Screen Wake Lock** | Screen stays awake during active emergency reservation holds. | Trigger active offer; verify screen remains on. |
+| **Zero Emojis** | Strict clinical typography standard; Lucide SVG icons only. | Verified via `npm run test:phone`. |
+
+---
+
+## 10. Technology Stack
 
 - **Framework**: Next.js 15 (App Router, Server Actions, Edge Middleware)
 - **UI & Components**: React 19, Lucide React, Radix UI Primitives, Leaflet / React-Leaflet
@@ -196,7 +225,7 @@ npm run test:realtime       # Phase 10: Realtime WebSocket synchronization (42 t
 
 ---
 
-## 10. Getting Started
+## 11. Getting Started
 
 ### Prerequisites
 - Node.js 20+
@@ -204,14 +233,17 @@ npm run test:realtime       # Phase 10: Realtime WebSocket synchronization (42 t
 
 ### Setup
 ```bash
-git clone https://github.com/AkkiSensei/BugDealers-BedLink.git
-cd BugDealers-BedLink
+git clone https://github.com/AkkiSensei/T17-BedLink.git
+cd T17-BedLink
 
 # Install dependencies
 npm install
 
 # Start Next.js development server
 npm run dev
+
+# Run all test suites
+npm run test:all
 
 # Run production build
 npm run build
