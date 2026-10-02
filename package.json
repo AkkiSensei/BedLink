@@ -13,6 +13,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "build:next": "next build",
     "start": "next start",
     "typecheck": "tsc --project tsconfig.next.json --noEmit",
     "lint": "tsc --project tsconfig.next.json --noEmit",
