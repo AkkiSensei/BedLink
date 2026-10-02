@@ -96,8 +96,9 @@ export default function NurseInventoryClient({
     return b.status === filter
   })
 
-  // Fast status update handler
+  // Fast status update handler with duplicate tap guard
   const handleStatusChange = async (bedId: string, newStatus: BedStatus) => {
+    if (updatingBedId) return // Prevent concurrent mutations / duplicate submissions
     const targetBed = beds.find((b) => b.id === bedId)
     setUpdatingBedId(bedId)
     setFeedback(null)
@@ -107,9 +108,21 @@ export default function NurseInventoryClient({
       if (result.success && result.bed) {
         const updated = result.bed
         setBeds((prev) => prev.map((b) => (b.id === bedId ? updated : b)))
+
+        let actionDesc = `marked ${newStatus.toUpperCase()}`
+        if (targetBed?.status === 'available' && newStatus === 'occupied') {
+          actionDesc = 'Admitted Patient (OCCUPIED)'
+        } else if (targetBed?.status === 'occupied' && newStatus === 'available') {
+          actionDesc = 'Discharged Patient (AVAILABLE)'
+        } else if (targetBed?.status === 'available' && newStatus === 'maintenance') {
+          actionDesc = 'Marked Maintenance'
+        } else if (targetBed?.status === 'maintenance' && newStatus === 'available') {
+          actionDesc = 'Returned to Available'
+        }
+
         setFeedback({
           type: 'success',
-          message: `${targetBed?.room_number || 'Bed'} updated to ${newStatus.toUpperCase()}`,
+          message: `${targetBed?.room_number || 'Bed'}: ${actionDesc}`,
         })
       } else {
         setFeedback({
