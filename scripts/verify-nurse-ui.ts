@@ -286,26 +286,46 @@ async function runNurseWorkflowVerification() {
   await setUserContext(nurseApex)
   const testBedId = sampleBed.id
 
-  // 4.1 Update to occupied
+  // 4.1 Admit Patient: AVAILABLE -> OCCUPIED
   const updatedOccupied = await updateNurseBed({ bedId: testBedId, status: 'occupied' }, testClient)
-  assert(updatedOccupied.status === 'occupied', 'TEST 4.1: Nurse rapidly updates bed to occupied')
+  assert(updatedOccupied.status === 'occupied', 'TEST 4.1: Admit Patient: Nurse rapidly transitions AVAILABLE -> OCCUPIED')
   assert(
     new Date(updatedOccupied.last_updated_at).getTime() >= baseTime - 5000,
     'TEST 4.2: Status update refreshes last_updated_at timestamp'
   )
 
-  // 4.2 Update to maintenance
+  // 4.3 Invalid transition: OCCUPIED -> MAINTENANCE is rejected
+  await expectOperationError(
+    () => updateNurseBed({ bedId: testBedId, status: 'maintenance' }, testClient),
+    'TEST 4.3: Invalid transition OCCUPIED -> MAINTENANCE is rejected with 400 Validation Error',
+    'VALIDATION_ERROR',
+    400
+  )
+
+  // 4.4 Discharge Patient: OCCUPIED -> AVAILABLE
+  const updatedDischarged = await updateNurseBed({ bedId: testBedId, status: 'available' }, testClient)
+  assert(updatedDischarged.status === 'available', 'TEST 4.4: Discharge Patient: Nurse rapidly transitions OCCUPIED -> AVAILABLE')
+
+  // 4.5 Mark Maintenance: AVAILABLE -> MAINTENANCE
   const updatedMaint = await updateNurseBed({ bedId: testBedId, status: 'maintenance' }, testClient)
-  assert(updatedMaint.status === 'maintenance', 'TEST 4.3: Nurse rapidly updates bed to maintenance')
+  assert(updatedMaint.status === 'maintenance', 'TEST 4.5: Mark Maintenance: Nurse rapidly transitions AVAILABLE -> MAINTENANCE')
 
-  // 4.3 Update back to available
+  // 4.6 Invalid transition: MAINTENANCE -> OCCUPIED is rejected
+  await expectOperationError(
+    () => updateNurseBed({ bedId: testBedId, status: 'occupied' }, testClient),
+    'TEST 4.6: Invalid transition MAINTENANCE -> OCCUPIED is rejected with 400 Validation Error',
+    'VALIDATION_ERROR',
+    400
+  )
+
+  // 4.7 Return to Available: MAINTENANCE -> AVAILABLE
   const updatedAvailable = await updateNurseBed({ bedId: testBedId, status: 'available' }, testClient)
-  assert(updatedAvailable.status === 'available', 'TEST 4.4: Nurse rapidly updates bed to available')
+  assert(updatedAvailable.status === 'available', 'TEST 4.7: Return to Available: Nurse rapidly transitions MAINTENANCE -> AVAILABLE')
 
-  // 4.4 Nurse manually setting to 'held' is rejected (400)
+  // 4.8 Nurse manually setting to 'held' is rejected (400)
   await expectOperationError(
     () => updateNurseBed({ bedId: testBedId, status: 'held' as BedStatus }, testClient),
-    'TEST 4.5: Nurse manually setting status to "held" is rejected',
+    'TEST 4.8: Nurse manually setting status to "held" is rejected',
     'VALIDATION_ERROR',
     400
   )

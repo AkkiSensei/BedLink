@@ -185,29 +185,42 @@ export async function updateNurseBed(
     }
 
     // 4. Invariant check: Protect active emergency reservation holds
-    // If bed is currently held or has an active held reservation, block status/capability modification
-    if (validatedStatus !== undefined || validatedCapabilities !== undefined) {
-      let activeReservationCount = 0
+    // If bed is currently held or has an active held reservation, block ANY modification
+    let activeReservationCount = 0
 
-      if (typeof client?.query === 'function') {
-        const res = await client.query(
-          `SELECT COUNT(*)::int as count FROM public.reservations WHERE bed_id = $1 AND status = 'held';`,
-          [bedId]
-        )
-        activeReservationCount = res.rows[0]?.count ?? 0
-      } else if (typeof client?.from === 'function') {
-        const { count, error } = await client
-          .from('reservations')
-          .select('id', { count: 'exact', head: true })
-          .eq('bed_id', bedId)
-          .eq('status', 'held')
-        if (error) throw error
-        activeReservationCount = count ?? 0
-      }
+    if (typeof client?.query === 'function') {
+      const res = await client.query(
+        `SELECT COUNT(*)::int as count FROM public.reservations WHERE bed_id = $1 AND status = 'held';`,
+        [bedId]
+      )
+      activeReservationCount = res.rows[0]?.count ?? 0
+    } else if (typeof client?.from === 'function') {
+      const { count, error } = await client
+        .from('reservations')
+        .select('id', { count: 'exact', head: true })
+        .eq('bed_id', bedId)
+        .eq('status', 'held')
+      if (error) throw error
+      activeReservationCount = count ?? 0
+    }
 
-      if (bed.status === 'held' || activeReservationCount > 0) {
-        throw new ConflictOperationError(
-          'Cannot modify status or capabilities of a physical bed while it is held by an active emergency reservation'
+    if (bed.status === 'held' || activeReservationCount > 0) {
+      throw new ConflictOperationError(
+        'Cannot modify status or capabilities of a physical bed while it is held by an active emergency reservation'
+      )
+    }
+
+    // 5. Enforce authoritative state transitions
+    if (validatedStatus !== undefined && validatedStatus !== bed.status) {
+      const isAllowedTransition =
+        (bed.status === 'available' &&
+          (validatedStatus === 'occupied' || validatedStatus === 'maintenance')) ||
+        (bed.status === 'occupied' && validatedStatus === 'available') ||
+        (bed.status === 'maintenance' && validatedStatus === 'available')
+
+      if (!isAllowedTransition) {
+        throw new ValidationOperationError(
+          `Cannot transition bed from "${bed.status.toUpperCase()}" to "${validatedStatus.toUpperCase()}". Allowed transitions are: AVAILABLE → OCCUPIED (Admit Patient), OCCUPIED → AVAILABLE (Discharge Patient), AVAILABLE → MAINTENANCE (Mark Maintenance), and MAINTENANCE → AVAILABLE (Return to Available).`
         )
       }
     }
