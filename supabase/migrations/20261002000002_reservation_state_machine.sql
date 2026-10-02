@@ -423,12 +423,39 @@ CREATE OR REPLACE FUNCTION public.get_bed_request_for_fallback(p_bed_request_id 
 RETURNS SETOF public.bed_requests
 LANGUAGE sql
 SECURITY DEFINER
-SET search_path = public, auth, pg_temp
+SET search_path = ''
 AS $$
-    SELECT *
-    FROM public.bed_requests
-    WHERE id = p_bed_request_id;
+    SELECT br.*
+    FROM public.bed_requests br
+    WHERE br.id = p_bed_request_id
+      AND (
+          -- Admin has global management access
+          public.current_user_role() = 'admin'
+          -- Dispatcher owns the request
+          OR (
+              public.current_user_role() = 'dispatch'
+              AND br.created_by = auth.uid()
+          )
+          -- Hospital staff or Nurse whose hospital is legitimately tied to this request
+          OR (
+              public.current_user_role() IN ('hospital', 'nurse')
+              AND public.current_user_hospital_id() IS NOT NULL
+              AND (
+                  -- Currently assigned
+                  (br.current_active_reservation_id IS NOT NULL AND public.is_request_assigned_to_hospital(br.current_active_reservation_id, public.current_user_hospital_id()))
+                  -- Or hospital was attempted for this request
+                  OR public.current_user_hospital_id() = ANY(br.attempted_hospitals)
+                  -- Or hospital has a recorded reservation for this request
+                  OR EXISTS (
+                      SELECT 1 FROM public.reservations r
+                      WHERE r.bed_request_id = br.id
+                        AND r.hospital_id = public.current_user_hospital_id()
+                  )
+              )
+          )
+      );
 $$;
 
+REVOKE ALL ON FUNCTION public.get_bed_request_for_fallback(UUID) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.get_bed_request_for_fallback(UUID) TO authenticated, service_role, postgres;
 
