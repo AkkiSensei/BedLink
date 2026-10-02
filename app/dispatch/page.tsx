@@ -137,9 +137,16 @@ export default async function DispatchPage({
     initialRequests = []
   }
 
+  const currentUserId =
+    user?.id ||
+    (params?.demo === 'dispatch2'
+      ? DEMO_IDENTITIES.DISPATCH_2.userId
+      : DEMO_IDENTITIES.DISPATCH_1.userId)
+
   return (
     <DispatchDashboardClient
       initialRequests={initialRequests}
+      userId={currentUserId}
       dispatcherName={profile.full_name || 'EMS Dispatcher'}
       dispatcherRole={profile.role}
     />

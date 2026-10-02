@@ -1,8 +1,9 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import type { DispatchBedRequestView, DispatchRankedCandidateView } from '@/lib/operations/types'
 import { refreshRequestsAction, fetchRankedCandidatesAction } from './actions'
+import { subscribeDispatchWorkflow, type RealtimeConnectionStatus } from '@/lib/realtime'
 import EmergencyRequestForm from './EmergencyRequestForm'
 import RankedCandidatesList from './RankedCandidatesList'
 import ActiveOfferCard from './ActiveOfferCard'
@@ -13,12 +14,14 @@ import NoMatchState from './NoMatchState'
 
 interface DispatchDashboardClientProps {
   initialRequests: DispatchBedRequestView[]
+  userId?: string
   dispatcherName: string
   dispatcherRole: string
 }
 
 export default function DispatchDashboardClient({
   initialRequests,
+  userId,
   dispatcherName,
   dispatcherRole,
 }: DispatchDashboardClientProps) {
@@ -30,6 +33,43 @@ export default function DispatchDashboardClient({
   const [isLoadingCandidates, setIsLoadingCandidates] = useState<boolean>(false)
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false)
   const [statusMessage, setStatusMessage] = useState<string | null>(null)
+  const [realtimeStatus, setRealtimeStatus] = useState<RealtimeConnectionStatus>('CONNECTING')
+
+  const selectedRequestIdRef = useRef(selectedRequestId)
+  useEffect(() => {
+    selectedRequestIdRef.current = selectedRequestId
+  }, [selectedRequestId])
+
+  // Realtime subscription for Dispatch workflow (bed_requests and reservations)
+  useEffect(() => {
+    if (!userId) return
+
+    const unsubscribe = subscribeDispatchWorkflow({
+      userId,
+      onStatusChange: (status) => setRealtimeStatus(status),
+      onReconcile: async () => {
+        try {
+          const res = await refreshRequestsAction()
+          if (res.success && res.requests) {
+            setRequests(res.requests)
+            const currentId = selectedRequestIdRef.current
+            if (currentId) {
+              const cRes = await fetchRankedCandidatesAction(currentId)
+              if (cRes.success && cRes.candidates) {
+                setRankedCandidates(cRes.candidates)
+              }
+            }
+          }
+        } catch {
+          // Non-blocking background sync error
+        }
+      },
+    })
+
+    return () => {
+      unsubscribe()
+    }
+  }, [userId])
 
   const selectedRequest = requests.find((r) => r.id === selectedRequestId) ?? requests[0] ?? null
 
@@ -150,6 +190,59 @@ export default function DispatchDashboardClient({
               >
                 Dispatch Console
               </span>
+              {realtimeStatus === 'SUBSCRIBED' ? (
+                <span
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    fontSize: '0.675rem',
+                    fontWeight: 700,
+                    color: '#34d399',
+                    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+                    border: '1px solid rgba(16, 185, 129, 0.3)',
+                    borderRadius: '9999px',
+                    padding: '2px 7px',
+                  }}
+                  title="Connected to Supabase Realtime"
+                >
+                  <span
+                    style={{
+                      width: '5px',
+                      height: '5px',
+                      borderRadius: '50%',
+                      backgroundColor: '#34d399',
+                    }}
+                  />
+                  LIVE
+                </span>
+              ) : realtimeStatus === 'CONNECTING' ? (
+                <span
+                  style={{
+                    fontSize: '0.675rem',
+                    fontWeight: 600,
+                    color: '#f59e0b',
+                    backgroundColor: 'rgba(245, 158, 11, 0.15)',
+                    padding: '2px 7px',
+                    borderRadius: '9999px',
+                  }}
+                >
+                  Connecting...
+                </span>
+              ) : (
+                <span
+                  style={{
+                    fontSize: '0.675rem',
+                    fontWeight: 600,
+                    color: '#94a3b8',
+                    backgroundColor: 'rgba(148, 163, 184, 0.15)',
+                    padding: '2px 7px',
+                    borderRadius: '9999px',
+                  }}
+                >
+                  Offline
+                </span>
+              )}
             </div>
             <div style={{ fontSize: '0.775rem', color: '#94a3b8' }}>
               Automated Hospital Discovery & Reservation Engine
