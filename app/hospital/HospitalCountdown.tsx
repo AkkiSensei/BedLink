@@ -68,15 +68,25 @@ export default function HospitalCountdown({
   return (
     <div
       style={{
-        backgroundColor: isExpiredInBrowser ? '#fffbeb' : '#f0fdf4',
-        border: `1px solid ${isExpiredInBrowser ? '#fde68a' : '#bbf7d0'}`,
+        backgroundColor: isExpiredInBrowser
+          ? '#FEF3C7'
+          : remainingSeconds <= 30
+          ? '#FFF1F2'
+          : '#EEF3EE',
+        border: `1px solid ${
+          isExpiredInBrowser
+            ? '#FDE68A'
+            : remainingSeconds <= 30
+            ? '#FECDD3'
+            : '#E1E7E1'
+        }`,
         borderRadius: '8px',
         padding: '0.75rem 1rem',
-        marginTop: '1rem',
+        marginTop: '1.25rem',
       }}
       aria-live="polite"
       role="region"
-      aria-label="Hold response countdown"
+      aria-label="Hold response confirmation window countdown"
     >
       <div
         style={{
@@ -90,20 +100,29 @@ export default function HospitalCountdown({
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           {isExpiredInBrowser ? (
-            <AlertCircle style={{ width: '16px', height: '16px', color: '#b45309' }} />
+            <AlertCircle size={16} style={{ color: '#B45309' }} />
           ) : (
-            <Clock style={{ width: '16px', height: '16px', color: '#166534' }} />
+            <Clock
+              size={16}
+              style={{
+                color: remainingSeconds <= 30 ? '#E11D48' : '#2D6A4F',
+              }}
+            />
           )}
           <span
             style={{
-              fontSize: '0.85rem',
-              fontWeight: 700,
-              color: isExpiredInBrowser ? '#92400e' : '#166534',
+              fontSize: '0.75rem',
+              fontWeight: 800,
+              color: isExpiredInBrowser
+                ? '#B45309'
+                : remainingSeconds <= 30
+                ? '#E11D48'
+                : '#2D6A4F',
               textTransform: 'uppercase',
               letterSpacing: '0.05em',
             }}
           >
-            Response Window
+            Confirmation Window
           </span>
         </div>
 
@@ -111,30 +130,50 @@ export default function HospitalCountdown({
           {isExpiredInBrowser ? (
             <span
               style={{
-                fontSize: '0.9rem',
+                fontSize: '0.85rem',
                 fontWeight: 800,
-                color: '#b45309',
-                backgroundColor: '#fef3c7',
+                color: '#B45309',
+                backgroundColor: '#FEF3C7',
                 padding: '2px 8px',
                 borderRadius: '4px',
+                border: '1px solid #FDE68A',
+                textTransform: 'uppercase',
               }}
             >
-              Time Elapsed
+              Window Elapsed
             </span>
           ) : (
             <span
               style={{
-                fontSize: '1.15rem',
+                fontSize: '1.2rem',
                 fontFamily: 'monospace',
+                fontVariantNumeric: 'tabular-nums',
                 fontWeight: 800,
-                color: remainingSeconds <= 30 ? '#dc2626' : '#15803d',
-                backgroundColor: remainingSeconds <= 30 ? '#fee2e2' : '#dcfce7',
-                padding: '2px 8px',
-                borderRadius: '4px',
-                border: `1px solid ${remainingSeconds <= 30 ? '#fca5a5' : '#86efac'}`,
+                color:
+                  remainingSeconds <= 30
+                    ? '#E11D48'
+                    : remainingSeconds <= 60
+                    ? '#B45309'
+                    : '#2D6A4F',
+                backgroundColor: '#FFFFFF',
+                padding: '3px 10px',
+                borderRadius: '6px',
+                border: `1px solid ${
+                  remainingSeconds <= 30
+                    ? '#FECDD3'
+                    : remainingSeconds <= 60
+                    ? '#FDE68A'
+                    : '#E1E7E1'
+                }`,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px',
               }}
             >
-              {formatRemainingSeconds(remainingSeconds)} remaining
+              <span>{formatRemainingSeconds(remainingSeconds)}</span>
+              <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#5C6B64' }}>
+                remaining
+              </span>
             </span>
           )}
         </div>
@@ -145,7 +184,7 @@ export default function HospitalCountdown({
         style={{
           width: '100%',
           height: '6px',
-          backgroundColor: isExpiredInBrowser ? '#fed7aa' : '#dcfce7',
+          backgroundColor: isExpiredInBrowser ? '#FDE68A' : '#E1E7E1',
           borderRadius: '3px',
           overflow: 'hidden',
         }}
@@ -156,10 +195,10 @@ export default function HospitalCountdown({
             height: '100%',
             backgroundColor:
               remainingSeconds <= 30
-                ? '#ef4444'
+                ? '#E11D48'
                 : remainingSeconds <= 60
-                ? '#f59e0b'
-                : '#10b981',
+                ? '#B45309'
+                : '#2D6A4F',
             transition: 'width 1s linear',
           }}
         />
@@ -168,9 +207,9 @@ export default function HospitalCountdown({
       {isExpiredInBrowser && (
         <div
           style={{
-            marginTop: '0.5rem',
+            marginTop: '0.625rem',
             fontSize: '0.8rem',
-            color: '#b45309',
+            color: '#B45309',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
@@ -179,7 +218,7 @@ export default function HospitalCountdown({
           }}
         >
           <span>
-            The response window has elapsed. Checking for authoritative server update...
+            Response window has elapsed. Awaiting server state convergence or fallback transfer...
           </span>
           {onRefresh && (
             <button
@@ -188,18 +227,18 @@ export default function HospitalCountdown({
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: '4px',
-                padding: '3px 8px',
-                backgroundColor: '#f59e0b',
-                color: '#ffffff',
+                padding: '4px 10px',
+                backgroundColor: '#B45309',
+                color: '#FFFFFF',
                 border: 'none',
-                borderRadius: '4px',
+                borderRadius: '6px',
                 fontSize: '0.75rem',
                 fontWeight: 600,
                 cursor: 'pointer',
               }}
             >
-              <RefreshCw style={{ width: '12px', height: '12px' }} />
-              Check Server State
+              <RefreshCw size={12} />
+              Re-Sync Server
             </button>
           )}
         </div>

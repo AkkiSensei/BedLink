@@ -149,45 +149,45 @@ export default function HospitalReservationCard({
 
   // Border & Header Styling by state
   const cardBorder = isHeld
-    ? '2px solid #0284c7'
+    ? '2px solid #2D6A4F'
     : isAccepted
-    ? '2px solid #10b981'
+    ? '2px solid #2E7D32'
     : isRejected
-    ? '1px solid #cbd5e1'
+    ? '1px solid #E1E7E1'
     : isExpired
-    ? '1px solid #f59e0b'
-    : '1px solid #94a3b8'
+    ? '1px solid #FDE68A'
+    : '1px solid #E1E7E1'
 
   const headerBg = isHeld
-    ? '#0369a1'
+    ? '#2D6A4F'
     : isAccepted
-    ? '#065f46'
+    ? '#2E7D32'
     : isRejected
-    ? '#475569'
+    ? '#5C6B64'
     : isExpired
-    ? '#92400e'
-    : '#334155'
+    ? '#B45309'
+    : '#1A2421'
 
   return (
     <article
       style={{
-        backgroundColor: '#ffffff',
+        backgroundColor: '#FFFFFF',
         borderRadius: '12px',
         border: cardBorder,
         boxShadow: isHeld
-          ? '0 4px 14px -2px rgba(2, 132, 199, 0.2)'
-          : '0 2px 4px rgba(0,0,0,0.05)',
+          ? '0 4px 14px -2px rgba(45, 106, 79, 0.18)'
+          : '0 1px 3px rgba(0,0,0,0.04)',
         overflow: 'hidden',
         transition: 'border 0.3s ease',
       }}
-      aria-label={`Reservation offer for Request ${reservation.bed_request_id.slice(0, 8)}`}
+      aria-label={`Emergency reservation offer for Request ${reservation.bed_request_id.slice(0, 8)}`}
     >
       {/* Card Header */}
       <div
         style={{
           backgroundColor: headerBg,
-          color: '#ffffff',
-          padding: '0.85rem 1.25rem',
+          color: '#FFFFFF',
+          padding: '0.875rem 1.25rem',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
@@ -195,40 +195,41 @@ export default function HospitalReservationCard({
           gap: '0.75rem',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
           <span style={{ display: 'inline-flex', alignItems: 'center' }}>
             {isHeld ? (
-              <Siren style={{ width: '20px', height: '20px' }} />
+              <Siren size={20} />
             ) : isAccepted ? (
-              <CheckCircle2 style={{ width: '20px', height: '20px' }} />
+              <CheckCircle2 size={20} />
             ) : isRejected ? (
-              <XCircle style={{ width: '20px', height: '20px' }} />
+              <XCircle size={20} />
             ) : isExpired ? (
-              <Clock style={{ width: '20px', height: '20px' }} />
+              <Clock size={20} />
             ) : (
-              <Info style={{ width: '20px', height: '20px' }} />
+              <Info size={20} />
             )}
           </span>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-              <span style={{ fontWeight: 800, fontSize: '1.05rem', letterSpacing: '-0.01em' }}>
-                Emergency Request #{reservation.bed_request_id.slice(0, 8)}
+              <span style={{ fontWeight: 800, fontSize: '1rem', letterSpacing: '-0.01em' }}>
+                {isHeld ? 'INCOMING EMERGENCY' : 'Emergency Request'} #{reservation.bed_request_id.slice(0, 8)}
               </span>
               <span
                 style={{
                   backgroundColor: 'rgba(255,255,255,0.2)',
-                  color: '#ffffff',
+                  color: '#FFFFFF',
                   padding: '2px 7px',
                   borderRadius: '4px',
-                  fontSize: '0.75rem',
+                  fontSize: '0.7rem',
                   fontWeight: 700,
+                  textTransform: 'uppercase',
                 }}
               >
                 Attempt #{reservation.attempt_number}
               </span>
             </div>
             <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.85)', marginTop: '2px' }}>
-              Reservation ID: {reservation.id}
+              Reservation: {reservation.id}
             </div>
           </div>
         </div>
@@ -239,32 +240,33 @@ export default function HospitalReservationCard({
             style={{
               display: 'inline-block',
               padding: '4px 10px',
-              borderRadius: '6px',
-              fontSize: '0.75rem',
+              borderRadius: '9999px',
+              fontSize: '0.725rem',
               fontWeight: 800,
               textTransform: 'uppercase',
-              letterSpacing: '0.05em',
+              letterSpacing: '0.04em',
               backgroundColor: isHeld
-                ? '#e0f2fe'
+                ? '#E8F5E9'
                 : isAccepted
-                ? '#d1fae5'
+                ? '#E8F5E9'
                 : isRejected
-                ? '#f1f5f9'
+                ? '#EEF3EE'
                 : isExpired
-                ? '#fef3c7'
-                : '#e2e8f0',
+                ? '#FEF3C7'
+                : '#EEF3EE',
               color: isHeld
-                ? '#0369a1'
+                ? '#2E7D32'
                 : isAccepted
-                ? '#065f46'
+                ? '#2E7D32'
                 : isRejected
-                ? '#334155'
+                ? '#5C6B64'
                 : isExpired
-                ? '#92400e'
-                : '#1e293b',
+                ? '#B45309'
+                : '#1A2421',
+              border: '1px solid currentColor',
             }}
           >
-            {localStatus}
+            {isHeld ? 'HELD · ACTION REQUIRED' : localStatus}
           </span>
         </div>
       </div>
@@ -277,10 +279,10 @@ export default function HospitalReservationCard({
             style={{
               marginBottom: '1rem',
               padding: '0.75rem 1rem',
-              backgroundColor: '#fef2f2',
-              border: '1px solid #fecaca',
+              backgroundColor: '#FFF1F2',
+              border: '1px solid #FECDD3',
               borderRadius: '8px',
-              color: '#991b1b',
+              color: '#E11D48',
               fontSize: '0.85rem',
               display: 'flex',
               alignItems: 'center',
@@ -289,12 +291,12 @@ export default function HospitalReservationCard({
             role="alert"
           >
             <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <AlertTriangle size={16} className="text-red-600 shrink-0" />
+              <AlertTriangle size={16} style={{ color: '#E11D48', flexShrink: 0 }} />
               <span>{errorMessage}</span>
             </span>
             <button
               onClick={() => setErrorMessage(null)}
-              style={{ background: 'none', border: 'none', color: '#991b1b', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+              style={{ background: 'none', border: 'none', color: '#E11D48', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
               aria-label="Dismiss error"
             >
               <X size={14} />
@@ -308,14 +310,14 @@ export default function HospitalReservationCard({
             style={{
               marginBottom: '1.25rem',
               padding: '1rem',
-              backgroundColor: '#ecfdf5',
-              border: '1px solid #a7f3d0',
+              backgroundColor: '#E8F5E9',
+              border: '1px solid #C8E6C9',
               borderRadius: '8px',
-              color: '#065f46',
+              color: '#2E7D32',
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 800, fontSize: '0.95rem' }}>
-              <CheckCircle2 size={18} className="text-emerald-600" />
+              <CheckCircle2 size={18} style={{ color: '#2E7D32' }} />
               <span>Accepted</span>
             </div>
             <div style={{ fontSize: '0.85rem', marginTop: '4px', fontWeight: 600 }}>
@@ -325,11 +327,11 @@ export default function HospitalReservationCard({
               style={{
                 marginTop: '8px',
                 fontSize: '0.75rem',
-                backgroundColor: '#ffffff',
-                border: '1px solid #d1fae5',
+                backgroundColor: '#FFFFFF',
+                border: '1px solid #C8E6C9',
                 padding: '4px 8px',
                 borderRadius: '4px',
-                color: '#047857',
+                color: '#2E7D32',
               }}
             >
               <strong>Authoritative Invariant:</strong> ACCEPTED ≠ OCCUPIED. The bed remains reserved in HELD status until physical patient arrival and clinical handover.
@@ -342,14 +344,14 @@ export default function HospitalReservationCard({
             style={{
               marginBottom: '1.25rem',
               padding: '1rem',
-              backgroundColor: '#f8fafc',
-              border: '1px solid #cbd5e1',
+              backgroundColor: '#F4F6F4',
+              border: '1px solid #E1E7E1',
               borderRadius: '8px',
-              color: '#334155',
+              color: '#5C6B64',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 800, fontSize: '0.95rem' }}>
-              <Info size={18} className="text-slate-500" />
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 800, fontSize: '0.95rem', color: '#1A2421' }}>
+              <Info size={18} style={{ color: '#5C6B64' }} />
               <span>Offer rejected.</span>
             </div>
             <div style={{ fontSize: '0.85rem', marginTop: '4px' }}>
@@ -363,18 +365,18 @@ export default function HospitalReservationCard({
             style={{
               marginBottom: '1.25rem',
               padding: '1rem',
-              backgroundColor: '#fffbeb',
-              border: '1px solid #fde68a',
+              backgroundColor: '#FEF3C7',
+              border: '1px solid #FDE68A',
               borderRadius: '8px',
-              color: '#92400e',
+              color: '#B45309',
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 800, fontSize: '0.95rem' }}>
-              <Clock size={18} className="text-amber-600" />
-              <span>Offer expired.</span>
+              <Clock size={18} style={{ color: '#B45309' }} />
+              <span>OFFER EXPIRED</span>
             </div>
             <div style={{ fontSize: '0.85rem', marginTop: '4px' }}>
-              This reservation is no longer active. The hold duration timed out and the system has moved to fallback re-ranking.
+              This offer is no longer actionable. The hold duration timed out and the system has moved to automatic fallback re-ranking.
             </div>
           </div>
         )}
@@ -384,14 +386,14 @@ export default function HospitalReservationCard({
             style={{
               marginBottom: '1.25rem',
               padding: '1rem',
-              backgroundColor: '#f1f5f9',
-              border: '1px solid #94a3b8',
+              backgroundColor: '#F4F6F4',
+              border: '1px solid #E1E7E1',
               borderRadius: '8px',
-              color: '#1e293b',
+              color: '#5C6B64',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 800, fontSize: '0.95rem' }}>
-              <AlertTriangle size={18} className="text-amber-600" />
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 800, fontSize: '0.95rem', color: '#1A2421' }}>
+              <AlertTriangle size={18} style={{ color: '#B45309' }} />
               <span>This offer is no longer active.</span>
             </div>
             <div style={{ fontSize: '0.85rem', marginTop: '4px' }}>
@@ -411,17 +413,17 @@ export default function HospitalReservationCard({
           {/* Left Column: Requirements & Inbound Info */}
           <div
             style={{
-              backgroundColor: '#f8fafc',
-              border: '1px solid #e2e8f0',
+              backgroundColor: '#F4F6F4',
+              border: '1px solid #E1E7E1',
               borderRadius: '8px',
               padding: '1rem',
             }}
           >
             <div
               style={{
-                fontSize: '0.75rem',
-                fontWeight: 700,
-                color: '#64748b',
+                fontSize: '0.725rem',
+                fontWeight: 800,
+                color: '#5C6B64',
                 textTransform: 'uppercase',
                 letterSpacing: '0.05em',
                 marginBottom: '0.5rem',
@@ -436,12 +438,12 @@ export default function HospitalReservationCard({
                 <span
                   key={cap}
                   style={{
-                    backgroundColor: '#e0f2fe',
-                    color: '#0369a1',
-                    border: '1px solid #bae6fd',
+                    backgroundColor: '#EEF3EE',
+                    color: '#2D6A4F',
+                    border: '1px solid #E1E7E1',
                     padding: '3px 8px',
-                    borderRadius: '4px',
-                    fontSize: '0.8rem',
+                    borderRadius: '6px',
+                    fontSize: '0.75rem',
                     fontWeight: 700,
                     textTransform: 'uppercase',
                   }}
@@ -452,30 +454,30 @@ export default function HospitalReservationCard({
             </div>
 
             {/* Inbound Ambulance Telemetry */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', fontSize: '0.85rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', color: '#475569' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', fontSize: '0.825rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', color: '#5C6B64' }}>
                 <span>Ambulance Location:</span>
-                <span style={{ fontFamily: 'monospace', fontWeight: 600, color: '#0f172a' }}>
+                <span style={{ fontFamily: 'monospace', fontWeight: 600, color: '#1A2421' }}>
                   {reservation.ambulance_latitude.toFixed(4)}, {reservation.ambulance_longitude.toFixed(4)}
                 </span>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', color: '#475569' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', color: '#5C6B64' }}>
                 <span>Estimated Travel Time:</span>
-                <span style={{ fontWeight: 800, color: '#0284c7' }}>
+                <span style={{ fontWeight: 800, color: '#2D6A4F' }}>
                   {reservation.estimated_travel_time_minutes !== null &&
                   reservation.estimated_travel_time_minutes !== undefined
-                    ? `${reservation.estimated_travel_time_minutes} min`
+                    ? `~${reservation.estimated_travel_time_minutes} min`
                     : 'Calculating...'}
                 </span>
               </div>
               {reservation.ambulance_phone && (
-                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#475569' }}>
-                  <span>Ambulance Comms:</span>
+                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#5C6B64' }}>
+                  <span>Ambulance Contact:</span>
                   <a
                     href={`tel:${reservation.ambulance_phone}`}
-                    style={{ fontWeight: 600, color: '#0284c7', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                    style={{ fontWeight: 600, color: '#2D6A4F', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
                   >
-                    <Phone style={{ width: '13px', height: '13px' }} />
+                    <Phone size={13} style={{ color: '#2D6A4F' }} />
                     <span>{reservation.ambulance_phone}</span>
                   </a>
                 </div>
@@ -486,17 +488,17 @@ export default function HospitalReservationCard({
           {/* Right Column: Physical Bed Details */}
           <div
             style={{
-              backgroundColor: '#f8fafc',
-              border: '1px solid #e2e8f0',
+              backgroundColor: '#F4F6F4',
+              border: '1px solid #E1E7E1',
               borderRadius: '8px',
               padding: '1rem',
             }}
           >
             <div
               style={{
-                fontSize: '0.75rem',
-                fontWeight: 700,
-                color: '#64748b',
+                fontSize: '0.725rem',
+                fontWeight: 800,
+                color: '#5C6B64',
                 textTransform: 'uppercase',
                 letterSpacing: '0.05em',
                 marginBottom: '0.5rem',
@@ -505,32 +507,34 @@ export default function HospitalReservationCard({
               Held Physical Resource
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.5rem', marginBottom: '0.5rem' }}>
-              <span style={{ fontSize: '1.25rem', fontWeight: 800, color: '#0f172a' }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.5rem', marginBottom: '0.5rem', flexWrap: 'wrap' }}>
+              <span style={{ fontSize: '1.2rem', fontWeight: 800, color: '#1A2421' }}>
                 {reservation.room_number ? `Room ${reservation.room_number}` : 'Unassigned Room'}
               </span>
               <span
                 style={{
-                  fontSize: '0.75rem',
-                  color: isHeld ? '#0369a1' : '#475569',
-                  backgroundColor: isHeld ? '#e0f2fe' : '#e2e8f0',
-                  padding: '2px 6px',
-                  borderRadius: '4px',
+                  fontSize: '0.7rem',
+                  color: isHeld ? '#2E7D32' : '#5C6B64',
+                  backgroundColor: isHeld ? '#E8F5E9' : '#EEF3EE',
+                  border: isHeld ? '1px solid #C8E6C9' : '1px solid #E1E7E1',
+                  padding: '2px 7px',
+                  borderRadius: '9999px',
                   fontWeight: 700,
+                  textTransform: 'uppercase',
                 }}
               >
                 Physical Bed HELD
               </span>
             </div>
 
-            <div style={{ fontSize: '0.8rem', color: '#64748b', marginBottom: '0.75rem', wordBreak: 'break-all' }}>
-              Bed ID: <span style={{ fontFamily: 'monospace', color: '#334155' }}>{reservation.bed_id}</span>
+            <div style={{ fontSize: '0.8rem', color: '#5C6B64', marginBottom: '0.75rem', wordBreak: 'break-all' }}>
+              Bed ID: <span style={{ fontFamily: 'monospace', color: '#1A2421', fontWeight: 600 }}>{reservation.bed_id}</span>
             </div>
 
             {reservation.bed_capabilities && reservation.bed_capabilities.length > 0 && (
-              <div style={{ fontSize: '0.8rem', color: '#475569' }}>
-                <span style={{ fontWeight: 600 }}>Equipped: </span>
-                <span>{reservation.bed_capabilities.join(', ')}</span>
+              <div style={{ fontSize: '0.8rem', color: '#1A2421' }}>
+                <span style={{ fontWeight: 600, color: '#5C6B64' }}>Equipped: </span>
+                <span>{reservation.bed_capabilities.join(', ').toUpperCase()}</span>
               </div>
             )}
           </div>
@@ -554,19 +558,19 @@ export default function HospitalReservationCard({
               style={{
                 marginTop: '1.25rem',
                 padding: '12px 16px',
-                backgroundColor: '#fffbeb',
-                border: '1px solid #fde68a',
+                backgroundColor: '#FEF3C7',
+                border: '1px solid #FDE68A',
                 borderRadius: '8px',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '0.75rem',
-                color: '#92400e',
-                fontSize: '0.9rem',
+                color: '#B45309',
+                fontSize: '0.875rem',
                 fontWeight: 600,
               }}
             >
-              <AlertCircle style={{ width: '18px', height: '18px', flexShrink: 0, color: '#b45309' }} />
-              <span>Response window elapsed. Actions are disabled while awaiting server fallback.</span>
+              <AlertCircle size={18} style={{ flexShrink: 0, color: '#B45309' }} />
+              <span>Confirmation window elapsed. Actions are disabled while awaiting server fallback.</span>
             </div>
           ) : (
             <div
@@ -585,28 +589,28 @@ export default function HospitalReservationCard({
                   flex: '1 1 200px',
                   minHeight: '48px',
                   padding: '12px 20px',
-                  backgroundColor: submittingAction === 'accept' ? '#047857' : '#059669',
-                  color: '#ffffff',
+                  backgroundColor: submittingAction === 'accept' ? '#245640' : '#2D6A4F',
+                  color: '#FFFFFF',
                   border: 'none',
                   borderRadius: '8px',
-                  fontSize: '1rem',
+                  fontSize: '0.95rem',
                   fontWeight: 800,
                   letterSpacing: '0.025em',
                   cursor: submittingAction || isCountdownExpired ? 'not-allowed' : 'pointer',
-                  opacity: submittingAction && submittingAction !== 'accept' ? 0.5 : 1,
-                  boxShadow: '0 2px 4px rgba(5, 150, 105, 0.3)',
+                  opacity: submittingAction && submittingAction !== 'accept' ? 0.6 : 1,
+                  boxShadow: '0 2px 4px rgba(45, 106, 79, 0.25)',
                   display: 'inline-flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   gap: '0.5rem',
-                  transition: 'background-color 0.2s',
+                  transition: 'background-color 0.15s ease-in-out',
                 }}
                 aria-label={`Accept bed reservation for request ${reservation.bed_request_id.slice(0, 8)}`}
               >
                 {submittingAction === 'accept' ? (
-                  <Loader2 style={{ width: '18px', height: '18px', animation: 'spin 1s linear infinite' }} />
+                  <Loader2 size={18} className="animate-spin" />
                 ) : (
-                  <CheckCircle2 style={{ width: '18px', height: '18px' }} />
+                  <CheckCircle2 size={18} />
                 )}
                 <span>{submittingAction === 'accept' ? 'Accepting...' : 'ACCEPT RESERVATION'}</span>
               </button>
@@ -619,27 +623,27 @@ export default function HospitalReservationCard({
                   flex: '1 1 200px',
                   minHeight: '48px',
                   padding: '12px 20px',
-                  backgroundColor: submittingAction === 'reject' ? '#991b1b' : '#ffffff',
-                  color: submittingAction === 'reject' ? '#ffffff' : '#dc2626',
-                  border: '2px solid #dc2626',
+                  backgroundColor: submittingAction === 'reject' ? '#E11D48' : '#FFFFFF',
+                  color: submittingAction === 'reject' ? '#FFFFFF' : '#E11D48',
+                  border: '2px solid #E11D48',
                   borderRadius: '8px',
-                  fontSize: '1rem',
+                  fontSize: '0.95rem',
                   fontWeight: 800,
                   letterSpacing: '0.025em',
                   cursor: submittingAction || isCountdownExpired ? 'not-allowed' : 'pointer',
-                  opacity: submittingAction && submittingAction !== 'reject' ? 0.5 : 1,
+                  opacity: submittingAction && submittingAction !== 'reject' ? 0.6 : 1,
                   display: 'inline-flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   gap: '0.5rem',
-                  transition: 'all 0.2s',
+                  transition: 'all 0.15s ease-in-out',
                 }}
                 aria-label={`Reject bed reservation and trigger fallback for request ${reservation.bed_request_id.slice(0, 8)}`}
               >
                 {submittingAction === 'reject' ? (
-                  <Loader2 style={{ width: '18px', height: '18px', animation: 'spin 1s linear infinite' }} />
+                  <Loader2 size={18} className="animate-spin" />
                 ) : (
-                  <XCircle style={{ width: '18px', height: '18px' }} />
+                  <XCircle size={18} />
                 )}
                 <span>{submittingAction === 'reject' ? 'Rejecting...' : 'REJECT / PASS TO FALLBACK'}</span>
               </button>
