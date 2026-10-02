@@ -42,6 +42,32 @@ export default function HospitalDashboardClient({
   // Calculate active held count
   const activeHeldCount = reservations.filter((r) => r.status === 'held').length
 
+  // Reconcile incoming server reservations with local session state
+  const reconcileReservations = (
+    incomingReservations: HospitalReservationView[],
+    offsetMs: number
+  ) => {
+    setReservations((prev) => {
+      const incomingMap = new Map(incomingReservations.map((r) => [r.id, r]))
+      const updated: HospitalReservationView[] = [...incomingReservations]
+
+      // Preserve terminal states from current session
+      for (const prevRes of prev) {
+        if (!incomingMap.has(prevRes.id)) {
+          if (['accepted', 'rejected', 'expired'].includes(prevRes.status)) {
+            updated.push(prevRes)
+          } else if (prevRes.status === 'held') {
+            updated.push({
+              ...prevRes,
+              status: 'expired',
+            })
+          }
+        }
+      }
+      return updated
+    })
+  }
+
   // Sound chime ONLY when a new un-alerted active offer arrives
   const alertedReservationIdsRef = useRef<Set<string>>(new Set(initialReservations.map((r) => r.id)))
   useEffect(() => {
@@ -62,10 +88,11 @@ export default function HospitalDashboardClient({
         refreshHospitalReservationsAction({ targetHospitalId: hospitalId })
           .then((res) => {
             if (res.success && res.reservations) {
-              setReservations(res.reservations)
-              if (res.serverTime) {
-                setServerClockOffsetMs(new Date(res.serverTime).getTime() - Date.now())
-              }
+              const newOffset = res.serverTime
+                ? new Date(res.serverTime).getTime() - Date.now()
+                : serverClockOffsetMs
+              if (res.serverTime) setServerClockOffsetMs(newOffset)
+              reconcileReservations(res.reservations, newOffset)
             }
           })
           .catch(() => {})
@@ -77,10 +104,11 @@ export default function HospitalDashboardClient({
         refreshHospitalReservationsAction({ targetHospitalId: hospitalId })
           .then((res) => {
             if (res.success && res.reservations) {
-              setReservations(res.reservations)
-              if (res.serverTime) {
-                setServerClockOffsetMs(new Date(res.serverTime).getTime() - Date.now())
-              }
+              const newOffset = res.serverTime
+                ? new Date(res.serverTime).getTime() - Date.now()
+                : serverClockOffsetMs
+              if (res.serverTime) setServerClockOffsetMs(newOffset)
+              reconcileReservations(res.reservations, newOffset)
             }
           })
           .catch(() => {})
@@ -94,7 +122,7 @@ export default function HospitalDashboardClient({
       document.removeEventListener('visibilitychange', handleVisibility)
       window.removeEventListener('online', handleOnline)
     }
-  }, [hospitalId])
+  }, [hospitalId, serverClockOffsetMs])
 
   // Subscribe to real-time incoming and updated hospital offers
   useEffect(() => {
@@ -107,10 +135,11 @@ export default function HospitalDashboardClient({
         try {
           const result = await refreshHospitalReservationsAction({ targetHospitalId: hospitalId })
           if (result.success && result.reservations) {
-            setReservations(result.reservations)
-            if (result.serverTime) {
-              setServerClockOffsetMs(new Date(result.serverTime).getTime() - Date.now())
-            }
+            const newOffset = result.serverTime
+              ? new Date(result.serverTime).getTime() - Date.now()
+              : serverClockOffsetMs
+            if (result.serverTime) setServerClockOffsetMs(newOffset)
+            reconcileReservations(result.reservations, newOffset)
           }
         } catch {
           // background sync error ignored
@@ -121,7 +150,7 @@ export default function HospitalDashboardClient({
     return () => {
       handle.unsubscribe()
     }
-  }, [hospitalId])
+  }, [hospitalId, serverClockOffsetMs])
 
   // Fallback polling when realtime is disconnected or degraded
   useEffect(() => {
@@ -131,10 +160,11 @@ export default function HospitalDashboardClient({
       try {
         const result = await refreshHospitalReservationsAction({ targetHospitalId: hospitalId })
         if (result.success && result.reservations) {
-          setReservations(result.reservations)
-          if (result.serverTime) {
-            setServerClockOffsetMs(new Date(result.serverTime).getTime() - Date.now())
-          }
+          const newOffset = result.serverTime
+            ? new Date(result.serverTime).getTime() - Date.now()
+            : serverClockOffsetMs
+          if (result.serverTime) setServerClockOffsetMs(newOffset)
+          reconcileReservations(result.reservations, newOffset)
         }
       } catch {
         // quiet fallback poll
@@ -142,10 +172,12 @@ export default function HospitalDashboardClient({
     }, 10000)
 
     return () => clearInterval(interval)
-  }, [hospitalId, realtimeStatus])
+  }, [hospitalId, realtimeStatus, serverClockOffsetMs])
 
-  // Sort reservations deterministically: earliest hold expiry first
+  // Sort reservations deterministically: held offers first (earliest expiry), then terminal offers
   const sortedReservations = [...reservations].sort((a, b) => {
+    if (a.status === 'held' && b.status !== 'held') return -1
+    if (a.status !== 'held' && b.status === 'held') return 1
     const timeA = new Date(a.hold_expires_at).getTime()
     const timeB = new Date(b.hold_expires_at).getTime()
     return timeA - timeB
@@ -157,10 +189,11 @@ export default function HospitalDashboardClient({
     try {
       const result = await refreshHospitalReservationsAction({ targetHospitalId: hospitalId })
       if (result.success && result.reservations) {
-        setReservations(result.reservations)
-        if (result.serverTime) {
-          setServerClockOffsetMs(new Date(result.serverTime).getTime() - Date.now())
-        }
+        const newOffset = result.serverTime
+          ? new Date(result.serverTime).getTime() - Date.now()
+          : serverClockOffsetMs
+        if (result.serverTime) setServerClockOffsetMs(newOffset)
+        reconcileReservations(result.reservations, newOffset)
       } else if (result.error) {
         setRefreshError(result.error.message)
       }
