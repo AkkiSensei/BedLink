@@ -186,13 +186,13 @@ export default function BedCard({ bed, isUpdating, onStatusChange }: BedCardProp
             onClick={() => onStatusChange(bed.id, 'occupied')}
             style={{
               minHeight: '44px',
-              padding: '8px 12px',
+              padding: '8px 6px',
               borderRadius: '6px',
               border: 'none',
               backgroundColor: '#2D6A4F',
               color: '#FFFFFF',
               fontWeight: 700,
-              fontSize: '0.85rem',
+              fontSize: 'clamp(0.78rem, 3.2vw, 0.85rem)',
               cursor: isUpdating ? 'not-allowed' : 'pointer',
               opacity: isUpdating ? 0.6 : 1,
               display: 'flex',
@@ -218,13 +218,13 @@ export default function BedCard({ bed, isUpdating, onStatusChange }: BedCardProp
             onClick={() => onStatusChange(bed.id, 'maintenance')}
             style={{
               minHeight: '44px',
-              padding: '8px 12px',
+              padding: '8px 6px',
               borderRadius: '6px',
               border: '1px solid #E1E7E1',
               backgroundColor: '#FFFFFF',
               color: '#5C6B64',
               fontWeight: 600,
-              fontSize: '0.85rem',
+              fontSize: 'clamp(0.78rem, 3.2vw, 0.85rem)',
               cursor: isUpdating ? 'not-allowed' : 'pointer',
               opacity: isUpdating ? 0.6 : 1,
               display: 'flex',

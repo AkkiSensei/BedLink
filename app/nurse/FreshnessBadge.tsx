@@ -64,9 +64,9 @@ export default function FreshnessBadge({ lastUpdatedAt }: FreshnessBadgeProps) {
   const { text, tier } = formatRelativeTime(lastUpdatedAt, nowMs)
 
   const dotColors = {
-    fresh: 'var(--freshness-fresh-dot)',
-    recent: 'var(--freshness-recent-dot)',
-    stale: 'var(--freshness-stale-dot)',
+    fresh: 'var(--freshness-fresh-dot, #2D6A4F)',
+    recent: 'var(--freshness-recent-dot, #D97706)',
+    stale: 'var(--freshness-stale-dot, #991B1B)',
   }
 
   return (
@@ -76,7 +76,7 @@ export default function FreshnessBadge({ lastUpdatedAt }: FreshnessBadgeProps) {
         alignItems: 'center',
         gap: '6px',
         fontSize: '0.78rem',
-        color: 'var(--text-muted)',
+        color: '#5C6B64',
       }}
       title={`Telemetry timestamp: ${new Date(lastUpdatedAt).toLocaleString()}`}
     >
