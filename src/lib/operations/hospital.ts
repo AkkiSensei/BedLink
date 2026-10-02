@@ -12,6 +12,7 @@ import type {
   RejectHospitalReservationInput,
 } from './types'
 import { validateEvaluationTime, validateUUID } from './validation'
+import { haversineDistanceKm, calculateEtaMinutes } from '@/lib/ranking/haversine'
 
 /**
  * Retrieves active emergency reservation offers currently held for the authenticated hospital.
@@ -22,6 +23,11 @@ export async function getHospitalReservations(
   options?: { targetHospitalId?: string }
 ): Promise<HospitalReservationView[]> {
   try {
+    if (!client) {
+      const { createServerSupabaseClient } = await import('@/lib/supabase/server')
+      client = await createServerSupabaseClient()
+    }
+
     const authContext = await requireRole(['hospital', 'admin'], client)
     const { profile } = authContext
 
@@ -43,9 +49,13 @@ export async function getHospitalReservations(
         SELECT r.id, r.bed_request_id, r.hospital_id, r.bed_id, r.status,
                r.attempt_number, r.hold_expires_at, r.created_at,
                br.required_capabilities, br.ambulance_latitude,
-               br.ambulance_longitude, br.ambulance_phone
+               br.ambulance_longitude, br.ambulance_phone,
+               b.room_number, b.capabilities as bed_capabilities,
+               h.name as hospital_name, h.latitude as hospital_latitude, h.longitude as hospital_longitude
         FROM public.reservations r
         JOIN public.bed_requests br ON br.id = r.bed_request_id
+        LEFT JOIN public.beds b ON b.id = r.bed_id
+        LEFT JOIN public.hospitals h ON h.id = r.hospital_id
         WHERE r.status = 'held'
       `
       const params: any[] = []
@@ -53,7 +63,7 @@ export async function getHospitalReservations(
         queryStr += ` AND r.hospital_id = $1`
         params.push(hospitalId)
       }
-      queryStr += ` ORDER BY r.created_at DESC;`
+      queryStr += ` ORDER BY r.hold_expires_at ASC, r.created_at ASC;`
 
       const res = await client.query(queryStr, params)
       rows = res.rows
@@ -64,10 +74,16 @@ export async function getHospitalReservations(
           `id, bed_request_id, hospital_id, bed_id, status, attempt_number, hold_expires_at, created_at,
            bed_requests:bed_request_id (
              required_capabilities, ambulance_latitude, ambulance_longitude, ambulance_phone
+           ),
+           beds:bed_id (
+             room_number, capabilities
+           ),
+           hospitals:hospital_id (
+             name, latitude, longitude
            )`
         )
         .eq('status', 'held')
-        .order('created_at', { ascending: false })
+        .order('hold_expires_at', { ascending: true })
 
       if (hospitalId) {
         query = query.eq('hospital_id', hospitalId)
@@ -88,23 +104,54 @@ export async function getHospitalReservations(
         ambulance_latitude: r.bed_requests?.ambulance_latitude,
         ambulance_longitude: r.bed_requests?.ambulance_longitude,
         ambulance_phone: r.bed_requests?.ambulance_phone,
+        room_number: r.beds?.room_number,
+        bed_capabilities: r.beds?.capabilities,
+        hospital_name: r.hospitals?.name,
+        hospital_latitude: r.hospitals?.latitude,
+        hospital_longitude: r.hospitals?.longitude,
       }))
     }
 
-    return rows.map((r) => ({
-      id: r.id,
-      bed_request_id: r.bed_request_id,
-      hospital_id: r.hospital_id,
-      bed_id: r.bed_id,
-      status: r.status,
-      attempt_number: r.attempt_number,
-      hold_expires_at: r.hold_expires_at,
-      created_at: r.created_at,
-      required_capabilities: r.required_capabilities,
-      ambulance_latitude: Number(r.ambulance_latitude),
-      ambulance_longitude: Number(r.ambulance_longitude),
-      ambulance_phone: r.ambulance_phone,
-    }))
+    return rows.map((r) => {
+      let eta: number | null = null
+      if (
+        r.ambulance_latitude !== undefined &&
+        r.ambulance_longitude !== undefined &&
+        r.hospital_latitude !== undefined &&
+        r.hospital_longitude !== undefined
+      ) {
+        try {
+          const distKm = haversineDistanceKm(
+            Number(r.ambulance_latitude),
+            Number(r.ambulance_longitude),
+            Number(r.hospital_latitude),
+            Number(r.hospital_longitude)
+          )
+          eta = calculateEtaMinutes(distKm)
+        } catch {
+          eta = null
+        }
+      }
+
+      return {
+        id: r.id,
+        bed_request_id: r.bed_request_id,
+        hospital_id: r.hospital_id,
+        bed_id: r.bed_id,
+        status: r.status,
+        attempt_number: r.attempt_number,
+        hold_expires_at: r.hold_expires_at,
+        created_at: r.created_at,
+        required_capabilities: r.required_capabilities,
+        ambulance_latitude: Number(r.ambulance_latitude),
+        ambulance_longitude: Number(r.ambulance_longitude),
+        ambulance_phone: r.ambulance_phone,
+        hospital_name: r.hospital_name || undefined,
+        room_number: r.room_number ?? null,
+        bed_capabilities: r.bed_capabilities || undefined,
+        estimated_travel_time_minutes: eta,
+      }
+    })
   } catch (err) {
     throw toOperationError(err)
   }
@@ -119,6 +166,11 @@ export async function acceptHospitalReservation(
   client?: any
 ): Promise<AcceptReservationResult> {
   try {
+    if (!client) {
+      const { createServerSupabaseClient } = await import('@/lib/supabase/server')
+      client = await createServerSupabaseClient()
+    }
+
     const authContext = await requireRole(['hospital', 'admin'], client)
     const { profile } = authContext
 
@@ -181,6 +233,11 @@ export async function rejectHospitalReservation(
   client?: any
 ): Promise<RejectReservationResult> {
   try {
+    if (!client) {
+      const { createServerSupabaseClient } = await import('@/lib/supabase/server')
+      client = await createServerSupabaseClient()
+    }
+
     const authContext = await requireRole(['hospital', 'admin'], client)
     const { profile } = authContext
 

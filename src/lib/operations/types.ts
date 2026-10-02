@@ -135,6 +135,10 @@ export interface HospitalReservationView {
   ambulance_latitude: number
   ambulance_longitude: number
   ambulance_phone: string | null
+  hospital_name?: string
+  room_number?: string | null
+  bed_capabilities?: BedCapability[]
+  estimated_travel_time_minutes?: number | null
 }
 
 export interface AcceptHospitalReservationInput {
