@@ -24,6 +24,10 @@ export async function getNurseBeds(
   options?: { targetHospitalId?: string }
 ): Promise<NurseBedView[]> {
   try {
+    if (!client) {
+      const { createServerSupabaseClient } = await import('@/lib/supabase/server')
+      client = await createServerSupabaseClient()
+    }
     const authContext = await requireRole(['nurse', 'admin'], client)
     const { profile } = authContext
 
@@ -117,6 +121,10 @@ export async function updateNurseBed(
   client?: any
 ): Promise<NurseBedView> {
   try {
+    if (!client) {
+      const { createServerSupabaseClient } = await import('@/lib/supabase/server')
+      client = await createServerSupabaseClient()
+    }
     const authContext = await requireRole(['nurse', 'admin'], client)
     const { profile } = authContext
 
@@ -311,6 +319,10 @@ export async function confirmNurseInventory(
   client?: any
 ): Promise<ConfirmNurseInventoryResult> {
   try {
+    if (!client) {
+      const { createServerSupabaseClient } = await import('@/lib/supabase/server')
+      client = await createServerSupabaseClient()
+    }
     const authContext = await requireRole(['nurse', 'admin'], client)
     const { profile } = authContext
 

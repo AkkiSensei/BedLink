@@ -33,6 +33,10 @@ export async function createDispatchBedRequest(
   client?: any
 ): Promise<DispatchBedRequestView> {
   try {
+    if (!client) {
+      const { createServerSupabaseClient } = await import('@/lib/supabase/server')
+      client = await createServerSupabaseClient()
+    }
     const authContext = await requireDispatchAccess(client)
     const { user } = authContext
 
@@ -162,6 +166,10 @@ export async function getDispatchBedRequest(
   client?: any
 ): Promise<DispatchBedRequestView> {
   try {
+    if (!client) {
+      const { createServerSupabaseClient } = await import('@/lib/supabase/server')
+      client = await createServerSupabaseClient()
+    }
     const authContext = await requireRole(['dispatch', 'admin'], client)
     const { user, profile } = authContext
 
@@ -341,6 +349,10 @@ export async function listDispatchBedRequests(
   client?: any
 ): Promise<DispatchBedRequestView[]> {
   try {
+    if (!client) {
+      const { createServerSupabaseClient } = await import('@/lib/supabase/server')
+      client = await createServerSupabaseClient()
+    }
     const authContext = await requireRole(['dispatch', 'admin'], client)
     const { user, profile } = authContext
 
@@ -396,6 +408,10 @@ export async function getDispatchRankedCandidates(
   explicitEvaluationTime?: Date | string
 ): Promise<DispatchRankedCandidateView[]> {
   try {
+    if (!client) {
+      const { createServerSupabaseClient } = await import('@/lib/supabase/server')
+      client = await createServerSupabaseClient()
+    }
     const authContext = await requireRole(['dispatch', 'admin'], client)
     const { user, profile } = authContext
 
@@ -539,6 +555,10 @@ export async function selectDispatchHospital(
   client?: any
 ): Promise<DispatchBedRequestView> {
   try {
+    if (!client) {
+      const { createServerSupabaseClient } = await import('@/lib/supabase/server')
+      client = await createServerSupabaseClient()
+    }
     const authContext = await requireRole(['dispatch', 'admin'], client)
     const { user, profile } = authContext
 
