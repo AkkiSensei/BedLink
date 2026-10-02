@@ -1,7 +1,9 @@
 import React from 'react'
+import { cookies } from 'next/headers'
 import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { listDispatchBedRequests } from '@/lib/operations/dispatch'
 import { DEMO_IDENTITIES } from '@/lib/auth/demoIdentities'
+import { getPinSessionFromCookies } from '@/lib/auth/sessionCookie'
 import DispatchDashboardClient from './DispatchDashboardClient'
 import type { DispatchBedRequestView } from '@/lib/operations/types'
 import { Lock } from 'lucide-react'
@@ -15,6 +17,8 @@ export default async function DispatchPage({
 }) {
   const params = await searchParams
   const supabase = await createServerSupabaseClient()
+  const cookieStore = await cookies()
+  const pinSession = getPinSessionFromCookies(cookieStore)
 
   // 1. Resolve active user session
   let user: { id: string } | null = null
@@ -25,7 +29,11 @@ export default async function DispatchPage({
     user = null
   }
 
-  // 2. Resolve profile from database
+  if (!user && pinSession) {
+    user = { id: pinSession.userId }
+  }
+
+  // 2. Resolve profile from database or PIN session
   let profile: { role: string; hospital_id: string | null; full_name?: string } | null = null
   if (user) {
     const { data: profileData } = await supabase
@@ -34,6 +42,14 @@ export default async function DispatchPage({
       .eq('user_id', user.id)
       .maybeSingle()
     profile = profileData ?? null
+  }
+
+  if (!profile && pinSession && (!user || pinSession.userId === user.id)) {
+    profile = {
+      role: pinSession.role,
+      hospital_id: pinSession.hospitalId,
+      full_name: pinSession.fullName,
+    }
   }
 
   // Demo fallback mode strictly gated behind explicit ALLOW_DEMO_BYPASS environment flag

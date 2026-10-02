@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { updateSession } from '@/lib/supabase/middleware'
 import type { UserRole } from '@/lib/types/database'
+import { getPinSessionFromCookies } from '@/lib/auth/sessionCookie'
 
 const ROLE_ROUTE_PREFIXES: Record<string, UserRole[]> = {
   '/nurse': ['nurse', 'admin'],
@@ -26,23 +27,34 @@ export async function middleware(request: NextRequest) {
   // 2. Refresh session and resolve user via Supabase
   const { response, user, supabase } = await updateSession(request)
 
-  // 3. If accessing root "/", redirect to /login or role home
-  if (pathname === '/') {
-    if (!user) {
-      return NextResponse.redirect(new URL('/login', request.url))
-    }
-    // Authenticated user hitting root: resolve role and redirect
+  // Also resolve PIN session cookie
+  const pinSession = getPinSessionFromCookies(request.cookies)
+
+  let effectiveUserId = user?.id ?? pinSession?.userId ?? null
+  let effectiveRole: UserRole | null = null
+
+  if (user) {
     const { data: profile } = await supabase
       .from('profiles')
       .select('role')
       .eq('user_id', user.id)
       .maybeSingle()
 
-    const role = profile?.role as UserRole | null
-    if (role === 'nurse') return NextResponse.redirect(new URL('/nurse', request.url))
-    if (role === 'dispatch') return NextResponse.redirect(new URL('/dispatch', request.url))
-    if (role === 'hospital') return NextResponse.redirect(new URL('/hospital', request.url))
-    if (role === 'admin') return NextResponse.redirect(new URL('/nurse', request.url))
+    effectiveRole = (profile?.role as UserRole) || (pinSession?.userId === user.id ? pinSession.role : null)
+  } else if (pinSession) {
+    effectiveRole = pinSession.role
+  }
+
+  // 3. If accessing root "/", redirect to /login or role home
+  if (pathname === '/') {
+    if (!effectiveUserId || !effectiveRole) {
+      return NextResponse.redirect(new URL('/login', request.url))
+    }
+
+    if (effectiveRole === 'nurse') return NextResponse.redirect(new URL('/nurse', request.url))
+    if (effectiveRole === 'dispatch') return NextResponse.redirect(new URL('/dispatch', request.url))
+    if (effectiveRole === 'hospital') return NextResponse.redirect(new URL('/hospital', request.url))
+    if (effectiveRole === 'admin') return NextResponse.redirect(new URL('/nurse', request.url))
     return NextResponse.redirect(new URL('/login?error=missing_profile', request.url))
   }
 
@@ -57,7 +69,7 @@ export async function middleware(request: NextRequest) {
   }
 
   // 5. Enforce authentication on protected prefix
-  if (!user) {
+  if (!effectiveUserId || !effectiveRole) {
     // Only allow demo parameter through if explicit evaluation mode is enabled via environment
     const allowDemo =
       process.env.ALLOW_DEMO_BYPASS === 'true' ||
@@ -78,17 +90,10 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(redirectUrl)
   }
 
-  // 6. Enforce role-based access control by resolving profile from database
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('user_id', user.id)
-    .maybeSingle()
-
-  const userRole = (profile?.role as UserRole) || null
+  // 6. Enforce role-based access control
   const allowedRoles = ROLE_ROUTE_PREFIXES[matchedPrefix]
 
-  if (!userRole || !allowedRoles.includes(userRole)) {
+  if (!allowedRoles.includes(effectiveRole)) {
     if (pathname.startsWith('/api/')) {
       return NextResponse.json(
         { error: 'Forbidden: Insufficient role permissions' },
@@ -96,11 +101,7 @@ export async function middleware(request: NextRequest) {
       )
     }
     const redirectUrl = new URL('/login', request.url)
-    if (!profile) {
-      redirectUrl.searchParams.set('error', 'missing_profile')
-    } else {
-      redirectUrl.searchParams.set('forbidden', '1')
-    }
+    redirectUrl.searchParams.set('forbidden', '1')
     return NextResponse.redirect(redirectUrl)
   }
 

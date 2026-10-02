@@ -1,9 +1,10 @@
 'use client'
 
-import React, { useState, useEffect, useCallback, useTransition, Suspense } from 'react'
+import React, { useState, useEffect, useCallback, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { loginWithPinAction, ROLE_PINS } from '../actions/auth'
+import { loginWithPinAction } from '../actions/auth'
+import { ROLE_PINS, getRoleByPin } from '@/lib/auth/pins'
 import { 
   Building2, 
   Ambulance, 
@@ -11,8 +12,6 @@ import {
   Lock, 
   Delete, 
   X, 
-  ChevronDown, 
-  ChevronUp, 
   ArrowRight,
   ShieldCheck,
   CheckCircle2,
@@ -123,20 +122,13 @@ function LoginFormInner() {
   const [isAuthenticating, setIsAuthenticating] = useState(false)
   const [shake, setShake] = useState(false)
 
-  // Traditional Email/Password Form toggle
-  const [showEmailForm, setShowEmailForm] = useState(false)
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [emailError, setEmailError] = useState<string | null>(null)
-  const [isPendingEmail, startEmailTransition] = useTransition()
-
   // Execute PIN submission
   const executePinSubmit = useCallback(async (pinToSubmit: string) => {
     if (isAuthenticating) return
     const clean = pinToSubmit.trim()
     setErrorMessage(null)
 
-    const match = ROLE_PINS[clean]
+    const match = getRoleByPin(clean)
     if (!match) {
       setErrorMessage('Invalid PIN. Use 2468 (Nurse), 9110 (Dispatch), or 1357 (Hospital Staff).')
       setShake(true)
@@ -149,7 +141,7 @@ function LoginFormInner() {
     setStatusMessage(`Authenticating ${match.roleTitle}...`)
 
     try {
-      // 1. Call server action to securely set SSR cookies
+      // 1. Call server action to securely set authoritative SSR session cookies
       const serverResult = await loginWithPinAction(clean)
       if (!serverResult.success) {
         setErrorMessage(serverResult.error || 'Server authentication failed.')
@@ -159,11 +151,15 @@ function LoginFormInner() {
         return
       }
 
-      // 2. Also authenticate client-side Supabase instance for synchronous browser cache
-      await supabase.auth.signInWithPassword({
-        email: match.email,
-        password: 'DemoPassword123!',
-      })
+      // 2. Best-effort client Supabase cache sync without blocking session if offline
+      try {
+        await supabase.auth.signInWithPassword({
+          email: match.email,
+          password: 'DemoPassword123!',
+        })
+      } catch {
+        // Non-blocking for PIN sessions
+      }
 
       setStatusMessage(`Access granted! Opening ${match.role.toUpperCase()} dashboard...`)
 
@@ -246,38 +242,6 @@ function LoginFormInner() {
     executePinSubmit(targetPin)
   }
 
-  // Handle traditional email/password submission
-  const handleEmailLogin = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setEmailError(null)
-
-    startEmailTransition(async () => {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: email.trim(),
-        password,
-      })
-
-      if (error || !data.user) {
-        setEmailError(error?.message || 'Invalid email or password.')
-        return
-      }
-
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('user_id', data.user.id)
-        .maybeSingle()
-
-      const role = profile?.role as string | null
-      const destination = 
-        role === 'nurse' ? '/nurse' : 
-        role === 'dispatch' ? '/dispatch' : 
-        role === 'hospital' ? '/hospital' : '/nurse'
-
-      router.push(destination)
-      router.refresh()
-    })
-  }
 
   return (
     <div style={{
@@ -753,95 +717,6 @@ function LoginFormInner() {
               Hospital (1357)
             </button>
           </div>
-        </div>
-
-        {/* Collapsible Email / Password option */}
-        <div style={{ marginTop: '1.25rem', borderTop: '1px dashed #E1E7E1', paddingTop: '0.75rem' }}>
-          <button
-            type="button"
-            onClick={() => setShowEmailForm(!showEmailForm)}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '4px',
-              width: '100%',
-              background: 'none',
-              border: 'none',
-              color: '#5C6B64',
-              fontSize: '0.75rem',
-              fontWeight: 500,
-              cursor: 'pointer',
-              padding: '4px 0',
-            }}
-          >
-            <span>{showEmailForm ? 'Hide email sign-in' : 'Or sign in with email and password'}</span>
-            {showEmailForm ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-          </button>
-
-          {showEmailForm && (
-            <form onSubmit={handleEmailLogin} style={{ marginTop: '0.75rem' }}>
-              <div style={{ marginBottom: '0.75rem' }}>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="name@bedlink.internal"
-                  required
-                  style={{
-                    width: '100%',
-                    padding: '8px 12px',
-                    borderRadius: '8px',
-                    border: '1px solid #E1E7E1',
-                    fontSize: '0.82rem',
-                    boxSizing: 'border-box',
-                  }}
-                />
-              </div>
-
-              <div style={{ marginBottom: '0.75rem' }}>
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Password"
-                  required
-                  style={{
-                    width: '100%',
-                    padding: '8px 12px',
-                    borderRadius: '8px',
-                    border: '1px solid #E1E7E1',
-                    fontSize: '0.82rem',
-                    boxSizing: 'border-box',
-                  }}
-                />
-              </div>
-
-              {emailError && (
-                <div style={{ color: '#E11D48', fontSize: '0.75rem', marginBottom: '0.5rem' }}>
-                  {emailError}
-                </div>
-              )}
-
-              <button
-                type="submit"
-                disabled={isPendingEmail}
-                style={{
-                  width: '100%',
-                  padding: '8px',
-                  borderRadius: '8px',
-                  backgroundColor: '#2D6A4F',
-                  color: '#FFFFFF',
-                  fontWeight: 600,
-                  fontSize: '0.8rem',
-                  border: 'none',
-                  cursor: isPendingEmail ? 'not-allowed' : 'pointer',
-                }}
-              >
-                {isPendingEmail ? 'Signing in…' : 'Sign in with Credentials'}
-              </button>
-            </form>
-          )}
         </div>
       </div>
 

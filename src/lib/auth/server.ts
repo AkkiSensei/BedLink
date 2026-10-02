@@ -15,17 +15,42 @@ export interface AuthContext {
 export async function getCurrentUser(
   client?: SupabaseClient
 ): Promise<User | null> {
-  const supabase = client ?? (await createServerSupabaseClient())
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser()
+  let user: User | null = null
+  try {
+    const supabase = client ?? (await createServerSupabaseClient())
+    const {
+      data: { user: supabaseUser },
+      error,
+    } = await supabase.auth.getUser()
 
-  if (error || !user) {
-    return null
+    if (!error && supabaseUser) {
+      user = supabaseUser
+    }
+  } catch {}
+
+  if (user) {
+    return user
   }
 
-  return user
+  // Fallback to PIN session cookie
+  try {
+    const { cookies } = await import('next/headers')
+    const cookieStore = await cookies()
+    const { getPinSessionFromCookies } = await import('./sessionCookie')
+    const pinSession = getPinSessionFromCookies(cookieStore)
+    if (pinSession) {
+      return {
+        id: pinSession.userId,
+        email: pinSession.email,
+        app_metadata: {},
+        user_metadata: { full_name: pinSession.fullName },
+        aud: 'authenticated',
+        created_at: new Date(pinSession.createdAt).toISOString(),
+      } as any
+    }
+  } catch {}
+
+  return null
 }
 
 /**
@@ -36,14 +61,14 @@ export async function getCurrentProfile(
   client?: SupabaseClient,
   userId?: string
 ): Promise<Profile | null> {
-  const supabase = client ?? (await createServerSupabaseClient())
-
   let targetUserId = userId
   if (!targetUserId) {
-    const user = await getCurrentUser(supabase)
+    const user = await getCurrentUser(client)
     if (!user) return null
     targetUserId = user.id
   }
+
+  const supabase = client ?? (await createServerSupabaseClient())
 
   if (typeof (supabase as any)?.query === 'function') {
     const res = await (supabase as any).query(
@@ -52,20 +77,40 @@ export async function getCurrentProfile(
        WHERE user_id = $1;`,
       [targetUserId]
     )
-    return (res.rows[0] as Profile) || null
+    if (res.rows[0]) {
+      return res.rows[0] as Profile
+    }
+  } else if (typeof (supabase as any)?.from === 'function') {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('user_id, role, hospital_id, full_name, created_at, updated_at')
+      .eq('user_id', targetUserId)
+      .maybeSingle()
+
+    if (!error && data) {
+      return data as Profile
+    }
   }
 
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('user_id, role, hospital_id, full_name, created_at, updated_at')
-    .eq('user_id', targetUserId)
-    .maybeSingle()
+  // Fallback to PIN session cookie if profile row in DB is not reachable
+  try {
+    const { cookies } = await import('next/headers')
+    const cookieStore = await cookies()
+    const { getPinSessionFromCookies } = await import('./sessionCookie')
+    const pinSession = getPinSessionFromCookies(cookieStore)
+    if (pinSession && (!targetUserId || pinSession.userId === targetUserId)) {
+      return {
+        user_id: pinSession.userId,
+        role: pinSession.role,
+        hospital_id: pinSession.hospitalId,
+        full_name: pinSession.fullName,
+        created_at: new Date(pinSession.createdAt).toISOString(),
+        updated_at: new Date(pinSession.createdAt).toISOString(),
+      } as Profile
+    }
+  } catch {}
 
-  if (error || !data) {
-    return null
-  }
-
-  return data as Profile
+  return null
 }
 
 /**
