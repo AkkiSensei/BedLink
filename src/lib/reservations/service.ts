@@ -66,4 +66,11 @@ export class ReservationService {
   ): Promise<ExpiryJobResult> {
     return processExpiredReservations(this.client, evaluationTime, autoFallback)
   }
+
+  async processExpired(
+    evaluationTime: Date | string | number,
+    autoFallback: boolean = true
+  ): Promise<ExpiryJobResult> {
+    return processExpiredReservations(this.client, evaluationTime, autoFallback)
+  }
 }

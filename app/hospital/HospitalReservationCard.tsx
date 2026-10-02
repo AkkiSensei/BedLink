@@ -571,7 +571,12 @@ export default function HospitalReservationCard({
             isHeld={isHeld}
             serverClockOffsetMs={serverClockOffsetMs}
             onRefresh={onRefreshNeeded}
-            onExpired={() => setIsCountdownExpired(true)}
+            onExpired={() => {
+              setIsCountdownExpired(true)
+              setTimeout(() => {
+                onRefreshNeeded?.()
+              }, 1200)
+            }}
           />
         )}
 

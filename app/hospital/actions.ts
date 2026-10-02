@@ -136,3 +136,6 @@ export async function refreshHospitalReservationsAction(options?: {
     }
   }
 }
+
+export const syncAndExpireDueReservationsAction = refreshHospitalReservationsAction
+

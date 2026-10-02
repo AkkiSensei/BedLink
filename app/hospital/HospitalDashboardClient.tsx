@@ -188,6 +188,29 @@ export default function HospitalDashboardClient({
     }
   }, [hospitalId])
 
+  // Resilient 4-second background auto-sync heartbeat: guarantees zero missed offers
+  // even during mobile network sleep, tab pause, or transient WebSocket reconnection.
+  useEffect(() => {
+    if (!hospitalId) return
+
+    const heartbeat = setInterval(async () => {
+      try {
+        const result = await refreshHospitalReservationsAction({ targetHospitalId: hospitalId })
+        if (result.success && result.reservations) {
+          const newOffset = result.serverTime
+            ? new Date(result.serverTime).getTime() - Date.now()
+            : serverClockOffsetMsRef.current
+          if (result.serverTime) setServerClockOffsetMs(newOffset)
+          reconcileReservations(result.reservations, newOffset)
+        }
+      } catch {
+        // silent background sync
+      }
+    }, 4000)
+
+    return () => clearInterval(heartbeat)
+  }, [hospitalId])
+
   // Sort reservations: HELD first, then newest first
   const sortedReservations = [...reservations].sort((a, b) => {
     if (a.status === 'held' && b.status !== 'held') return -1

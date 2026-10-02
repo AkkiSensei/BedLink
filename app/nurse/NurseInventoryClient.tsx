@@ -103,6 +103,26 @@ export default function NurseInventoryClient({
     }
   }, [hospitalId])
 
+  // Resilient 5-second background auto-sync heartbeat: ensures nurse bed matrix
+  // immediately reflects reservations placed by Dispatch or released by expiry
+  useEffect(() => {
+    if (!hospitalId) return
+
+    const heartbeat = setInterval(async () => {
+      if (updatingBedIdRef.current) return
+      try {
+        const result = await refreshNurseBedsAction()
+        if (result.success && result.beds) {
+          setBeds(result.beds)
+        }
+      } catch {
+        // silent background sync
+      }
+    }, 5000)
+
+    return () => clearInterval(heartbeat)
+  }, [hospitalId])
+
   // Calculate summary metrics
   const totalCount = beds.length
   const availableCount = beds.filter((b) => b.status === 'available').length

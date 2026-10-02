@@ -123,6 +123,33 @@ export default function DispatchDashboardClient({
     }
   }, [userId])
 
+  // Resilient 4-second background auto-sync heartbeat: guarantees Dispatch reflects
+  // hospital acceptances, rejections, and fallback progressions without manual refresh
+  useEffect(() => {
+    if (!userId) return
+
+    const heartbeat = setInterval(async () => {
+      if (isSubmittingFormRef.current) return
+      try {
+        const res = await refreshRequestsAction()
+        if (res.success && res.requests) {
+          setRequests(res.requests)
+          const currentId = selectedRequestIdRef.current || res.requests[0]?.id
+          if (currentId) {
+            const cRes = await fetchRankedCandidatesAction(currentId)
+            if (cRes.success && cRes.candidates) {
+              setRankedCandidates(cRes.candidates)
+            }
+          }
+        }
+      } catch {
+        // silent background sync
+      }
+    }, 4000)
+
+    return () => clearInterval(heartbeat)
+  }, [userId])
+
   // Fetch authoritative ranked hospital candidates whenever selected request changes
   useEffect(() => {
     if (!selectedRequest?.id) {

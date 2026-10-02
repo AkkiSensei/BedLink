@@ -44,6 +44,14 @@ export async function getHospitalReservations(
       hospitalId = options?.targetHospitalId || profile.hospital_id || ''
     }
 
+    // Opportunistically expire any overdue reservation holds and trigger fallback
+    try {
+      const reservationService = new ReservationService(client)
+      await reservationService.processExpired(new Date(), true)
+    } catch {
+      // Non-fatal if concurrent worker handles it
+    }
+
     let rows: any[] = []
 
     if (typeof client?.query === 'function') {
