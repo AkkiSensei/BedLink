@@ -4,7 +4,18 @@ import React, { useState } from 'react'
 import type { BedCapability } from '@/lib/types/database'
 import type { CreateBedRequestInput, DispatchBedRequestView } from '@/lib/operations/types'
 import { createEmergencyRequestAction } from './actions'
-import { Siren, AlertTriangle, Bed, Wind, Stethoscope, Activity, Search, Loader2 } from 'lucide-react'
+import {
+  Siren,
+  AlertTriangle,
+  Bed,
+  Wind,
+  Stethoscope,
+  Activity,
+  Search,
+  Loader2,
+  Navigation,
+  Check,
+} from 'lucide-react'
 
 interface EmergencyRequestFormProps {
   onRequestCreated: (newRequest: DispatchBedRequestView) => void
@@ -17,10 +28,10 @@ const AVAILABLE_CAPABILITIES: {
   Icon: React.ComponentType<{ size?: number; className?: string; style?: React.CSSProperties }>
   description: string
 }[] = [
-  { id: 'general', label: 'General Ward', Icon: Bed, description: 'Standard admission & telemetry' },
-  { id: 'oxygen', label: 'Medical Oxygen', Icon: Wind, description: 'Supplemental high-flow O₂ support' },
-  { id: 'icu', label: 'Intensive Care Unit (ICU)', Icon: Stethoscope, description: 'Continuous critical care monitoring' },
-  { id: 'ventilator', label: 'Mechanical Ventilator', Icon: Activity, description: 'Invasive mechanical respiratory support' },
+  { id: 'general', label: 'General', Icon: Bed, description: 'Standard admission & telemetry' },
+  { id: 'oxygen', label: 'Oxygen', Icon: Wind, description: 'Supplemental high-flow O₂ support' },
+  { id: 'icu', label: 'ICU', Icon: Stethoscope, description: 'Continuous critical care monitoring' },
+  { id: 'ventilator', label: 'Ventilator', Icon: Activity, description: 'Invasive mechanical respiratory support' },
 ]
 
 const QUICK_PRESETS = [
@@ -33,6 +44,9 @@ export default function EmergencyRequestForm({ onRequestCreated, onSubmittingCha
   const [capabilities, setCapabilities] = useState<BedCapability[]>(['icu', 'ventilator'])
   const [latitude, setLatitude] = useState<string>('37.7749')
   const [longitude, setLongitude] = useState<string>('-122.4194')
+  const [locationSource, setLocationSource] = useState<'live' | 'manual'>('manual')
+  const [isLocating, setIsLocating] = useState<boolean>(false)
+  const [locationNotice, setLocationNotice] = useState<string | null>(null)
   const [ambulancePhone, setAmbulancePhone] = useState<string>('+1 (555) 019-2834')
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false)
   const [formError, setFormError] = useState<string | null>(null)
@@ -46,13 +60,60 @@ export default function EmergencyRequestForm({ onRequestCreated, onSubmittingCha
   const applyPreset = (lat: number, lng: number) => {
     setLatitude(lat.toString())
     setLongitude(lng.toString())
+    setLocationSource('manual')
+    setLocationNotice(null)
+  }
+
+  const handleUseCurrentLocation = () => {
+    if (typeof window === 'undefined' || !navigator.geolocation) {
+      setLocationNotice('Browser geolocation is not supported on this device.')
+      return
+    }
+
+    setIsLocating(true)
+    setLocationNotice(null)
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const lat = position.coords.latitude
+        const lng = position.coords.longitude
+        setLatitude(lat.toFixed(6))
+        setLongitude(lng.toFixed(6))
+        setLocationSource('live')
+        setIsLocating(false)
+        setLocationNotice(`GPS lock acquired (accuracy ±${Math.round(position.coords.accuracy)}m)`)
+        setTimeout(() => setLocationNotice(null), 4000)
+      },
+      (error) => {
+        setIsLocating(false)
+        let msg = 'Unable to retrieve device location.'
+        if (error.code === error.PERMISSION_DENIED) {
+          msg = 'Geolocation access was denied. Please enter coordinates manually.'
+        } else if (error.code === error.POSITION_UNAVAILABLE) {
+          msg = 'Location telemetry unavailable. Please enter coordinates manually.'
+        } else if (error.code === error.TIMEOUT) {
+          msg = 'Geolocation timed out. Please enter coordinates manually.'
+        }
+        setLocationNotice(msg)
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 0,
+      }
+    )
+  }
+
+  const handleCoordinateChange = (field: 'lat' | 'lng', value: string) => {
+    if (field === 'lat') setLatitude(value)
+    else setLongitude(value)
+    setLocationSource('manual')
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setFormError(null)
 
-    // Client-side quick validation (server remains authoritative)
     if (capabilities.length === 0) {
       setFormError('At least one required bed capability must be selected.')
       return
@@ -118,43 +179,46 @@ export default function EmergencyRequestForm({ onRequestCreated, onSubmittingCha
     <form
       onSubmit={handleSubmit}
       style={{
-        backgroundColor: '#ffffff',
-        borderRadius: '10px',
-        border: '1px solid #e2e8f0',
+        backgroundColor: '#FFFFFF',
+        borderRadius: '12px',
+        border: '1px solid #E1E7E1',
         padding: '1.25rem',
-        boxShadow: '0 1px 3px 0 rgba(0,0,0,0.05)',
+        boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
       }}
     >
+      {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
         <h2
           style={{
             fontSize: '1.05rem',
             fontWeight: 800,
-            color: '#0f172a',
+            color: '#1A2421',
             margin: 0,
             display: 'flex',
             alignItems: 'center',
             gap: '0.5rem',
           }}
         >
-          <Siren size={18} className="text-red-500 inline mr-1" /> New Emergency Bed Request
+          <Siren size={18} style={{ color: '#E11D48' }} /> Emergency Bed Request
         </h2>
         <span
           style={{
             fontSize: '0.7rem',
             fontWeight: 700,
-            color: '#dc2626',
-            backgroundColor: '#fee2e2',
+            color: '#E11D48',
+            backgroundColor: '#FFF1F2',
             padding: '2px 8px',
             borderRadius: '9999px',
             textTransform: 'uppercase',
+            letterSpacing: '0.04em',
+            border: '1px solid #FFE4E6',
           }}
         >
           Priority 1
         </span>
       </div>
 
-      <p style={{ fontSize: '0.825rem', color: '#64748b', margin: '0 0 1.25rem 0', lineHeight: 1.4 }}>
+      <p style={{ fontSize: '0.825rem', color: '#5C6B64', margin: '0 0 1.25rem 0', lineHeight: 1.4 }}>
         Input patient medical requirements and transit coordinates. Authoritative ranking locks the optimal facility under a 120-second hold.
       </p>
 
@@ -163,9 +227,9 @@ export default function EmergencyRequestForm({ onRequestCreated, onSubmittingCha
         <div
           role="alert"
           style={{
-            backgroundColor: '#fef2f2',
-            border: '1px solid #fecaca',
-            color: '#b91c1c',
+            backgroundColor: '#FFF1F2',
+            border: '1px solid #FFE4E6',
+            color: '#E11D48',
             borderRadius: '8px',
             padding: '0.75rem 1rem',
             fontSize: '0.825rem',
@@ -175,7 +239,7 @@ export default function EmergencyRequestForm({ onRequestCreated, onSubmittingCha
             gap: '0.5rem',
           }}
         >
-          <AlertTriangle size={16} className="text-red-600 shrink-0 mt-0.5" />
+          <AlertTriangle size={16} style={{ color: '#E11D48', flexShrink: 0, marginTop: '2px' }} />
           <span style={{ flex: 1 }}>{formError}</span>
         </div>
       )}
@@ -184,17 +248,17 @@ export default function EmergencyRequestForm({ onRequestCreated, onSubmittingCha
       <fieldset style={{ border: 'none', padding: 0, margin: '0 0 1.25rem 0' }}>
         <legend
           style={{
-            fontSize: '0.825rem',
-            fontWeight: 700,
-            color: '#334155',
+            fontSize: '0.75rem',
+            fontWeight: 800,
+            color: '#1A2421',
             textTransform: 'uppercase',
-            letterSpacing: '0.04em',
+            letterSpacing: '0.05em',
             marginBottom: '0.5rem',
           }}
         >
-          Required Bed Capabilities <span style={{ color: '#ef4444' }}>*</span>
+          Required Bed Capabilities <span style={{ color: '#E11D48' }}>*</span>
         </legend>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.5rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: '0.5rem' }}>
           {AVAILABLE_CAPABILITIES.map((cap) => {
             const isSelected = capabilities.includes(cap.id)
             return (
@@ -203,51 +267,127 @@ export default function EmergencyRequestForm({ onRequestCreated, onSubmittingCha
                 style={{
                   display: 'flex',
                   alignItems: 'flex-start',
-                  gap: '0.5rem',
+                  gap: '0.625rem',
                   padding: '0.625rem 0.75rem',
+                  minHeight: '44px',
                   borderRadius: '8px',
-                  border: isSelected ? '1.5px solid #0284c7' : '1px solid #cbd5e1',
-                  backgroundColor: isSelected ? '#f0f9ff' : '#ffffff',
+                  border: isSelected ? '1.5px solid #2D6A4F' : '1px solid #E1E7E1',
+                  backgroundColor: isSelected ? '#EEF3EE' : '#FFFFFF',
                   cursor: 'pointer',
-                  transition: 'all 0.15s ease-in-out',
+                  transition: 'all 0.15s ease',
+                  userSelect: 'none',
                 }}
               >
                 <input
                   type="checkbox"
                   checked={isSelected}
                   onChange={() => toggleCapability(cap.id)}
-                  style={{ marginTop: '2px', accentColor: '#0284c7', width: '15px', height: '15px' }}
+                  style={{ marginTop: '3px', accentColor: '#2D6A4F', width: '16px', height: '16px', cursor: 'pointer' }}
                 />
-                  <div>
-                    <div style={{ fontSize: '0.825rem', fontWeight: 700, color: isSelected ? '#0369a1' : '#1e293b', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <cap.Icon size={14} className={isSelected ? 'text-sky-600' : 'text-slate-500'} />
-                      <span>{cap.label}</span>
-                    </div>
-                    <div style={{ fontSize: '0.725rem', color: '#64748b', marginTop: '2px' }}>
-                      {cap.description}
-                    </div>
+                <div style={{ flex: 1 }}>
+                  <div
+                    style={{
+                      fontSize: '0.825rem',
+                      fontWeight: 700,
+                      color: isSelected ? '#2D6A4F' : '#1A2421',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '5px',
+                    }}
+                  >
+                    <cap.Icon size={14} style={{ color: isSelected ? '#2D6A4F' : '#5C6B64' }} />
+                    <span>{cap.label}</span>
                   </div>
+                  <div style={{ fontSize: '0.7rem', color: '#5C6B64', marginTop: '2px' }}>
+                    {cap.description}
+                  </div>
+                </div>
               </label>
             )
           })}
         </div>
       </fieldset>
 
-      {/* 2. Location Coordinates */}
+      {/* 2. Ambulance Location */}
       <div style={{ marginBottom: '1.25rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-          <label
-            style={{
-              fontSize: '0.825rem',
-              fontWeight: 700,
-              color: '#334155',
-              textTransform: 'uppercase',
-              letterSpacing: '0.04em',
-            }}
-          >
-            Ambulance Origin Location <span style={{ color: '#ef4444' }}>*</span>
-          </label>
-          <div style={{ display: 'flex', gap: '0.375rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem', flexWrap: 'wrap', gap: '0.375rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <label
+              style={{
+                fontSize: '0.75rem',
+                fontWeight: 800,
+                color: '#1A2421',
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em',
+              }}
+            >
+              Ambulance Origin Location <span style={{ color: '#E11D48' }}>*</span>
+            </label>
+
+            {/* LIVE vs MANUAL pill badge */}
+            <span
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px',
+                fontSize: '0.65rem',
+                fontWeight: 800,
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em',
+                padding: '2px 7px',
+                borderRadius: '9999px',
+                backgroundColor: locationSource === 'live' ? '#E8F5E9' : '#EEF3EE',
+                color: locationSource === 'live' ? '#2E7D32' : '#5C6B64',
+                border: locationSource === 'live' ? '1px solid #C8E6C9' : '1px solid #E1E7E1',
+              }}
+            >
+              <span
+                style={{
+                  width: '6px',
+                  height: '6px',
+                  borderRadius: '50%',
+                  backgroundColor: locationSource === 'live' ? '#2E7D32' : '#5C6B64',
+                }}
+              />
+              {locationSource === 'live' ? 'LIVE GPS' : 'MANUAL'}
+            </span>
+          </div>
+
+          {/* Location Actions: Browser Geolocation + Presets */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', flexWrap: 'wrap' }}>
+            <button
+              type="button"
+              onClick={handleUseCurrentLocation}
+              disabled={isLocating}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px',
+                fontSize: '0.725rem',
+                fontWeight: 700,
+                backgroundColor: locationSource === 'live' ? '#EEF3EE' : '#FFFFFF',
+                color: '#2D6A4F',
+                border: '1px solid #2D6A4F',
+                borderRadius: '6px',
+                padding: '4px 8px',
+                minHeight: '28px',
+                cursor: isLocating ? 'not-allowed' : 'pointer',
+              }}
+              title="Acquire live location from browser geolocation"
+            >
+              {isLocating ? (
+                <>
+                  <Loader2 size={12} className="animate-spin" />
+                  <span>Locking GPS...</span>
+                </>
+              ) : (
+                <>
+                  <Navigation size={12} />
+                  <span>Use Current Location</span>
+                </>
+              )}
+            </button>
+
             {QUICK_PRESETS.map((preset) => (
               <button
                 key={preset.label}
@@ -256,12 +396,13 @@ export default function EmergencyRequestForm({ onRequestCreated, onSubmittingCha
                 style={{
                   fontSize: '0.7rem',
                   fontWeight: 600,
-                  backgroundColor: '#f1f5f9',
-                  color: '#475569',
-                  border: '1px solid #e2e8f0',
+                  backgroundColor: '#EEF3EE',
+                  color: '#5C6B64',
+                  border: '1px solid #E1E7E1',
                   borderRadius: '4px',
-                  padding: '2px 6px',
+                  padding: '4px 6px',
                   cursor: 'pointer',
+                  minHeight: '28px',
                 }}
               >
                 {preset.label}
@@ -270,11 +411,26 @@ export default function EmergencyRequestForm({ onRequestCreated, onSubmittingCha
           </div>
         </div>
 
+        {locationNotice && (
+          <div
+            style={{
+              fontSize: '0.725rem',
+              color: locationNotice.includes('denied') || locationNotice.includes('not supported') ? '#E11D48' : '#2E7D32',
+              backgroundColor: locationNotice.includes('denied') || locationNotice.includes('not supported') ? '#FFF1F2' : '#E8F5E9',
+              padding: '4px 8px',
+              borderRadius: '4px',
+              marginBottom: '0.5rem',
+            }}
+          >
+            {locationNotice}
+          </div>
+        )}
+
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
           <div>
             <label
               htmlFor="ambulance-latitude"
-              style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: '#64748b', marginBottom: '4px' }}
+              style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: '#5C6B64', marginBottom: '4px' }}
             >
               Latitude (-90 to 90)
             </label>
@@ -284,15 +440,17 @@ export default function EmergencyRequestForm({ onRequestCreated, onSubmittingCha
               step="any"
               required
               value={latitude}
-              onChange={(e) => setLatitude(e.target.value)}
+              onChange={(e) => handleCoordinateChange('lat', e.target.value)}
               placeholder="37.7749"
               style={{
                 width: '100%',
                 padding: '8px 10px',
+                minHeight: '40px',
                 borderRadius: '6px',
-                border: '1px solid #cbd5e1',
+                border: '1px solid #E1E7E1',
                 fontSize: '0.85rem',
-                color: '#0f172a',
+                color: '#1A2421',
+                backgroundColor: '#FFFFFF',
                 outline: 'none',
                 boxSizing: 'border-box',
               }}
@@ -302,7 +460,7 @@ export default function EmergencyRequestForm({ onRequestCreated, onSubmittingCha
           <div>
             <label
               htmlFor="ambulance-longitude"
-              style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: '#64748b', marginBottom: '4px' }}
+              style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: '#5C6B64', marginBottom: '4px' }}
             >
               Longitude (-180 to 180)
             </label>
@@ -312,15 +470,17 @@ export default function EmergencyRequestForm({ onRequestCreated, onSubmittingCha
               step="any"
               required
               value={longitude}
-              onChange={(e) => setLongitude(e.target.value)}
+              onChange={(e) => handleCoordinateChange('lng', e.target.value)}
               placeholder="-122.4194"
               style={{
                 width: '100%',
                 padding: '8px 10px',
+                minHeight: '40px',
                 borderRadius: '6px',
-                border: '1px solid #cbd5e1',
+                border: '1px solid #E1E7E1',
                 fontSize: '0.85rem',
-                color: '#0f172a',
+                color: '#1A2421',
+                backgroundColor: '#FFFFFF',
                 outline: 'none',
                 boxSizing: 'border-box',
               }}
@@ -335,11 +495,11 @@ export default function EmergencyRequestForm({ onRequestCreated, onSubmittingCha
           htmlFor="ambulance-phone"
           style={{
             display: 'block',
-            fontSize: '0.825rem',
-            fontWeight: 700,
-            color: '#334155',
+            fontSize: '0.75rem',
+            fontWeight: 800,
+            color: '#1A2421',
             textTransform: 'uppercase',
-            letterSpacing: '0.04em',
+            letterSpacing: '0.05em',
             marginBottom: '4px',
           }}
         >
@@ -354,10 +514,12 @@ export default function EmergencyRequestForm({ onRequestCreated, onSubmittingCha
           style={{
             width: '100%',
             padding: '8px 10px',
+            minHeight: '40px',
             borderRadius: '6px',
-            border: '1px solid #cbd5e1',
+            border: '1px solid #E1E7E1',
             fontSize: '0.85rem',
-            color: '#0f172a',
+            color: '#1A2421',
+            backgroundColor: '#FFFFFF',
             outline: 'none',
             boxSizing: 'border-box',
           }}
@@ -370,9 +532,10 @@ export default function EmergencyRequestForm({ onRequestCreated, onSubmittingCha
         disabled={isSubmitting}
         style={{
           width: '100%',
-          padding: '11px 16px',
-          backgroundColor: isSubmitting ? '#94a3b8' : '#0284c7',
-          color: '#ffffff',
+          padding: '12px 16px',
+          minHeight: '46px',
+          backgroundColor: isSubmitting ? '#5C6B64' : '#2D6A4F',
+          color: '#FFFFFF',
           border: 'none',
           borderRadius: '8px',
           fontWeight: 700,
@@ -382,7 +545,7 @@ export default function EmergencyRequestForm({ onRequestCreated, onSubmittingCha
           alignItems: 'center',
           justifyContent: 'center',
           gap: '0.5rem',
-          boxShadow: '0 2px 4px rgba(2, 132, 199, 0.25)',
+          boxShadow: '0 2px 4px rgba(45, 106, 79, 0.25)',
           transition: 'background-color 0.15s ease-in-out',
         }}
       >
@@ -390,7 +553,7 @@ export default function EmergencyRequestForm({ onRequestCreated, onSubmittingCha
           {isSubmitting ? (
             <>
               <Loader2 size={16} className="animate-spin" />
-              <span>Evaluating Hospitals & Holding Bed...</span>
+              <span>Evaluating Hospitals & Locking Bed...</span>
             </>
           ) : (
             <>
@@ -403,3 +566,4 @@ export default function EmergencyRequestForm({ onRequestCreated, onSubmittingCha
     </form>
   )
 }
+
