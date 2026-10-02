@@ -20,6 +20,7 @@
     "test": "vitest run",
     "test:unit": "vitest run",
     "test:phone": "tsx scripts/verify-phone-adaptive-qa.ts",
+    "test:e2e": "playwright test",
     "test:all": "tsx scripts/run-all-tests.ts",
     "test:db": "tsx scripts/verify-db.ts",
     "test:auth": "tsx scripts/verify-auth.ts",
