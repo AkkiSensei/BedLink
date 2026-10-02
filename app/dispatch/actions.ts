@@ -5,6 +5,7 @@ import {
   getDispatchBedRequest,
   listDispatchBedRequests,
   getDispatchRankedCandidates,
+  selectDispatchHospital,
 } from '@/lib/operations/dispatch'
 import { toOperationError } from '@/lib/operations/errors'
 import type {
@@ -153,3 +154,40 @@ export async function fetchRankedCandidatesAction(
     }
   }
 }
+
+export interface SelectHospitalActionResult {
+  success: boolean
+  request?: DispatchBedRequestView
+  error?: {
+    code: string
+    message: string
+    status: number
+  }
+}
+
+/**
+ * Server Action: Selects an eligible hospital for a BedRequest, creating an active HELD reservation.
+ */
+export async function selectHospitalAction(
+  bedRequestId: string,
+  hospitalId: string
+): Promise<SelectHospitalActionResult> {
+  try {
+    const request = await selectDispatchHospital({ bedRequestId, hospitalId })
+    return {
+      success: true,
+      request,
+    }
+  } catch (err: any) {
+    const opErr = toOperationError(err)
+    return {
+      success: false,
+      error: {
+        code: opErr.code,
+        message: opErr.message,
+        status: opErr.status,
+      },
+    }
+  }
+}
+

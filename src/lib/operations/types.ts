@@ -93,12 +93,18 @@ export interface DispatchRankedCandidateView {
   matched_bed_id?: string
   matched_bed_room_number?: string | null
   matched_bed_capabilities?: BedCapability[]
+  available_matching_beds_count?: number
   is_current_offer: boolean
   breakdown: {
     travel_component: number
     freshness_component: number
     load_penalty: number
   }
+}
+
+export interface SelectDispatchHospitalInput {
+  bedRequestId: string
+  hospitalId: string
 }
 
 export interface DispatchBedRequestView {

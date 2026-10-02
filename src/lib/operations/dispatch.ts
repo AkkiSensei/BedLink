@@ -5,10 +5,12 @@ import type { BedCapability, BedRequest, Reservation, Hospital, Bed } from '@/li
 import {
   ForbiddenOperationError,
   NotFoundOperationError,
+  ValidationOperationError,
   toOperationError,
 } from './errors'
 import type {
   CreateBedRequestInput,
+  SelectDispatchHospitalInput,
   DispatchBedRequestView,
   DispatchReservationView,
   DispatchReservationHistoryView,
@@ -484,6 +486,13 @@ export async function getDispatchRankedCandidates(
           activeHospitalId && c.hospital_id === activeHospitalId
         )
 
+        const matchingBedsCount = rankingBeds.filter(
+          (b) =>
+            b.hospital_id === c.hospital_id &&
+            b.status === 'available' &&
+            bedRequestView.required_capabilities.every((cap) => b.capabilities.includes(cap))
+        ).length
+
         return {
           rank: idx + 1,
           hospital_id: c.hospital_id,
@@ -495,6 +504,7 @@ export async function getDispatchRankedCandidates(
           matched_bed_id: c.matched_bed_id,
           matched_bed_room_number: matchedBed?.room_number ?? null,
           matched_bed_capabilities: matchedBed?.capabilities ?? [],
+          available_matching_beds_count: matchingBedsCount,
           is_current_offer: isCurrentOffer,
           breakdown: {
             travel_component: c.travel_component,
@@ -510,3 +520,114 @@ export async function getDispatchRankedCandidates(
     throw toOperationError(err)
   }
 }
+
+/**
+ * Selects an eligible hospital for a BedRequest, holding an available matching bed
+ * and transitioning the request to active offer.
+ * If an active reservation already exists, cleanly releases it before holding the selected hospital.
+ */
+export async function selectDispatchHospital(
+  input: SelectDispatchHospitalInput,
+  client?: any
+): Promise<DispatchBedRequestView> {
+  try {
+    const authContext = await requireRole(['dispatch', 'admin'], client)
+    const { user, profile } = authContext
+
+    const validBedRequestId = validateUUID(input.bedRequestId, 'bedRequestId')
+    const validHospitalId = validateUUID(input.hospitalId, 'hospitalId')
+
+    // 1. Fetch BedRequest and verify authorization
+    const bedRequestView = await getDispatchBedRequest(validBedRequestId, client)
+
+    if (profile.role === 'dispatch' && bedRequestView.created_by !== user.id) {
+      throw new ForbiddenOperationError(
+        'Forbidden: Dispatch users may only select hospitals for their own BedRequests'
+      )
+    }
+
+    // 2. If the selected hospital is already the active offer, return as is
+    if (
+      bedRequestView.active_reservation &&
+      bedRequestView.active_reservation.hospital_id === validHospitalId &&
+      bedRequestView.active_reservation.status === 'held'
+    ) {
+      return bedRequestView
+    }
+
+    // 3. Find matching available bed at the target hospital
+    let matchingBed: Bed | null = null
+    const requiredCaps = bedRequestView.required_capabilities
+
+    if (typeof client?.query === 'function') {
+      const res = await client.query(
+        `SELECT * FROM public.beds WHERE hospital_id = $1 AND status = 'available';`,
+        [validHospitalId]
+      )
+      const availableBeds = res.rows as Bed[]
+      matchingBed = availableBeds.find((b) =>
+        requiredCaps.every((reqCap) => b.capabilities.includes(reqCap))
+      ) ?? null
+    } else if (typeof client?.from === 'function') {
+      const { data, error } = await client
+        .from('beds')
+        .select('*')
+        .eq('hospital_id', validHospitalId)
+        .eq('status', 'available')
+      if (error) throw error
+      const availableBeds = (data || []) as Bed[]
+      matchingBed = availableBeds.find((b) =>
+        requiredCaps.every((reqCap) => b.capabilities.includes(reqCap))
+      ) ?? null
+    } else {
+      const { createServerSupabaseClient } = await import('@/lib/supabase/server')
+      const supabase = await createServerSupabaseClient()
+      const { data, error } = await supabase
+        .from('beds')
+        .select('*')
+        .eq('hospital_id', validHospitalId)
+        .eq('status', 'available')
+      if (error) throw error
+      const availableBeds = (data || []) as Bed[]
+      matchingBed = availableBeds.find((b) =>
+        requiredCaps.every((reqCap) => b.capabilities.includes(reqCap))
+      ) ?? null
+    }
+
+    if (!matchingBed) {
+      throw new ValidationOperationError(
+        `Selected hospital has no available beds matching required capabilities: [${requiredCaps.join(', ')}]`
+      )
+    }
+
+    const reservationService = new ReservationService(client)
+    const now = new Date()
+
+    // 4. If there is currently an active reservation, release it first
+    if (bedRequestView.current_active_reservation_id && bedRequestView.active_reservation?.status === 'held') {
+      await reservationService.reject({
+        reservationId: bedRequestView.current_active_reservation_id,
+        evaluationTime: now,
+        autoFallback: false,
+      })
+    }
+
+    // 5. Determine next attempt number
+    const nextAttempt = (bedRequestView.reservation_history?.length ?? 0) + 1
+
+    // 6. Hold reservation at target hospital
+    await reservationService.hold({
+      bedRequestId: validBedRequestId,
+      hospitalId: validHospitalId,
+      bedId: matchingBed.id,
+      attemptNumber: nextAttempt,
+      evaluationTime: now,
+    })
+
+    // 7. Return updated BedRequest view
+    return await getDispatchBedRequest(validBedRequestId, client)
+  } catch (err) {
+    throw toOperationError(err)
+  }
+}
+

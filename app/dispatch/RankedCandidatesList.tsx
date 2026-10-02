@@ -2,11 +2,27 @@
 
 import React from 'react'
 import type { DispatchRankedCandidateView } from '@/lib/operations/types'
-import { Loader2, Building2, BarChart3, Lightbulb, Ambulance, Clock, TrendingUp, Star } from 'lucide-react'
+import type { BedCapability } from '@/lib/types/database'
+import {
+  Loader2,
+  Building2,
+  BarChart3,
+  Lightbulb,
+  Ambulance,
+  Clock,
+  TrendingUp,
+  Star,
+  Bed,
+  CheckCircle2,
+  Send,
+} from 'lucide-react'
 
 interface RankedCandidatesListProps {
   candidates: DispatchRankedCandidateView[]
   isLoading?: boolean
+  onSelectHospital?: (hospitalId: string) => Promise<void> | void
+  selectingHospitalId?: string | null
+  requiredCapabilities?: BedCapability[]
 }
 
 function formatFreshness(seconds: number | null): string {
@@ -24,22 +40,25 @@ function formatFreshness(seconds: number | null): string {
 export default function RankedCandidatesList({
   candidates,
   isLoading = false,
+  onSelectHospital,
+  selectingHospitalId = null,
+  requiredCapabilities = [],
 }: RankedCandidatesListProps) {
   if (isLoading) {
     return (
       <div
         style={{
-          backgroundColor: '#ffffff',
-          borderRadius: '10px',
-          border: '1px solid #e2e8f0',
+          backgroundColor: '#FFFFFF',
+          borderRadius: '12px',
+          border: '1px solid #E1E7E1',
           padding: '1.5rem',
           textAlign: 'center',
-          color: '#64748b',
+          color: '#5C6B64',
           fontSize: '0.875rem',
         }}
       >
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-          <Loader2 size={16} className="animate-spin text-sky-600" />
+          <Loader2 size={16} className="animate-spin text-emerald-700" />
           <span>Evaluating eligible facilities against live bed telemetry...</span>
         </span>
       </div>
@@ -50,20 +69,20 @@ export default function RankedCandidatesList({
     return (
       <div
         style={{
-          backgroundColor: '#ffffff',
-          borderRadius: '10px',
-          border: '1px solid #e2e8f0',
+          backgroundColor: '#FFFFFF',
+          borderRadius: '12px',
+          border: '1px solid #E1E7E1',
           padding: '1.5rem',
           textAlign: 'center',
-          color: '#64748b',
+          color: '#5C6B64',
           fontSize: '0.875rem',
         }}
       >
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '0.5rem' }}>
           <Building2 size={36} className="text-slate-400" />
         </div>
-        <div style={{ fontWeight: 600, color: '#334155' }}>No eligible candidate facilities found</div>
-        <p style={{ fontSize: '0.8rem', color: '#94a3b8', margin: '0.25rem 0 0 0' }}>
+        <div style={{ fontWeight: 700, color: '#1A2421' }}>No eligible candidate facilities found</div>
+        <p style={{ fontSize: '0.8rem', color: '#5C6B64', margin: '0.25rem 0 0 0' }}>
           All evaluated hospitals either lack available beds matching the clinical requirements or were excluded by the hard eligibility gate.
         </p>
       </div>
@@ -73,11 +92,11 @@ export default function RankedCandidatesList({
   return (
     <div
       style={{
-        backgroundColor: '#ffffff',
-        borderRadius: '10px',
-        border: '1px solid #e2e8f0',
+        backgroundColor: '#FFFFFF',
+        borderRadius: '12px',
+        border: '1px solid #E1E7E1',
         padding: '1.25rem',
-        boxShadow: '0 1px 3px 0 rgba(0,0,0,0.05)',
+        boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.875rem' }}>
@@ -86,16 +105,16 @@ export default function RankedCandidatesList({
             style={{
               fontSize: '1rem',
               fontWeight: 800,
-              color: '#0f172a',
+              color: '#1A2421',
               margin: 0,
               display: 'flex',
               alignItems: 'center',
               gap: '0.5rem',
             }}
           >
-            <BarChart3 size={18} className="text-sky-600 inline mr-1" /> Multi-Factor Hospital Ranking
+            <BarChart3 size={18} style={{ color: '#2D6A4F' }} /> Multi-Factor Hospital Ranking
           </h3>
-          <p style={{ fontSize: '0.775rem', color: '#64748b', margin: '2px 0 0 0' }}>
+          <p style={{ fontSize: '0.775rem', color: '#5C6B64', margin: '2px 0 0 0' }}>
             Authoritative ranking driven by travel time, bed freshness, and emergency capacity.
           </p>
         </div>
@@ -103,11 +122,11 @@ export default function RankedCandidatesList({
           style={{
             fontSize: '0.725rem',
             fontWeight: 700,
-            backgroundColor: '#f1f5f9',
-            color: '#475569',
+            backgroundColor: '#EEF3EE',
+            color: '#2D6A4F',
             padding: '2px 8px',
             borderRadius: '9999px',
-            border: '1px solid #e2e8f0',
+            border: '1px solid #E1E7E1',
           }}
         >
           {candidates.length} {candidates.length === 1 ? 'Candidate' : 'Candidates'}
@@ -117,41 +136,44 @@ export default function RankedCandidatesList({
       {/* Critical domain note */}
       <div
         style={{
-          backgroundColor: '#f8fafc',
-          border: '1px solid #e2e8f0',
-          borderRadius: '6px',
+          backgroundColor: '#EEF3EE',
+          border: '1px solid #E1E7E1',
+          borderRadius: '8px',
           padding: '0.5rem 0.75rem',
           fontSize: '0.75rem',
-          color: '#475569',
+          color: '#1A2421',
           marginBottom: '1rem',
           display: 'flex',
           alignItems: 'center',
           gap: '0.5rem',
         }}
       >
-        <Lightbulb size={16} className="text-amber-500 shrink-0" />
+        <Lightbulb size={16} style={{ color: '#B45309', flexShrink: 0 }} />
         <span>
-          <strong>Rule:</strong> Only <strong>#1 Current Offer</strong> holds a physical bed. Alternatives are ranked options, not pre-reserved beds.
+          <strong>Operational Rule:</strong> Only <strong>#1 Current Offer</strong> holds a physical bed. Alternatives are ranked options available for selection.
         </span>
       </div>
 
       {/* Ranked Candidate Cards */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
         {candidates.map((cand) => {
-          const isTop = cand.is_current_offer || cand.rank === 1
+          const isCurrent = cand.is_current_offer
+          const isSelecting = selectingHospitalId === cand.hospital_id
+          const matchingBeds = cand.available_matching_beds_count ?? 1
+
           return (
             <div
               key={cand.hospital_id}
               style={{
-                borderRadius: '8px',
-                border: isTop ? '2px solid #0284c7' : '1px solid #e2e8f0',
-                backgroundColor: isTop ? '#f0f9ff' : '#ffffff',
+                borderRadius: '10px',
+                border: isCurrent ? '2px solid #2D6A4F' : '1px solid #E1E7E1',
+                backgroundColor: isCurrent ? '#F4F6F4' : '#FFFFFF',
                 padding: '0.875rem 1rem',
-                boxShadow: isTop ? '0 2px 4px rgba(2, 132, 199, 0.1)' : 'none',
+                boxShadow: isCurrent ? '0 2px 8px rgba(45, 106, 79, 0.12)' : 'none',
                 position: 'relative',
               }}
             >
-              {/* Header: Rank + Hospital Name + Badge */}
+              {/* Header: Rank + Hospital Name + Badges + Action */}
               <div
                 style={{
                   display: 'flex',
@@ -159,6 +181,7 @@ export default function RankedCandidatesList({
                   justifyContent: 'space-between',
                   gap: '0.5rem',
                   marginBottom: '0.5rem',
+                  flexWrap: 'wrap',
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -167,11 +190,11 @@ export default function RankedCandidatesList({
                       display: 'inline-flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      width: '26px',
-                      height: '26px',
+                      width: '28px',
+                      height: '28px',
                       borderRadius: '50%',
-                      backgroundColor: isTop ? '#0284c7' : '#e2e8f0',
-                      color: isTop ? '#ffffff' : '#334155',
+                      backgroundColor: isCurrent ? '#2D6A4F' : '#EEF3EE',
+                      color: isCurrent ? '#FFFFFF' : '#1A2421',
                       fontWeight: 800,
                       fontSize: '0.8rem',
                     }}
@@ -179,61 +202,140 @@ export default function RankedCandidatesList({
                     #{cand.rank}
                   </span>
                   <div>
-                    <span style={{ fontSize: '0.95rem', fontWeight: 800, color: '#0f172a' }}>
-                      {cand.hospital_name}
-                    </span>
-                    {cand.matched_bed_room_number && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                      <span style={{ fontSize: '0.95rem', fontWeight: 800, color: '#1A2421' }}>
+                        {cand.hospital_name}
+                      </span>
+                      {cand.matched_bed_room_number && (
+                        <span
+                          style={{
+                            fontSize: '0.725rem',
+                            color: '#2D6A4F',
+                            fontWeight: 700,
+                            backgroundColor: '#E8F5E9',
+                            padding: '1px 6px',
+                            borderRadius: '4px',
+                            border: '1px solid #C8E6C9',
+                          }}
+                        >
+                          Room {cand.matched_bed_room_number}
+                        </span>
+                      )}
+                    </div>
+                    {/* Capability Match Pill */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px', flexWrap: 'wrap' }}>
+                      <span style={{ fontSize: '0.7rem', color: '#5C6B64', fontWeight: 600 }}>
+                        Bed Match:
+                      </span>
                       <span
                         style={{
-                          marginLeft: '0.5rem',
-                          fontSize: '0.725rem',
-                          color: '#0369a1',
-                          fontWeight: 600,
-                          backgroundColor: '#e0f2fe',
-                          padding: '1px 6px',
+                          fontSize: '0.675rem',
+                          fontWeight: 700,
+                          backgroundColor: '#E8F5E9',
+                          color: '#2E7D32',
+                          padding: '1px 5px',
                           borderRadius: '4px',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '3px',
                         }}
                       >
-                        Room {cand.matched_bed_room_number}
+                        <CheckCircle2 size={10} />
+                        <span>All {requiredCapabilities.join(', ').toUpperCase()} verified</span>
                       </span>
-                    )}
+                      <span
+                        style={{
+                          fontSize: '0.675rem',
+                          fontWeight: 700,
+                          backgroundColor: '#EEF3EE',
+                          color: '#1A2421',
+                          padding: '1px 5px',
+                          borderRadius: '4px',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '3px',
+                        }}
+                      >
+                        <Bed size={10} />
+                        <span>{matchingBeds} {matchingBeds === 1 ? 'bed' : 'beds'} avail</span>
+                      </span>
+                    </div>
                   </div>
                 </div>
 
-                {isTop ? (
-                  <span
-                    style={{
-                      fontSize: '0.7rem',
-                      fontWeight: 800,
-                      letterSpacing: '0.04em',
-                      backgroundColor: '#10b981',
-                      color: '#ffffff',
-                      padding: '3px 8px',
-                      borderRadius: '9999px',
-                      textTransform: 'uppercase',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '4px',
-                    }}
-                  >
-                    <span>●</span> CURRENT OFFER
-                  </span>
-                ) : (
-                  <span
-                    style={{
-                      fontSize: '0.7rem',
-                      fontWeight: 700,
-                      letterSpacing: '0.03em',
-                      backgroundColor: '#f1f5f9',
-                      color: '#64748b',
-                      padding: '2px 8px',
-                      borderRadius: '9999px',
-                      textTransform: 'uppercase',
-                    }}
-                  >
-                    ALTERNATIVE
-                  </span>
-                )}
+                {/* Offer Status / Action Button */}
+                <div>
+                  {isCurrent ? (
+                    <span
+                      style={{
+                        fontSize: '0.7rem',
+                        fontWeight: 800,
+                        letterSpacing: '0.04em',
+                        backgroundColor: '#E8F5E9',
+                        color: '#2E7D32',
+                        border: '1px solid #C8E6C9',
+                        padding: '4px 10px',
+                        borderRadius: '9999px',
+                        textTransform: 'uppercase',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '5px',
+                      }}
+                    >
+                      <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#2E7D32' }} />
+                      CURRENT OFFER
+                    </span>
+                  ) : onSelectHospital ? (
+                    <button
+                      type="button"
+                      onClick={() => onSelectHospital(cand.hospital_id)}
+                      disabled={isSelecting}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '5px',
+                        padding: '6px 12px',
+                        minHeight: '32px',
+                        backgroundColor: isSelecting ? '#5C6B64' : '#2D6A4F',
+                        color: '#FFFFFF',
+                        border: 'none',
+                        borderRadius: '6px',
+                        fontSize: '0.775rem',
+                        fontWeight: 700,
+                        cursor: isSelecting ? 'not-allowed' : 'pointer',
+                        transition: 'background-color 0.15s ease',
+                      }}
+                      title={`Hold an available matching bed at ${cand.hospital_name}`}
+                    >
+                      {isSelecting ? (
+                        <>
+                          <Loader2 size={12} className="animate-spin" />
+                          <span>Holding Bed...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Send size={12} />
+                          <span>Select Hospital</span>
+                        </>
+                      )}
+                    </button>
+                  ) : (
+                    <span
+                      style={{
+                        fontSize: '0.7rem',
+                        fontWeight: 700,
+                        letterSpacing: '0.03em',
+                        backgroundColor: '#EEF3EE',
+                        color: '#5C6B64',
+                        padding: '3px 8px',
+                        borderRadius: '9999px',
+                        textTransform: 'uppercase',
+                      }}
+                    >
+                      ALTERNATIVE
+                    </span>
+                  )}
+                </div>
               </div>
 
               {/* Signals Grid: ETA, Freshness, Load, Score */}
@@ -242,49 +344,49 @@ export default function RankedCandidatesList({
                   display: 'grid',
                   gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))',
                   gap: '0.5rem',
-                  backgroundColor: isTop ? '#ffffff' : '#f8fafc',
+                  backgroundColor: isCurrent ? '#FFFFFF' : '#F4F6F4',
                   padding: '0.625rem 0.75rem',
-                  borderRadius: '6px',
-                  border: '1px solid #e2e8f0',
+                  borderRadius: '8px',
+                  border: '1px solid #E1E7E1',
                   fontSize: '0.775rem',
                 }}
               >
                 <div>
-                  <div style={{ color: '#64748b', fontSize: '0.7rem', textTransform: 'uppercase', fontWeight: 600 }}>
+                  <div style={{ color: '#5C6B64', fontSize: '0.7rem', textTransform: 'uppercase', fontWeight: 600 }}>
                     Travel ETA
                   </div>
-                  <div style={{ fontWeight: 800, color: '#0f172a', fontSize: '0.875rem', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    <Ambulance size={14} className="text-slate-600" />
+                  <div style={{ fontWeight: 800, color: '#1A2421', fontSize: '0.875rem', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <Ambulance size={14} style={{ color: '#5C6B64' }} />
                     <span>~{cand.estimated_travel_time_minutes} min</span>
                   </div>
                 </div>
 
                 <div>
-                  <div style={{ color: '#64748b', fontSize: '0.7rem', textTransform: 'uppercase', fontWeight: 600 }}>
+                  <div style={{ color: '#5C6B64', fontSize: '0.7rem', textTransform: 'uppercase', fontWeight: 600 }}>
                     Bed Freshness
                   </div>
-                  <div style={{ fontWeight: 700, color: '#0284c7', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <div style={{ fontWeight: 700, color: '#2D6A4F', display: 'flex', alignItems: 'center', gap: '4px' }}>
                     <Clock size={14} />
                     <span>{formatFreshness(cand.bed_data_freshness_seconds)}</span>
                   </div>
                 </div>
 
                 <div>
-                  <div style={{ color: '#64748b', fontSize: '0.7rem', textTransform: 'uppercase', fontWeight: 600 }}>
+                  <div style={{ color: '#5C6B64', fontSize: '0.7rem', textTransform: 'uppercase', fontWeight: 600 }}>
                     Current Load
                   </div>
-                  <div style={{ fontWeight: 700, color: cand.current_load_percent > 80 ? '#dc2626' : '#334155', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <div style={{ fontWeight: 700, color: cand.current_load_percent > 80 ? '#E11D48' : '#1A2421', display: 'flex', alignItems: 'center', gap: '4px' }}>
                     <TrendingUp size={14} />
                     <span>{cand.current_load_percent}% capacity</span>
                   </div>
                 </div>
 
                 <div>
-                  <div style={{ color: '#64748b', fontSize: '0.7rem', textTransform: 'uppercase', fontWeight: 600 }}>
+                  <div style={{ color: '#5C6B64', fontSize: '0.7rem', textTransform: 'uppercase', fontWeight: 600 }}>
                     Ranking Score
                   </div>
-                  <div style={{ fontWeight: 900, color: isTop ? '#0284c7' : '#0f172a', fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    <Star size={14} className="text-amber-500 fill-amber-500" />
+                  <div style={{ fontWeight: 900, color: isCurrent ? '#2D6A4F' : '#1A2421', fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <Star size={14} style={{ color: '#B45309', fill: '#FEF3C7' }} />
                     <span>{cand.score} pts</span>
                   </div>
                 </div>
@@ -295,7 +397,7 @@ export default function RankedCandidatesList({
                 style={{
                   marginTop: '0.5rem',
                   fontSize: '0.7rem',
-                  color: '#64748b',
+                  color: '#5C6B64',
                   display: 'flex',
                   alignItems: 'center',
                   gap: '0.75rem',
@@ -303,15 +405,15 @@ export default function RankedCandidatesList({
                 }}
               >
                 <span>
-                  Travel Component: <strong style={{ color: '#16a34a' }}>+{cand.breakdown.travel_component}</strong>
+                  Travel Component: <strong style={{ color: '#2E7D32' }}>+{cand.breakdown.travel_component}</strong>
                 </span>
                 <span>•</span>
                 <span>
-                  Freshness Bonus: <strong style={{ color: '#0284c7' }}>+{cand.breakdown.freshness_component}</strong>
+                  Freshness Bonus: <strong style={{ color: '#2D6A4F' }}>+{cand.breakdown.freshness_component}</strong>
                 </span>
                 <span>•</span>
                 <span>
-                  Load Penalty: <strong style={{ color: '#dc2626' }}>-{cand.breakdown.load_penalty}</strong>
+                  Load Penalty: <strong style={{ color: '#E11D48' }}>-{cand.breakdown.load_penalty}</strong>
                 </span>
               </div>
             </div>
@@ -321,3 +423,4 @@ export default function RankedCandidatesList({
     </div>
   )
 }
+
