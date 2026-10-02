@@ -7,7 +7,20 @@ import { refreshHospitalReservationsAction } from './actions'
 import { subscribeHospitalOffers, type RealtimeConnectionStatus } from '@/lib/realtime'
 import { playAlertChime } from '@/lib/sound'
 import { logoutAction } from '../actions/auth'
-import { Building2, RotateCw, AlertTriangle, Inbox, X } from 'lucide-react'
+import { requestScreenWakeLock, triggerHaptic } from '@/lib/device/phoneCraft'
+import {
+  Building2,
+  RotateCw,
+  AlertTriangle,
+  Inbox,
+  X,
+  Bed,
+  History,
+  Clock,
+  CheckCircle2,
+  Phone,
+  ShieldCheck,
+} from 'lucide-react'
 
 interface HospitalDashboardClientProps {
   initialReservations: HospitalReservationView[]
@@ -18,6 +31,8 @@ interface HospitalDashboardClientProps {
   staffName: string
   staffRole: string
 }
+
+type CompactTabType = 'inbox' | 'beds' | 'history'
 
 export default function HospitalDashboardClient({
   initialReservations,
@@ -32,6 +47,7 @@ export default function HospitalDashboardClient({
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [refreshError, setRefreshError] = useState<string | null>(null)
   const [realtimeStatus, setRealtimeStatus] = useState<RealtimeConnectionStatus>('CONNECTING')
+  const [compactTab, setCompactTab] = useState<CompactTabType>('inbox')
   const [serverClockOffsetMs, setServerClockOffsetMs] = useState<number>(() => {
     if (initialServerTime) {
       return new Date(initialServerTime).getTime() - Date.now()
@@ -39,8 +55,22 @@ export default function HospitalDashboardClient({
     return 0
   })
 
-  // Calculate active held count
-  const activeHeldCount = reservations.filter((r) => r.status === 'held').length
+  // Calculate active held count & history
+  const heldReservations = reservations.filter((r) => r.status === 'held')
+  const activeHeldCount = heldReservations.length
+  const historyReservations = reservations.filter((r) => r.status !== 'held')
+
+  // Screen Wake Lock on active held offer or ED desk open
+  useEffect(() => {
+    let releaseWakeLock: (() => void) | null = null
+    requestScreenWakeLock().then((release) => {
+      releaseWakeLock = release
+    })
+
+    return () => {
+      if (releaseWakeLock) releaseWakeLock()
+    }
+  }, [])
 
   // Reconcile incoming server reservations with local session state
   const reconcileReservations = (
@@ -78,6 +108,7 @@ export default function HospitalDashboardClient({
     if (newlyArrivedHeld.length > 0) {
       newlyArrivedHeld.forEach((r) => alertedReservationIdsRef.current.add(r.id))
       playAlertChime()
+      triggerHaptic('alert')
     }
   }, [reservations])
 
@@ -157,18 +188,19 @@ export default function HospitalDashboardClient({
     }
   }, [hospitalId])
 
-  // Sort reservations deterministically: held offers first (earliest expiry), then terminal offers
+  // Sort reservations: HELD first, then newest first
   const sortedReservations = [...reservations].sort((a, b) => {
     if (a.status === 'held' && b.status !== 'held') return -1
     if (a.status !== 'held' && b.status === 'held') return 1
-    const timeA = new Date(a.hold_expires_at).getTime()
-    const timeB = new Date(b.hold_expires_at).getTime()
-    return timeA - timeB
+    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
   })
 
+  // Manual refresh handler
   const handleRefresh = async () => {
+    if (isRefreshing) return
     setIsRefreshing(true)
     setRefreshError(null)
+
     try {
       const result = await refreshHospitalReservationsAction({ targetHospitalId: hospitalId })
       if (result.success && result.reservations) {
@@ -187,7 +219,6 @@ export default function HospitalDashboardClient({
     }
   }
 
-  // Handle local state update from reservation action outcome
   const handleReservationUpdated = (
     reservationId: string,
     newStatus: 'accepted' | 'rejected' | 'expired',
@@ -207,132 +238,99 @@ export default function HospitalDashboardClient({
   }
 
   return (
-    <div
-      style={{
-        minHeight: '100vh',
-        width: '100%',
-        overflowX: 'hidden',
-        backgroundColor: '#F4F6F4',
-        color: '#1A2421',
-        fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-      }}
-    >
-      {/* Top Operational Header */}
+    <div className="app-screen-root" style={{ backgroundColor: '#F4F6F4' }}>
+      {/* 1. Header (Adaptive: 48px on mobile, full bar on laptop) */}
       <header
         style={{
           backgroundColor: '#1A2421',
           color: '#FFFFFF',
-          padding: '0.875rem 1.5rem',
+          padding: '0.625rem 1rem',
           borderBottom: '1px solid #2D3E37',
+          flexShrink: 0,
+          zIndex: 40,
         }}
       >
         <div
           style={{
-            maxWidth: '1200px',
+            maxWidth: '1280px',
             margin: '0 auto',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            flexWrap: 'wrap',
-            gap: '1rem',
+            gap: '0.75rem',
           }}
         >
           {/* Brand & Context */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.875rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
             <div
               style={{
-                width: '38px',
-                height: '38px',
+                width: '34px',
+                height: '34px',
                 borderRadius: '8px',
                 backgroundColor: '#2D6A4F',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 color: '#FFFFFF',
+                flexShrink: 0,
               }}
             >
-              <Building2 size={20} />
+              <Building2 size={18} />
             </div>
+
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-                <span style={{ fontSize: '1.15rem', fontWeight: 800, letterSpacing: '-0.02em' }}>
+                <span style={{ fontSize: '1.05rem', fontWeight: 800, letterSpacing: '-0.01em' }}>
                   BedLink
                 </span>
                 <span
                   style={{
                     backgroundColor: '#2D6A4F',
                     color: '#FFFFFF',
-                    padding: '2px 8px',
-                    borderRadius: '9999px',
-                    fontSize: '0.7rem',
+                    padding: '2px 7px',
+                    borderRadius: '999px',
+                    fontSize: '0.675rem',
                     fontWeight: 800,
                     textTransform: 'uppercase',
-                    letterSpacing: '0.05em',
+                    letterSpacing: '0.04em',
                   }}
                 >
-                  Hospital Staff Console
+                  Hospital Staff
                 </span>
-                {realtimeStatus === 'SUBSCRIBED' ? (
+
+                {/* Realtime Dot */}
+                <span
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    fontSize: '0.675rem',
+                    fontWeight: 700,
+                    color: realtimeStatus === 'SUBSCRIBED' ? '#2E7D32' : '#B45309',
+                    backgroundColor: realtimeStatus === 'SUBSCRIBED' ? '#E8F5E9' : '#FEF3C7',
+                    padding: '2px 6px',
+                    borderRadius: '999px',
+                  }}
+                >
                   <span
                     style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '4px',
-                      fontSize: '0.675rem',
-                      fontWeight: 700,
-                      color: '#2E7D32',
-                      backgroundColor: '#E8F5E9',
-                      border: '1px solid #C8E6C9',
-                      borderRadius: '9999px',
-                      padding: '2px 7px',
+                      width: '6px',
+                      height: '6px',
+                      borderRadius: '50%',
+                      backgroundColor: realtimeStatus === 'SUBSCRIBED' ? '#2E7D32' : '#B45309',
                     }}
-                    title="Connected to Supabase Realtime"
-                  >
-                    <span
-                      style={{
-                        width: '6px',
-                        height: '6px',
-                        borderRadius: '50%',
-                        backgroundColor: '#2E7D32',
-                      }}
-                    />
-                    LIVE
-                  </span>
-                ) : realtimeStatus === 'CONNECTING' ? (
-                  <span
-                    style={{
-                      fontSize: '0.675rem',
-                      fontWeight: 600,
-                      color: '#B45309',
-                      backgroundColor: '#FEF3C7',
-                      padding: '2px 7px',
-                      borderRadius: '9999px',
-                    }}
-                  >
-                    Connecting...
-                  </span>
-                ) : (
-                  <span
-                    style={{
-                      fontSize: '0.675rem',
-                      fontWeight: 600,
-                      color: '#E11D48',
-                      backgroundColor: '#FFF1F2',
-                      padding: '2px 7px',
-                      borderRadius: '9999px',
-                    }}
-                  >
-                    Offline Reconnecting
-                  </span>
-                )}
+                  />
+                  {realtimeStatus === 'SUBSCRIBED' ? 'LIVE' : 'SYNCING'}
+                </span>
+
                 {activeHeldCount > 0 && (
                   <span
                     style={{
                       backgroundColor: '#E11D48',
                       color: '#FFFFFF',
                       padding: '2px 8px',
-                      borderRadius: '9999px',
-                      fontSize: '0.7rem',
+                      borderRadius: '999px',
+                      fontSize: '0.675rem',
                       fontWeight: 800,
                       letterSpacing: '0.03em',
                     }}
@@ -341,60 +339,51 @@ export default function HospitalDashboardClient({
                   </span>
                 )}
               </div>
-              <div style={{ fontSize: '0.8rem', color: '#A3B0A9', marginTop: '2px' }}>
+
+              <div style={{ fontSize: '0.75rem', color: '#A3B0A9', marginTop: '1px' }}>
                 {hospitalName} • <span style={{ color: '#E1E7E1' }}>{hospitalCity}</span>
               </div>
             </div>
           </div>
 
-          {/* User profile & Action */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.875rem' }}>
-            <div style={{ textAlign: 'right' }}>
-              <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#FFFFFF' }}>
-                {staffName}
-              </div>
-              <div style={{ fontSize: '0.725rem', color: '#C8E6C9', fontWeight: 600 }}>
-                Hospital Staff
-              </div>
-            </div>
+          {/* Sync & Logout Controls */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <button
               onClick={handleRefresh}
               disabled={isRefreshing}
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
-                gap: '0.375rem',
-                padding: '7px 12px',
+                gap: '5px',
+                padding: '6px 10px',
                 backgroundColor: '#2D3E37',
                 color: '#FFFFFF',
                 border: '1px solid #3F554B',
                 borderRadius: '6px',
-                fontSize: '0.8rem',
+                fontSize: '0.78rem',
                 fontWeight: 600,
                 cursor: isRefreshing ? 'not-allowed' : 'pointer',
                 opacity: isRefreshing ? 0.7 : 1,
               }}
-              title="Refresh active offers from server"
+              title="Refresh active offers"
               aria-label="Refresh active bed offers"
             >
-              <span style={{ display: 'inline-flex', alignItems: 'center' }}>
-                <RotateCw size={14} className={isRefreshing ? 'animate-spin' : ''} />
-              </span>
-              {isRefreshing ? 'Syncing...' : 'Sync'}
+              <RotateCw size={13} className={isRefreshing ? 'animate-spin' : ''} />
+              <span className="desktop-only">{isRefreshing ? 'Syncing...' : 'Sync'}</span>
             </button>
-            <form action={logoutAction}>
+
+            <form action={logoutAction} style={{ margin: 0 }}>
               <button
                 type="submit"
                 style={{
-                  padding: '7px 12px',
+                  padding: '6px 10px',
                   backgroundColor: 'transparent',
                   color: '#A3B0A9',
                   border: '1px solid #3F554B',
                   borderRadius: '6px',
-                  fontSize: '0.8rem',
+                  fontSize: '0.78rem',
                   fontWeight: 600,
                   cursor: 'pointer',
-                  transition: 'color 0.2s, border-color 0.2s',
                 }}
                 title="Sign out of Hospital Staff Console"
                 aria-label="Sign out"
@@ -406,89 +395,91 @@ export default function HospitalDashboardClient({
         </div>
       </header>
 
-      {/* Main Container */}
-      <main style={{ maxWidth: '1200px', margin: '0 auto', padding: '1.5rem 1rem' }}>
+      {/* 2. Main Content Container (One-screen contained scroll region) */}
+      <main
+        data-scroll-region
+        style={{
+          flex: 1,
+          minHeight: 0,
+          maxWidth: '1280px',
+          width: '100%',
+          margin: '0 auto',
+          padding: '1rem',
+          boxSizing: 'border-box',
+          paddingBottom: '5rem', // Space for bottom tabs on mobile
+        }}
+      >
         {/* Realtime Disconnection Banner */}
         {realtimeStatus !== 'SUBSCRIBED' && realtimeStatus !== 'CONNECTING' && (
           <div
             role="alert"
             style={{
               marginBottom: '1rem',
-              padding: '0.75rem 1rem',
+              padding: '0.625rem 0.875rem',
               backgroundColor: '#FEF3C7',
               border: '1px solid #FDE68A',
               borderRadius: '8px',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
-              flexWrap: 'wrap',
-              gap: '0.75rem',
+              gap: '0.5rem',
               color: '#B45309',
+              fontSize: '0.8rem',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
-              <AlertTriangle size={18} style={{ color: '#B45309', flexShrink: 0 }} />
-              <div>
-                <span style={{ fontWeight: 700 }}>Realtime Sync Offline ({realtimeStatus}).</span>{' '}
-                <span style={{ fontSize: '0.85rem' }}>
-                  Click Re-Sync to refresh active emergency bed offers from the server.
-                </span>
-              </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <AlertTriangle size={16} style={{ color: '#B45309', flexShrink: 0 }} />
+              <span>Realtime Live Sync Offline ({realtimeStatus}). Click to re-sync.</span>
             </div>
             <button
               onClick={handleRefresh}
               disabled={isRefreshing}
               style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '4px',
-                padding: '5px 12px',
+                padding: '4px 8px',
                 backgroundColor: '#B45309',
                 color: '#FFFFFF',
                 border: 'none',
-                borderRadius: '6px',
-                fontSize: '0.75rem',
+                borderRadius: '4px',
+                fontSize: '0.72rem',
                 fontWeight: 600,
-                cursor: isRefreshing ? 'not-allowed' : 'pointer',
+                cursor: 'pointer',
               }}
             >
-              <RotateCw size={12} className={isRefreshing ? 'animate-spin' : ''} />
-              Re-Sync Server State
+              Re-Sync
             </button>
           </div>
         )}
 
+        {/* Error message */}
         {refreshError && (
           <div
             style={{
               marginBottom: '1rem',
-              padding: '0.75rem 1rem',
+              padding: '0.625rem 0.875rem',
               backgroundColor: '#FFF1F2',
               border: '1px solid #FECDD3',
               borderRadius: '8px',
               color: '#E11D48',
-              fontSize: '0.85rem',
+              fontSize: '0.8rem',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
             }}
           >
-            <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <AlertTriangle size={16} style={{ color: '#E11D48', flexShrink: 0 }} />
-              {refreshError}
-            </span>
+            <span>{refreshError}</span>
             <button
               onClick={() => setRefreshError(null)}
-              style={{ background: 'none', border: 'none', color: '#E11D48', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+              style={{ background: 'none', border: 'none', color: '#E11D48', cursor: 'pointer' }}
               aria-label="Dismiss error"
             >
-              <X size={16} />
+              <X size={14} />
             </button>
           </div>
         )}
 
-        {/* Section Header */}
+        {/* Desktop View Header (visible >= 1024px) */}
         <div
+          className="desktop-only"
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -502,7 +493,7 @@ export default function HospitalDashboardClient({
             <h1 style={{ fontSize: '1.35rem', fontWeight: 800, color: '#1A2421', margin: 0 }}>
               Incoming Emergency Bed Offers
             </h1>
-            <p style={{ fontSize: '0.85rem', color: '#5C6B64', marginTop: '3px', margin: '3px 0 0 0' }}>
+            <p style={{ fontSize: '0.85rem', color: '#5C6B64', margin: '3px 0 0 0' }}>
               Authoritative reservation holds currently placed with {hospitalName}. Review and accept or reject within the 120s response window.
             </p>
           </div>
@@ -521,58 +512,216 @@ export default function HospitalDashboardClient({
           </div>
         </div>
 
-        {/* Queue of Offers */}
-        {sortedReservations.length === 0 ? (
-          <div
-            style={{
-              padding: '4rem 2rem',
-              textAlign: 'center',
-              backgroundColor: '#FFFFFF',
-              borderRadius: '12px',
-              border: '1px dashed #E1E7E1',
-              boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1rem' }}>
-              <Inbox size={48} style={{ color: '#5C6B64' }} />
-            </div>
-            <h2 style={{ fontSize: '1.2rem', fontWeight: 700, color: '#1A2421', margin: '0 0 0.5rem 0' }}>
-              No active emergency bed offers.
-            </h2>
-            <p style={{ fontSize: '0.9rem', color: '#5C6B64', maxWidth: '420px', margin: '0.5rem auto 1.5rem', lineHeight: 1.4 }}>
-              There are currently no emergency reservation holds placed at this facility. When an emergency bed request matches your available beds, the offer will appear here immediately.
-            </p>
-            <button
-              onClick={handleRefresh}
-              disabled={isRefreshing}
+        {/* VIEW FILTER: For compact viewports, filter based on active compactTab; for desktop, render full queue */}
+        {/* Tab 1: INBOX (Active Offers) */}
+        <div style={{ display: compactTab === 'inbox' || typeof window === 'undefined' ? 'block' : 'none' }} className="inbox-section">
+          {heldReservations.length === 0 ? (
+            <div
               style={{
-                padding: '9px 18px',
-                backgroundColor: '#2D6A4F',
-                color: '#FFFFFF',
-                border: 'none',
-                borderRadius: '8px',
-                fontWeight: 600,
-                fontSize: '0.85rem',
-                cursor: isRefreshing ? 'not-allowed' : 'pointer',
+                padding: '3rem 1.5rem',
+                textAlign: 'center',
+                backgroundColor: '#FFFFFF',
+                borderRadius: '12px',
+                border: '1px dashed #E1E7E1',
               }}
             >
-              Check for New Offers
-            </button>
+              <Inbox size={42} style={{ color: '#5C6B64', margin: '0 auto 0.75rem' }} />
+              <h2 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#1A2421', margin: '0 0 0.35rem 0' }}>
+                No active emergency bed offers.
+              </h2>
+              <p style={{ fontSize: '0.85rem', color: '#5C6B64', maxWidth: '400px', margin: '0 auto 1.25rem' }}>
+                There are currently no active emergency reservation holds placed at this facility. When a dispatch request matches an available bed, it will appear here immediately.
+              </p>
+              <button
+                onClick={handleRefresh}
+                disabled={isRefreshing}
+                style={{
+                  padding: '8px 16px',
+                  backgroundColor: '#2D6A4F',
+                  color: '#FFFFFF',
+                  border: 'none',
+                  borderRadius: '6px',
+                  fontWeight: 600,
+                  fontSize: '0.825rem',
+                  cursor: isRefreshing ? 'not-allowed' : 'pointer',
+                }}
+              >
+                Check for New Offers
+              </button>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              {heldReservations.map((reservation) => (
+                <HospitalReservationCard
+                  key={reservation.id}
+                  reservation={reservation}
+                  serverClockOffsetMs={serverClockOffsetMs}
+                  onReservationUpdated={handleReservationUpdated}
+                  onRefreshNeeded={handleRefresh}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Tab 2: BEDS (Facility Bed & Capacity Overview for ED Coordinator) */}
+        <div style={{ display: compactTab === 'beds' ? 'block' : 'none' }}>
+          <div
+            style={{
+              backgroundColor: '#FFFFFF',
+              borderRadius: '12px',
+              border: '1px solid #E1E7E1',
+              padding: '1.25rem',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '1rem' }}>
+              <Bed size={20} color="#2D6A4F" />
+              <h2 style={{ fontSize: '1.1rem', fontWeight: 800, color: '#1A2421', margin: 0 }}>
+                {hospitalName} Capacity Overview
+              </h2>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px' }}>
+              <div style={{ padding: '12px', backgroundColor: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: '8px' }}>
+                <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#15803D' }}>ACTIVE HOLDS</div>
+                <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#166534', marginTop: '2px' }}>
+                  {activeHeldCount}
+                </div>
+                <div style={{ fontSize: '0.7rem', color: '#15803D', marginTop: '2px' }}>
+                  Emergency transit beds reserved
+                </div>
+              </div>
+
+              <div style={{ padding: '12px', backgroundColor: '#EFF6FF', border: '1px solid #BFDBFE', borderRadius: '8px' }}>
+                <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#1D4ED8' }}>EMERGENCY UNIT</div>
+                <div style={{ fontSize: '1.1rem', fontWeight: 800, color: '#1E40AF', marginTop: '4px' }}>
+                  {hospitalCity}
+                </div>
+                <div style={{ fontSize: '0.7rem', color: '#1D4ED8', marginTop: '2px' }}>
+                  Authoritative coordination active
+                </div>
+              </div>
+            </div>
+
+            <div style={{ marginTop: '1rem', padding: '10px', backgroundColor: '#F8FAF9', borderRadius: '8px', border: '1px solid #E1E7E1', fontSize: '0.8rem', color: '#5C6B64' }}>
+              Physical bed adjustments are made directly by the Ward Nurse console or automatically synced upon reservation acceptance.
+            </div>
           </div>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-            {sortedReservations.map((reservation) => (
-              <HospitalReservationCard
-                key={reservation.id}
-                reservation={reservation}
-                serverClockOffsetMs={serverClockOffsetMs}
-                onReservationUpdated={handleReservationUpdated}
-                onRefreshNeeded={handleRefresh}
-              />
-            ))}
+        </div>
+
+        {/* Tab 3: HISTORY (Resolved Offers) */}
+        <div style={{ display: compactTab === 'history' || typeof window === 'undefined' ? 'block' : 'none' }}>
+          <div className="desktop-only" style={{ marginTop: '2rem', marginBottom: '0.75rem' }}>
+            <h2 style={{ fontSize: '1.1rem', fontWeight: 800, color: '#1A2421' }}>
+              Offer History ({historyReservations.length})
+            </h2>
           </div>
-        )}
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            {historyReservations.length === 0 ? (
+              <div
+                style={{
+                  padding: '2rem 1rem',
+                  textAlign: 'center',
+                  backgroundColor: '#FFFFFF',
+                  borderRadius: '10px',
+                  border: '1px solid #E1E7E1',
+                  color: '#5C6B64',
+                  fontSize: '0.85rem',
+                }}
+              >
+                No historical bed offers in this session.
+              </div>
+            ) : (
+              historyReservations.map((reservation) => (
+                <HospitalReservationCard
+                  key={reservation.id}
+                  reservation={reservation}
+                  serverClockOffsetMs={serverClockOffsetMs}
+                  onReservationUpdated={handleReservationUpdated}
+                  onRefreshNeeded={handleRefresh}
+                />
+              ))
+            )}
+          </div>
+        </div>
       </main>
+
+      {/* 3. Persistent Mobile Live Request Mini-Banner (floats directly above bottom tabs) */}
+      {activeHeldCount > 0 && (
+        <div
+          className="mobile-live-banner mobile-only"
+          onClick={() => {
+            setCompactTab('inbox')
+            triggerHaptic('tap')
+          }}
+          role="button"
+          aria-label="Jump to active bed offer"
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <Clock size={16} />
+            <span>{activeHeldCount} Active Emergency Offer (Hold Active)</span>
+          </div>
+          <span style={{ fontSize: '0.75rem', textDecoration: 'underline' }}>View Offer →</span>
+        </div>
+      )}
+
+      {/* 4. Compact Mobile Bottom Tab Bar (mobile-only, 56px + safe-area bottom) */}
+      <nav className="mobile-bottom-tabs mobile-only" aria-label="Mobile navigation">
+        <button
+          type="button"
+          className={`mobile-tab-btn ${compactTab === 'inbox' ? 'active' : ''}`}
+          onClick={() => {
+            setCompactTab('inbox')
+            triggerHaptic('tap')
+          }}
+          aria-label="Inbox"
+        >
+          <div style={{ position: 'relative' }}>
+            <Inbox size={18} />
+            {activeHeldCount > 0 && (
+              <span
+                style={{
+                  position: 'absolute',
+                  top: '-4px',
+                  right: '-6px',
+                  width: '8px',
+                  height: '8px',
+                  borderRadius: '50%',
+                  backgroundColor: '#E11D48',
+                }}
+              />
+            )}
+          </div>
+          <span>Inbox {activeHeldCount > 0 ? `(${activeHeldCount})` : ''}</span>
+        </button>
+
+        <button
+          type="button"
+          className={`mobile-tab-btn ${compactTab === 'beds' ? 'active' : ''}`}
+          onClick={() => {
+            setCompactTab('beds')
+            triggerHaptic('tap')
+          }}
+          aria-label="Beds overview"
+        >
+          <Bed size={18} />
+          <span>Beds</span>
+        </button>
+
+        <button
+          type="button"
+          className={`mobile-tab-btn ${compactTab === 'history' ? 'active' : ''}`}
+          onClick={() => {
+            setCompactTab('history')
+            triggerHaptic('tap')
+          }}
+          aria-label="Offer history"
+        >
+          <History size={18} />
+          <span>History</span>
+        </button>
+      </nav>
     </div>
   )
 }

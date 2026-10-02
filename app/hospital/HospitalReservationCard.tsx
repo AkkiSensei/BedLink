@@ -19,6 +19,7 @@ import {
   acceptHospitalReservationAction,
   rejectHospitalReservationAction,
 } from './actions'
+import { triggerHaptic } from '@/lib/device/phoneCraft'
 
 interface HospitalReservationCardProps {
   reservation: HospitalReservationView
@@ -72,6 +73,7 @@ export default function HospitalReservationCard({
       })
 
       if (res.success && res.result) {
+        triggerHaptic('success')
         setLocalStatus('accepted')
         setStatusNote('Accepted. Bed remains held for this reservation.')
         onReservationUpdated?.(reservation.id, 'accepted', {
@@ -123,6 +125,7 @@ export default function HospitalReservationCard({
       })
 
       if (res.success && res.result) {
+        triggerHaptic('reject')
         setLocalStatus('rejected')
         setStatusNote('Offer rejected. The request has moved to the fallback process.')
         onReservationUpdated?.(reservation.id, 'rejected', {
@@ -606,14 +609,15 @@ export default function HospitalReservationCard({
               <button
                 onClick={handleAccept}
                 disabled={Boolean(submittingAction) || isCountdownExpired}
+                className="primary-action-btn"
                 style={{
                   flex: '1 1 200px',
-                  minHeight: '48px',
+                  minHeight: '56px',
                   padding: '12px 20px',
                   backgroundColor: submittingAction === 'accept' ? '#245640' : '#2D6A4F',
                   color: '#FFFFFF',
                   border: 'none',
-                  borderRadius: '8px',
+                  borderRadius: '10px',
                   fontSize: '0.95rem',
                   fontWeight: 800,
                   letterSpacing: '0.025em',
@@ -624,6 +628,7 @@ export default function HospitalReservationCard({
                   alignItems: 'center',
                   justifyContent: 'center',
                   gap: '0.5rem',
+                  touchAction: 'manipulation',
                   transition: 'background-color 0.15s ease-in-out',
                 }}
                 aria-label={`Accept bed reservation for request ${reservation.bed_request_id.slice(0, 8)}`}
@@ -640,14 +645,15 @@ export default function HospitalReservationCard({
               <button
                 onClick={handleReject}
                 disabled={Boolean(submittingAction) || isCountdownExpired}
+                className="primary-action-btn"
                 style={{
                   flex: '1 1 200px',
-                  minHeight: '48px',
+                  minHeight: '56px',
                   padding: '12px 20px',
                   backgroundColor: submittingAction === 'reject' ? '#E11D48' : '#FFFFFF',
                   color: submittingAction === 'reject' ? '#FFFFFF' : '#E11D48',
                   border: '2px solid #E11D48',
-                  borderRadius: '8px',
+                  borderRadius: '10px',
                   fontSize: '0.95rem',
                   fontWeight: 800,
                   letterSpacing: '0.025em',
@@ -657,6 +663,7 @@ export default function HospitalReservationCard({
                   alignItems: 'center',
                   justifyContent: 'center',
                   gap: '0.5rem',
+                  touchAction: 'manipulation',
                   transition: 'all 0.15s ease-in-out',
                 }}
                 aria-label={`Reject bed reservation and trigger fallback for request ${reservation.bed_request_id.slice(0, 8)}`}
