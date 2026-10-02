@@ -20,10 +20,10 @@ const results: TestResult[] = []
 function assert(condition: boolean, testName: string, details?: string) {
   if (condition) {
     results.push({ name: testName, passed: true, details })
-    console.log(`  ✅ PASS: ${testName}${details ? ` (${details})` : ''}`)
+    console.log(`   PASS: ${testName}${details ? ` (${details})` : ''}`)
   } else {
     results.push({ name: testName, passed: false, details })
-    console.error(`  ❌ FAIL: ${testName}${details ? ` (${details})` : ''}`)
+    console.error(`   FAIL: ${testName}${details ? ` (${details})` : ''}`)
     throw new Error(`Assertion failed: ${testName}`)
   }
 }
@@ -37,7 +37,7 @@ async function expectError(
   try {
     await fn()
     results.push({ name: testName, passed: false, details: 'Expected error but operation succeeded' })
-    console.error(`  ❌ FAIL: ${testName} (Expected error but operation succeeded)`)
+    console.error(`   FAIL: ${testName} (Expected error but operation succeeded)`)
     throw new Error(`Expected error in ${testName}`)
   } catch (err: any) {
     if (errorType && !(err instanceof errorType)) {
@@ -46,7 +46,7 @@ async function expectError(
         passed: false,
         details: `Expected instance of ${errorType.name}, got ${err.constructor?.name}`,
       })
-      console.error(`  ❌ FAIL: ${testName} - Error type mismatch: ${err.message}`)
+      console.error(`   FAIL: ${testName} - Error type mismatch: ${err.message}`)
       throw err
     }
     if (expectedSnippet && !err.message.includes(expectedSnippet)) {
@@ -55,7 +55,7 @@ async function expectError(
         passed: false,
         details: `Got error: "${err.message}", expected snippet: "${expectedSnippet}"`,
       })
-      console.error(`  ❌ FAIL: ${testName} - Error snippet mismatch: ${err.message}`)
+      console.error(`   FAIL: ${testName} - Error snippet mismatch: ${err.message}`)
       throw err
     }
     results.push({
@@ -63,13 +63,13 @@ async function expectError(
       passed: true,
       details: `Rejected as expected: ${err.message.split('\n')[0]}`,
     })
-    console.log(`  ✅ PASS: ${testName} (Rejected as expected: ${err.message.split('\n')[0]})`)
+    console.log(`   PASS: ${testName} (Rejected as expected: ${err.message.split('\n')[0]})`)
   }
 }
 
 async function runAuthTests() {
   console.log('====================================================')
-  console.log('🛡️ BedLink Phase 3 — Authentication & RBAC Test Suite')
+  console.log(' BedLink Phase 3 — Authentication & RBAC Test Suite')
   console.log('====================================================\n')
 
   const db = new PGlite()
@@ -205,7 +205,7 @@ async function runAuthTests() {
   // --------------------------------------------------------------------------
   // TEST 1 — Authentication Identity
   // --------------------------------------------------------------------------
-  console.log('▶️ TEST 1 — Authentication Identity Verification')
+  console.log('[TEST] TEST 1 — Authentication Identity Verification')
 
   // 1.1 Unauthenticated state: reject access
   await setUserContext(null)
@@ -237,7 +237,7 @@ async function runAuthTests() {
   // --------------------------------------------------------------------------
   // TEST 2 — Profile Resolution & Affiliation Rules
   // --------------------------------------------------------------------------
-  console.log('\n▶️ TEST 2 — Profile Resolution & Hospital Affiliation Semantics')
+  console.log('\n[TEST] TEST 2 — Profile Resolution & Hospital Affiliation Semantics')
 
   // Nurse profile resolution
   await setUserContext(DEMO_IDENTITIES.NURSE_APEX.userId)
@@ -272,7 +272,7 @@ async function runAuthTests() {
   // --------------------------------------------------------------------------
   // TEST 3 — Role Isolation
   // --------------------------------------------------------------------------
-  console.log('\n▶️ TEST 3 — Role Isolation & Access Control')
+  console.log('\n[TEST] TEST 3 — Role Isolation & Access Control')
 
   // Nurse cannot use dispatch-only operations
   await setUserContext(DEMO_IDENTITIES.NURSE_APEX.userId)
@@ -321,7 +321,7 @@ async function runAuthTests() {
   // --------------------------------------------------------------------------
   // TEST 4 — Hospital Isolation Boundaries
   // --------------------------------------------------------------------------
-  console.log('\n▶️ TEST 4 — Hospital Organizational Boundary Isolation')
+  console.log('\n[TEST] TEST 4 — Hospital Organizational Boundary Isolation')
 
   // Hospital Apex staff accessing Hospital Apex succeeds
   await setUserContext(DEMO_IDENTITIES.HOSPITAL_APEX.userId)
@@ -361,7 +361,7 @@ async function runAuthTests() {
   // --------------------------------------------------------------------------
   // TEST 5 — Dispatch Ownership Isolation
   // --------------------------------------------------------------------------
-  console.log('\n▶️ TEST 5 — Dispatch Ownership Isolation (Dispatch 1 vs Dispatch 2)')
+  console.log('\n[TEST] TEST 5 — Dispatch Ownership Isolation (Dispatch 1 vs Dispatch 2)')
 
   // Dispatch 1 creates a request
   await setUserContext(DEMO_IDENTITIES.DISPATCH_1.userId)
@@ -399,7 +399,7 @@ async function runAuthTests() {
   // --------------------------------------------------------------------------
   // TEST 6 — Admin Access
   // --------------------------------------------------------------------------
-  console.log('\n▶️ TEST 6 — Admin Role Global Access')
+  console.log('\n[TEST] TEST 6 — Admin Role Global Access')
 
   await setUserContext(DEMO_IDENTITIES.ADMIN.userId)
 
@@ -425,7 +425,7 @@ async function runAuthTests() {
   const total = results.length
   const passed = results.filter((r) => r.passed).length
   const failed = total - passed
-  console.log(`📊 PHASE 3 AUTH TEST SUMMARY: ${passed}/${total} PASSED (${failed} FAILED)`)
+  console.log(` PHASE 3 AUTH TEST SUMMARY: ${passed}/${total} PASSED (${failed} FAILED)`)
   console.log('====================================================')
 
   if (failed > 0) {
@@ -434,6 +434,6 @@ async function runAuthTests() {
 }
 
 runAuthTests().catch((err) => {
-  console.error('\n❌ Auth test suite aborted with error:', err)
+  console.error('\n Auth test suite aborted with error:', err)
   process.exit(1)
 })

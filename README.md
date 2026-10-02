@@ -29,7 +29,7 @@ BedLink addresses this by providing an authoritative, automated hospital ranking
 - **Atomic Physical-Bed Reservation Holds**: Database-level PL/pgSQL stored procedures lock physical beds transactionally, preventing double-booking across concurrent requests.
 - **Authoritative 120-Second Hold Expiry**: Time-bound holds expire based on authoritative server/database clocks rather than client-side timers.
 - **Dynamic Fallback Re-Ranking**: If a reservation is rejected or expires, BedLink excludes previously attempted facilities and dynamically re-ranks the current database state (`old rank + 1` is strictly forbidden).
-- **Physical Bed Invariant (`ACCEPTED ≠ OCCUPIED`)**: Hospital acceptance confirms receipt of an incoming patient while keeping the bed in `held` status until clinical admission.
+- **Physical Bed Invariant (`ACCEPTED != OCCUPIED`)**: Hospital acceptance confirms receipt of an incoming patient while keeping the bed in `held` status until clinical admission.
 - **Defense-in-Depth Authentication & RBAC**: Strict four-role authorization (`nurse`, `dispatch`, `hospital`, `admin`) enforced across Next.js Edge Middleware, Server Operations, and PostgreSQL Row-Level Security (RLS).
 - **Authenticated Server Operation Boundary**: Typed server operations exposing Nurse (inventory management), Dispatch (request creation and tracking), and Hospital (offer review, accept, reject) workflows.
 - **Nurse Inventory Interface (`/nurse`)**: Operational bed management UI allowing hospital nurses to view departmental beds, update statuses, and monitor telemetry freshness.
@@ -45,21 +45,44 @@ BedLink addresses this by providing an authoritative, automated hospital ranking
 
 ---
 
-## Technology Stack
+## System Architecture
 
-| Layer | Technology | Purpose |
-| :--- | :--- | :--- |
-| **Framework** | Next.js 15 (React 19) | Application framework and server runtime |
-| **Language** | TypeScript 5.7 | Type safety across domain, operations, and tests |
-| **Database** | PostgreSQL / Supabase | Authoritative relational persistence, transactions, and RLS |
-| **Auth & Security** | Supabase Auth & PostgreSQL RLS | Identity management and database-level isolation |
-| **Test Engine** | PGlite (`@electric-sql/pglite`) | Zero-dependency embedded PostgreSQL for reproducible local testing |
-| **Scripting / Runner** | TSX (`tsx`) | High-speed TypeScript test and migration execution |
+```mermaid
+graph TD
+    subgraph Client Application [React 18 + Zustand + Tailwind CSS]
+        A[Landing Page: /]
+        B[Dispatch Command: /dispatch]
+        C[Nurse Update: /hospital]
+        D[Hold Monitor: /dispatch/request/:id]
+        E[Intake Desk: /hospital/requests]
+        F[Demo Simulator: /demo]
+    end
 
----
+    subgraph Reactive State Layer
+        Store[Zustand useStore]
+        Service[BedLinkService Interface]
+        Clock[Injectable Clock: now]
+    end
 
-## Architecture / Workflow
+    subgraph Cross-Tab Transport
+        BC[BroadcastChannel: bedlink_v2_channel]
+        Storage[LocalStorage: bedlink_v2_state]
+    end
 
+    A --> Store
+    B --> Store
+    C --> Store
+    D --> Store
+    E --> Store
+    F --> Store
+
+    Store --> Service
+    Service --> Storage
+    Service --> BC
+    BC -. Sync .- Service
+```
+
+### State Machine Lifecycle
 ```text
                      +---------------------------------------+
                      |         Ambulance in Transit          |
@@ -108,6 +131,76 @@ BedLink addresses this by providing an authoritative, automated hospital ranking
 
 ---
 
+## Actors & Role-Based Permissions
+
+BedLink provides five purpose-built actor interfaces rather than a single shared dashboard with hidden buttons:
+
+| Actor Role | Dedicated Route | Form Factor / Shell | Core Permissions | Escalation Fallback |
+| :--- | :--- | :--- | :--- | :--- |
+| **Ward Nurse** | `/nurse` | Phone (Field Shell) | Update own hospital bed counts & ED load, confirm up to date, view recent updates | Receives incoming bed hold alert only if ED Coordinator is offline |
+| **ED Coordinator** | `/desk` | Tablet / Desktop (Console Shell) | Accept/reject incoming bed requests within 2 min, manage active holds, mark patient arrived, edit own beds | Primary responder for all incoming hospital hold offers |
+| **Dispatcher** | `/dispatch` | Desktop (Console Shell) | Multi-ambulance placement, filter/sort regional hospitals (read-only), skip/cancel requests, inspect attempt timelines | Can intervene across any in-flight request |
+| **Ambulance Crew** | `/crew` | Phone / Rugged Tablet (Field Shell) | 30-second need-to-hold protocol, GPS auto-lock, glove-friendly 72px buttons, top 3 options, turn-by-turn navigation link upon hold | Can request bed, cancel with undo, mark arrived |
+| **Network Admin** | `/admin` | Desktop (Console Shell) | Manage hospital capacities, manage users and roles, adjust ranking weights with live re-ranking preview, view audit log | System administrator |
+
+Permissions are enforced twice: through client-side route guards and in the `BedLinkService` layer with typed error handling and audit logging.
+
+---
+
+## Demonstration Credentials
+
+All accounts can be authenticated at `/login` or selected with 1-tap from the "Demonstration Accounts" drawer on the login page:
+
+| Role | Username / Identity | Credential | Target Scope |
+| :--- | :--- | :--- | :--- |
+| **Ward Nurse** | City General Hospital | PIN: `2468` | Ward Bed Terminal |
+| **ED Coordinator** | City General Hospital | PIN: `1357` | ED Intake Console |
+| **Ambulance Crew** | Unit `AMB-214` | PIN: `1357` | Paramedic Field Terminal |
+| **Ambulance Dispatcher** | `dispatch@bedlink.demo` | Password: `demo1234` | Ambulance Control Room |
+| **Network Admin** | `admin@bedlink.demo` | Password: `demo1234` | System Configuration |
+
+*Note: In addition to City General Hospital, every other hospital in the regional network has seed Nurse and ED Coordinator accounts with identical PINs.*
+
+---
+
+## Ranking Engine & Mathematical Model
+
+The ranking function (`src/lib/ranking.ts`) evaluates each facility and outputs a score from 0 to 100:
+
+$$\text{Score} = (W_{\text{ETA}} \times S_{\text{ETA}} + W_{\text{Bed}} \times S_{\text{Bed}} + W_{\text{Fresh}} \times S_{\text{Fresh}} + W_{\text{Load}} \times S_{\text{Load}}) \times 100$$
+
+### Default Factor Weights
+- Travel Time ($W_{\text{ETA}}$): 40% (shifted to 45% under Critical severity)
+- Bed Availability ($W_{\text{Bed}}$): 25% (shifted to 20% under Critical severity)
+- Verification Freshness ($W_{\text{Fresh}}$): 20%
+- Emergency Department Load ($W_{\text{Load}}$): 15%
+
+### Factor Definitions
+1. **Travel Time ($S_{\text{ETA}}$)**: Linearly scales from 1.0 at 0 minutes to 0.0 at 30 minutes. Road travel times are estimated using Haversine distance with a 1.35 urban road winding factor, 38 km/h average speed, and a 1-minute dispatch overhead.
+2. **Bed Capacity ($S_{\text{Bed}}$)**: The arithmetic mean of $\min(1.0, \frac{\text{Free}}{3})$ across all requested bed categories. Free capacity is strictly computed as $\text{Available} - \text{Held}$.
+3. **Verification Freshness ($S_{\text{Fresh}}$)**:
+   - $0 \le t \le 5\text{ min}$: 1.0 (Fresh)
+   - $5 < t \le 60\text{ min}$: Linear decay from 1.0 to 0.2
+   - $t > 60\text{ min}$: Gradual decay to a 0.1 floor. Listings older than 45 minutes mandate direct telephone verification.
+4. **Emergency Load ($S_{\text{Load}}$)**: Low load = 1.0, Moderate load = 0.5, High/Surge load = 0.0.
+
+---
+
+## Technology Stack
+
+| Layer | Technology | Purpose |
+| :--- | :--- | :--- |
+| **Frontend Framework** | React 19 / Vite | Fast responsive client application |
+| **Server Runtime** | Next.js 15 (Edge & Node.js) | Server operations and API routing |
+| **State Management** | Zustand | Client state and reactive cross-tab sync |
+| **Styling** | Tailwind CSS / CSS Variables | Clinical design system and WCAG AAA compliance |
+| **Database** | PostgreSQL / Supabase | Authoritative relational persistence, transactions, and RLS |
+| **Auth & Security** | Supabase Auth & PostgreSQL RLS | Identity management and database-level isolation |
+| **Test Engine** | PGlite (`@electric-sql/pglite`) & Vitest | Zero-dependency embedded PostgreSQL and unit testing |
+| **Scripting / Runner** | TSX (`tsx`) | High-speed TypeScript test and migration execution |
+
+---
+
 ## Setup & Installation
 
 ### Prerequisites
@@ -127,7 +220,12 @@ BedLink addresses this by providing an authoritative, automated hospital ranking
    npm install
    ```
 
-3. **Verify the complete implementation**:
+3. **Start the development server**:
+   ```bash
+   npm run dev
+   ```
+
+4. **Verify the complete implementation**:
    ```bash
    npm run test:db
    npm run test:auth
@@ -136,58 +234,53 @@ BedLink addresses this by providing an authoritative, automated hospital ranking
    npm run test:operations
    ```
 
-4. **Verify production compilation**:
+5. **Verify production compilation**:
    ```bash
    npm run build
    ```
 
 ---
 
-## Dataset / API Information
-
-- **Deterministic Synthetic Seed Dataset**: BedLink includes a realistic, reproducible seed dataset defined in [`supabase/migrations/20261002000000_phase2_foundation.sql`](supabase/migrations/20261002000000_phase2_foundation.sql). It provisions 10 representative hospitals across operational, emergency, and offline statuses, along with 37 physical beds mapped to varied capability configurations (`general`, `oxygen`, `icu`, `ventilator`).
-- **Embedded Local Verification**: All automated verification suites run against an embedded, in-memory PostgreSQL instance powered by `@electric-sql/pglite`. This guarantees that evaluators can verify complete database constraints, PL/pgSQL stored procedures, and Row-Level Security policies without requiring an external database connection or cloud API keys.
-- **Geographic Routing Calculations**: Travel distance is calculated using the spherical Haversine formula based on WGS84 coordinates, assuming a standardized 40 km/h ambulance transit velocity. No external proprietary mapping API keys (e.g. Google Maps API) are required.
-
----
-
 ## Running Tests
 
-BedLink features a comprehensive, 366-assertion automated test suite covering every layer of the architecture:
+BedLink features a comprehensive test suite covering every layer of the architecture:
 
 ```bash
-# 1. Database Foundation & RLS Policies (31 tests)
+# 1. Pure Ranking & State Machine Unit Tests
+npm test
+
+# 2. Database Foundation & RLS Policies (31 tests)
 npm run test:db
 
-# 2. Authentication, Identity & RBAC Matrix (29 tests)
+# 3. Authentication, Identity & RBAC Matrix (29 tests)
 npm run test:auth
 
-# 3. Deterministic Hospital Ranking Engine (64 tests)
+# 4. Deterministic Hospital Ranking Engine (64 tests)
 npm run test:ranking
 
-# 4. Atomic Reservations, Concurrency & Fallback Engine (77 tests)
+# 5. Atomic Reservations, Concurrency & Fallback Engine (77 tests)
 npm run test:reservations
 
-# 5. Authenticated Server Operations Layer (51 tests)
+# 6. Authenticated Server Operations Layer (51 tests)
 npm run test:operations
 
-# 6. Database SECURITY DEFINER Audit & Hardening (10 tests)
+# 7. Database SECURITY DEFINER Audit & Hardening (10 tests)
 npm run test:security
 
-# 7. Nurse Operational Interface (25 tests)
+# 8. Nurse Operational Interface (25 tests)
 npm run test:nurse
 
-# 8. Dispatch Operational Interface (41 tests)
+# 9. Dispatch Operational Interface (41 tests)
 npm run test:dispatch
 
-# 9. Hospital Operational Interface (38 tests)
+# 10. Hospital Operational Interface (38 tests)
 npm run test:hospital
 
-# 10. Development State Reset Verification
-npm run db:reset
+# 11. Supabase Realtime Live Subscriptions (42 tests)
+npm run test:realtime
 
-# 11. Production Build Check
-npm run build
+# 12. Development State Reset Verification
+npm run db:reset
 ```
 
 ### Verification Suite Breakdown
@@ -208,69 +301,70 @@ npm run build
 
 ---
 
-## Screenshots / Demo
+## Design System & Accessibility
 
-Screenshots and demo video links will be recorded and published following complete UI integration.
-
----
-
-## Current Implementation Status
-
-| Milestone | Scope | Status |
-| :--- | :--- | :---: |
-| **Phase 2** | Database Foundation, Domain Schema, RLS, Deterministic Seed | ✅ Implemented |
-| **Phase 3** | Authentication & RBAC Foundation (Profiles, Organizational Boundaries) | ✅ Implemented |
-| **Phase 4** | Deterministic Multi-Factor Ranking Engine & Explicit `evaluationTime` | ✅ Implemented |
-| **Phase 5** | Transactional Reservation State Machine, 120s Hold, Fallback Engine | ✅ Implemented |
-| **Phase 6** | Authenticated Server Operations / Backend API Layer | ✅ Implemented |
-| **Phase 7** | Nurse Interface (`/nurse`) & Inventory Management | ✅ Implemented |
-| **Phase 8** | Dispatch Interface (`/dispatch`), Emergency Requests, Ranking & Fallback | ✅ Implemented |
-| **Phase 9** | Hospital Interface (`/hospital`), Emergency Department Response Console | ✅ Implemented |
-| **Phase 10** | Supabase Realtime Live Subscriptions & End-to-End Integration | ✅ Implemented |
-| **Phase 11** | QA / Demo Hardening | ⏳ Future |
-| **Phase 12** | Production Deployment | ⏳ Future |
-
-> *Note: Phase 10 implements live Supabase Realtime WebSocket synchronization. It is distinguished from Phase 12 (Production Deployment).*
+BedLink follows a strict clinical design system:
+- **Zero Emojis**: Communication is driven strictly by typography and Lucide vector icons (at 1.75 stroke width).
+- **Tabular Figures**: Every numeric figure, bed count, and countdown timer uses `font-variant-numeric: tabular-nums` to prevent layout shift during live ticks.
+- **Color Discipline**: Muted slate surfaces (`#F6F8FB` light, `#0A1220` dark) with primary clinical blue (`#1859D6`). Red (`#C62B2B`) and amber (`#B7600B`) are reserved exclusively for active emergency risks (stale data, full unit, timeout).
+- **Touch Targets**: 72px buttons for nurse bed steppers; 56px minimum heights for dispatch controls.
+- **High-Contrast Mode**: Dedicated toggle in the settings menu that raises contrast ratios to meet WCAG AAA standards.
 
 ---
 
-## Repository Structure
+## Reference Repositories & Licences
 
-```text
-Bug-Dealers-BedLink/
-├── app/
-│   ├── layout.tsx                # Next.js root application layout
-│   └── page.tsx                  # Placeholder application entry point
-├── scripts/
-│   ├── reset-db.ts               # Database state reset script
-│   ├── verify-auth.ts            # Phase 3 Auth/RBAC verification suite
-│   ├── verify-db.ts              # Phase 2 Database verification suite
-│   ├── verify-operations.ts      # Phase 6 Operations verification suite
-│   ├── verify-ranking.ts         # Phase 4 Ranking verification suite
-│   └── verify-reservations.ts    # Phase 5 Reservation verification suite
-├── src/
-│   └── lib/
-│       ├── auth/                 # Identity, role helpers, and server session resolvers
-│       ├── operations/           # Authenticated operation contracts (Nurse, Dispatch, Hospital)
-│       ├── ranking/              # Pure deterministic 4-factor ranking and tie-breaking engine
-│       ├── reservations/         # Transactional reservation service, expiry, and dynamic fallback
-│       ├── supabase/             # Supabase client helpers (client, server, middleware)
-│       └── types/                # Core domain TypeScript definitions and interfaces
-├── supabase/
-│   └── migrations/
-│       ├── 20261002000000_phase2_foundation.sql             # Domain tables, constraints, RLS, seed
-│       ├── 20261002000001_reset_mechanism.sql              # Development reset stored procedure
-│       └── 20261002000002_reservation_state_machine.sql    # Atomic PL/pgSQL reservation procedures
-├── AUTH.md                       # Authentication & RBAC technical specification
-├── DATABASE.md                   # Database schema & RLS technical specification
-├── OPERATIONS.md                 # Server operations boundary technical specification
-├── RANKING.md                    # Ranking engine scoring model technical specification
-├── RESERVATIONS.md               # Reservation state machine & concurrency specification
-├── middleware.ts                 # Next.js edge route protection middleware
-├── package.json                  # Dependencies, test scripts, and build commands
-├── tsconfig.json                 # TypeScript strict configuration
-└── README.md                     # Main repository documentation & submission guide
+BedLink adapts patterns and architectural craft from industry-standard open-source repositories under MIT and Apache-2.0 licences. Full attribution and notices are documented in `THIRD_PARTY_NOTICES.md`:
+
+| Project / Repository | Licence | Architectural Influence in BedLink |
+| :--- | :--- | :--- |
+| `satnaing/shadcn-admin` | MIT | Console app shell, floating top bar, narrow collapsible rail, command palette, and settings store. |
+| `shadcn-ui/ui` | MIT | Radix primitives, login-02 split pattern, floating/inset sidebar geometry, and table design tokens. |
+| `Kiranism/next-shadcn-dashboard-starter` | MIT | Role-based navigation patterns (RBAC nav config per role) and breadcrumb synchronization. |
+| `tremorlabs/tremor` | Apache-2.0 | KPI metrics cards, progress indicators, and compact freshness tracker strips. *(Implemented from scratch without installing `@tremor/react`)*. |
+| `emilkowalski/vaul` & `sonner` | MIT | Mobile drawers with tactile drag handles, interactive undo toast patterns. |
+| `traccar/traccar-web` | Apache-2.0 | Boxed map layout semantics and active vehicle / ambulance request tracking board. |
+| `openmrs-esm-patient-management` | Study-Only | Calm clinical tone, non-alarming status tags, and dense hospital patient queues. *(Zero code copied)*. |
+| `DISHANTUS/MESHCUE` | Study-Only | Multi-factor explainable dispatch ranking breakdown ("Why this rank?") and scenario simulation controls. *(Zero code copied)*. |
+
+---
+
+## Production Backend Integration Guide
+
+To replace the included `MockBedLinkService` with a live production backend, implement the `BedLinkService` interface:
+
+```typescript
+export interface BedLinkService {
+  getHospitals(): Hospital[];
+  getHospitalState(id: string): HospitalState | undefined;
+  getAllHospitalStates(): Record<string, HospitalState>;
+  getRequests(): Record<string, BedRequest>;
+  updateBeds(id: string, beds: Record<BedType, number>): void;
+  updateLoad(id: string, load: LoadStatus): void;
+  confirmUpToDate(id: string): void;
+  createRequest(request: Omit<BedRequest, 'id' | 'status' | 'createdAt' | 'timeline'>): string;
+  cancelRequest(id: string): void;
+  respondToRequest(id: string, hospitalId: string, accept: boolean, reason?: string): { success: boolean; reason?: string };
+  releaseHold(id: string, hospitalId: string): void;
+  completeRequest(id: string, hospitalId: string): void;
+  subscribe(callback: () => void): () => void;
+}
 ```
+
+Recommended production backend stack:
+- **Database**: PostgreSQL with row-level locking (`SELECT ... FOR UPDATE`) or Supabase with pg_cron for automatic hold expiry.
+- **Transport**: WebSockets or Server-Sent Events (SSE) for millisecond-latency push notifications to dispatch consoles.
+- **Routing**: Open Source Routing Machine (OSRM) or Google Maps Distance Matrix API replacing the Haversine mock provider.
+
+---
+
+## Demonstration Mode
+
+Visit `/demo` to test scenarios:
+- **Accelerated Timeouts**: Compress the 2-minute clinical hold window to 10 seconds.
+- **Fast-Forward Clock**: Advance time by 15 or 45 minutes to observe data degradation and phone verification triggers.
+- **Concurrent Contention (Race Test)**: Spawn competing requests to verify atomic rejection ("That bed was just taken") and immediate automatic cascading.
+- **Live Event Log**: Inspect all synchronized actions across active browser windows.
 
 ---
 
@@ -283,16 +377,25 @@ Bug-Dealers-BedLink/
 
 ---
 
-## Limitations & Future Scope
+## Zero-Configuration Vercel Deployment
 
-### Current Limitations
-1. **Hospital & Realtime Scopes Pending**: Nurse inventory management (`/nurse`) and Dispatch operational management (`/dispatch`) interfaces are fully implemented; Hospital Intake (`/hospital`) and WebSocket Realtime are planned for Phases 9 and 10.
-2. **Local Evaluation Environment**: The verification suite runs against embedded PostgreSQL (`pglite`) for deterministic testing. Connecting to a remote Supabase project requires provisioning cloud credentials at deployment time.
+BedLink is preconfigured for continuous deployment on Vercel:
 
-### Future Scope
-1. **EMS Mobile Interface**: Real-time GPS-assisted ambulance routing with turn-by-turn navigation updates.
-2. **Hospital Dashboard**: Emergency department interactive console for incoming patient intake and real-time bed capacity adjustments.
-3. **Automated Admission Integration**: Direct integration with Hospital Information Systems (HIS) and EHR platforms.
+1. Import the repository into the Vercel Dashboard.
+2. Framework Preset will auto-detect as **Vite**.
+3. Build Command: `npm run build`
+4. Output Directory: `dist`
+5. The bundled `vercel.json` ensures client-side Single Page Application (SPA) route rewrites:
+```json
+{
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}
+```
 
 ---
 
@@ -302,3 +405,9 @@ Bug-Dealers-BedLink/
 - **Ritunjay**
 - **Saanvi**
 - **Sylborn**
+
+---
+
+## Regulatory Disclosures & Limitations
+
+Demonstration data. Not a medical device. This software is designed as a workflow coordination and decision-support prototype. It does not replace clinical judgment, physician triage, or established county emergency medical protocols.

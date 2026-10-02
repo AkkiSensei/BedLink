@@ -19,10 +19,10 @@ function assert(condition: boolean, testName: string, detail?: string) {
   totalTests++
   if (condition) {
     passedTests++
-    console.log(`  ✅ PASS: ${testName}`)
+    console.log(`   PASS: ${testName}`)
   } else {
     failedTests++
-    console.error(`  ❌ FAIL: ${testName}`)
+    console.error(`   FAIL: ${testName}`)
     if (detail) console.error(`     Detail: ${detail}`)
   }
 }
@@ -32,16 +32,16 @@ function expectThrow(fn: () => unknown, testName: string, expectedErrorType?: an
   try {
     fn()
     failedTests++
-    console.error(`  ❌ FAIL: ${testName} (Expected exception but none was thrown)`)
+    console.error(`   FAIL: ${testName} (Expected exception but none was thrown)`)
   } catch (err: any) {
     if (expectedErrorType && !(err instanceof expectedErrorType)) {
       failedTests++
       console.error(
-        `  ❌ FAIL: ${testName} (Expected error of type ${expectedErrorType.name}, got ${err.name}: ${err.message})`
+        `   FAIL: ${testName} (Expected error of type ${expectedErrorType.name}, got ${err.name}: ${err.message})`
       )
     } else {
       passedTests++
-      console.log(`  ✅ PASS: ${testName} (Threw as expected: ${err.message})`)
+      console.log(`   PASS: ${testName} (Threw as expected: ${err.message})`)
     }
   }
 }
@@ -79,13 +79,13 @@ function createBed(overrides: Partial<Bed> = {}): Bed {
 
 function runRankingSuite() {
   console.log('\n====================================================')
-  console.log('⚡ BedLink Phase 4 — Ranking Engine Test Suite')
+  console.log(' BedLink Phase 4 — Ranking Engine Test Suite')
   console.log('====================================================\n')
 
   const now = new Date('2026-10-02T12:00:00.000Z')
 
   // --------------------------------------------------------------------------
-  console.log('▶️ TEST A — Basic Ranking with Exact Components')
+  console.log('[TEST] TEST A — Basic Ranking with Exact Components')
   // --------------------------------------------------------------------------
   {
     // Hospital A: eligible, ETA 8, freshness 10s, load 58
@@ -185,7 +185,7 @@ function runRankingSuite() {
   }
 
   // --------------------------------------------------------------------------
-  console.log('\n▶️ TEST B — Bed Gate Filtering')
+  console.log('\n[TEST] TEST B — Bed Gate Filtering')
   // --------------------------------------------------------------------------
   {
     // Hospital A: no matching ICU bed (only general)
@@ -224,7 +224,7 @@ function runRankingSuite() {
   }
 
   // --------------------------------------------------------------------------
-  console.log('\n▶️ TEST C — Freshness Changes Rank')
+  console.log('\n[TEST] TEST C — Freshness Changes Rank')
   // --------------------------------------------------------------------------
   {
     // Equal ETA (10m) and Equal Load (50%)
@@ -287,7 +287,7 @@ function runRankingSuite() {
   }
 
   // --------------------------------------------------------------------------
-  console.log('\n▶️ TEST D — Load Changes Rank')
+  console.log('\n[TEST] TEST D — Load Changes Rank')
   // --------------------------------------------------------------------------
   {
     // Equal ETA (10m) and Equal Freshness (10s)
@@ -325,7 +325,7 @@ function runRankingSuite() {
   }
 
   // --------------------------------------------------------------------------
-  console.log('\n▶️ TEST E — ETA Changes Rank')
+  console.log('\n[TEST] TEST E — ETA Changes Rank')
   // --------------------------------------------------------------------------
   {
     // Equal Freshness (10s) and Equal Load (40%)
@@ -363,7 +363,7 @@ function runRankingSuite() {
   }
 
   // --------------------------------------------------------------------------
-  console.log('\n▶️ TEST F — Attempted Hospital Exclusion')
+  console.log('\n[TEST] TEST F — Attempted Hospital Exclusion')
   // --------------------------------------------------------------------------
   {
     const hospA = createHospital({ id: 'attempted-a', name: 'Hospital Attempted' })
@@ -395,7 +395,7 @@ function runRankingSuite() {
   }
 
   // --------------------------------------------------------------------------
-  console.log('\n▶️ TEST G — Deterministic Tie-Breaker Ordering')
+  console.log('\n[TEST] TEST G — Deterministic Tie-Breaker Ordering')
   // --------------------------------------------------------------------------
   {
     // Order: score DESC -> ETA ASC -> freshness ASC -> load ASC -> hospital_id ASC
@@ -491,7 +491,7 @@ function runRankingSuite() {
   }
 
   // --------------------------------------------------------------------------
-  console.log('\n▶️ TEST H — No Eligible Hospitals')
+  console.log('\n[TEST] TEST H — No Eligible Hospitals')
   // --------------------------------------------------------------------------
   {
     const hospA = createHospital({ id: 'hosp-offline', operational_status: 'offline' })
@@ -515,7 +515,7 @@ function runRankingSuite() {
   }
 
   // --------------------------------------------------------------------------
-  console.log('\n▶️ TEST I — Multi-Capability Match')
+  console.log('\n[TEST] TEST I — Multi-Capability Match')
   // --------------------------------------------------------------------------
   {
     // Request: ['icu', 'ventilator']
@@ -554,7 +554,7 @@ function runRankingSuite() {
   }
 
   // --------------------------------------------------------------------------
-  console.log('\n▶️ TEST J — Multiple Matching Beds Freshness Resolution')
+  console.log('\n[TEST] TEST J — Multiple Matching Beds Freshness Resolution')
   // --------------------------------------------------------------------------
   {
     // Hospital has:
@@ -604,7 +604,7 @@ function runRankingSuite() {
   }
 
   // --------------------------------------------------------------------------
-  console.log('\n▶️ TEST K — Extreme Travel Time (ETA >= 60)')
+  console.log('\n[TEST] TEST K — Extreme Travel Time (ETA >= 60)')
   // --------------------------------------------------------------------------
   {
     // ETA = 75 minutes. TravelComponent must be 0, but hospital remains eligible!
@@ -628,7 +628,7 @@ function runRankingSuite() {
   }
 
   // --------------------------------------------------------------------------
-  console.log('\n▶️ TEST L — Full 100% Load Penalty')
+  console.log('\n[TEST] TEST L — Full 100% Load Penalty')
   // --------------------------------------------------------------------------
   {
     // Hospital at 100% load: max penalty = 50 points, still eligible!
@@ -652,7 +652,7 @@ function runRankingSuite() {
   }
 
   // --------------------------------------------------------------------------
-  console.log('\n▶️ TEST M — Determinism Across Multiple Executions')
+  console.log('\n[TEST] TEST M — Determinism Across Multiple Executions')
   // --------------------------------------------------------------------------
   {
     // Run the same ranking fixture with shuffled candidate lists 10 times
@@ -700,7 +700,7 @@ function runRankingSuite() {
   }
 
   // --------------------------------------------------------------------------
-  console.log('\n▶️ TEST N — Validation & Input Edge Cases')
+  console.log('\n[TEST] TEST N — Validation & Input Edge Cases')
   // --------------------------------------------------------------------------
   {
     // Empty capabilities must throw
@@ -780,7 +780,7 @@ function runRankingSuite() {
   }
 
   // --------------------------------------------------------------------------
-  console.log('\n▶️ TEST O — Haversine Distance & ETA Calculation Accuracy')
+  console.log('\n[TEST] TEST O — Haversine Distance & ETA Calculation Accuracy')
   // --------------------------------------------------------------------------
   {
     // Test Haversine distance between SF (37.7749, -122.4194) and Oakland (37.8044, -122.2712)
@@ -798,7 +798,7 @@ function runRankingSuite() {
   }
 
   // --------------------------------------------------------------------------
-  console.log('\n▶️ TEST P — Unavailable Bed Statuses Gate')
+  console.log('\n[TEST] TEST P — Unavailable Bed Statuses Gate')
   // --------------------------------------------------------------------------
   {
     // Hospital with beds that match capabilities but are occupied/held/maintenance
@@ -822,7 +822,7 @@ function runRankingSuite() {
   }
 
   // --------------------------------------------------------------------------
-  console.log('\n▶️ TEST Q — Missing/Unknown Freshness Graceful Fallback')
+  console.log('\n[TEST] TEST Q — Missing/Unknown Freshness Graceful Fallback')
   // --------------------------------------------------------------------------
   {
     const hosp = createHospital({ id: 'corrupt-time-hosp', name: 'Unknown Freshness Hospital' })
@@ -845,7 +845,7 @@ function runRankingSuite() {
 
   // --------------------------------------------------------------------------
   console.log('\n====================================================')
-  console.log(`📊 PHASE 4 RANKING TEST SUMMARY: ${passedTests}/${totalTests} PASSED (${failedTests} FAILED)`)
+  console.log(` PHASE 4 RANKING TEST SUMMARY: ${passedTests}/${totalTests} PASSED (${failedTests} FAILED)`)
   console.log('====================================================\n')
 
   if (failedTests > 0) {

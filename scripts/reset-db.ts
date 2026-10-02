@@ -3,7 +3,7 @@ import * as fs from 'fs'
 import * as path from 'path'
 
 async function runReset() {
-  console.log('🔄 BedLink — Executing Development Database Reset...')
+  console.log(' BedLink — Executing Development Database Reset...')
   
   // Create or connect to database
   const db = new PGlite()
@@ -55,7 +55,7 @@ async function runReset() {
   const reservationsCount = await db.query<{ count: string }>('SELECT count(*) as count FROM public.reservations;')
   const requestsCount = await db.query<{ count: string }>('SELECT count(*) as count FROM public.bed_requests;')
 
-  console.log(`✅ Reset complete!`)
+  console.log(` Reset complete!`)
   console.log(`   - Hospitals restored: ${hospitalsCount.rows[0].count}`)
   console.log(`   - Beds restored: ${bedsCount.rows[0].count}`)
   console.log(`   - Dynamic Reservations: ${reservationsCount.rows[0].count}`)
@@ -63,6 +63,6 @@ async function runReset() {
 }
 
 runReset().catch((err) => {
-  console.error('❌ Reset failed:', err)
+  console.error(' Reset failed:', err)
   process.exit(1)
 })

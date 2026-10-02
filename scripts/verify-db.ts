@@ -14,10 +14,10 @@ const results: TestResult[] = []
 function assert(condition: boolean, testName: string, details?: string) {
   if (condition) {
     results.push({ name: testName, passed: true, details })
-    console.log(`  ✅ PASS: ${testName}${details ? ` (${details})` : ''}`)
+    console.log(`   PASS: ${testName}${details ? ` (${details})` : ''}`)
   } else {
     results.push({ name: testName, passed: false, details })
-    console.error(`  ❌ FAIL: ${testName}${details ? ` (${details})` : ''}`)
+    console.error(`   FAIL: ${testName}${details ? ` (${details})` : ''}`)
     throw new Error(`Assertion failed: ${testName}`)
   }
 }
@@ -26,22 +26,22 @@ async function expectError(fn: () => Promise<unknown>, testName: string, expecte
   try {
     await fn()
     results.push({ name: testName, passed: false, details: 'Expected error but succeeded' })
-    console.error(`  ❌ FAIL: ${testName} (Expected error but succeeded)`)
+    console.error(`   FAIL: ${testName} (Expected error but succeeded)`)
     throw new Error(`Expected error in ${testName}`)
   } catch (err: any) {
     if (expectedSnippet && !err.message.includes(expectedSnippet)) {
       results.push({ name: testName, passed: false, details: `Got error: "${err.message}", expected snippet: "${expectedSnippet}"` })
-      console.error(`  ❌ FAIL: ${testName} - Error mismatch: ${err.message}`)
+      console.error(`   FAIL: ${testName} - Error mismatch: ${err.message}`)
       throw err
     }
     results.push({ name: testName, passed: true, details: `Rejected as expected: ${err.message.split('\n')[0]}` })
-    console.log(`  ✅ PASS: ${testName} (Rejected as expected: ${err.message.split('\n')[0]})`)
+    console.log(`   PASS: ${testName} (Rejected as expected: ${err.message.split('\n')[0]})`)
   }
 }
 
 async function runAllTests() {
   console.log('====================================================')
-  console.log('🧪 BedLink Phase 2 — Database Foundation Test Suite')
+  console.log(' BedLink Phase 2 — Database Foundation Test Suite')
   console.log('====================================================\n')
 
   const db = new PGlite()
@@ -93,7 +93,7 @@ async function runAllTests() {
   }
 
   // Apply migrations
-  console.log('📦 Applying Migrations...')
+  console.log('[MIGRATIONS] Applying Migrations...')
   const migrationsDir = path.join(process.cwd(), 'supabase', 'migrations')
   const migrationFiles = fs.readdirSync(migrationsDir).sort()
   for (const file of migrationFiles) {
@@ -107,7 +107,7 @@ async function runAllTests() {
   // --------------------------------------------------------------------------
   // TEST 1 — Schema Verification
   // --------------------------------------------------------------------------
-  console.log('▶️ TEST 1 — Schema Structure & Constraints')
+  console.log('[TEST] TEST 1 — Schema Structure & Constraints')
   const tables = await db.query<{ tablename: string }>(`
     SELECT tablename FROM pg_catalog.pg_tables 
     WHERE schemaname = 'public' 
@@ -137,7 +137,7 @@ async function runAllTests() {
   // --------------------------------------------------------------------------
   // TEST 2 — Seed Verification
   // --------------------------------------------------------------------------
-  console.log('\n▶️ TEST 2 — Deterministic Seed Verification')
+  console.log('\n[TEST] TEST 2 — Deterministic Seed Verification')
   const seedSql = fs.readFileSync(path.join(process.cwd(), 'supabase', 'seed.sql'), 'utf8')
   await db.exec(seedSql)
 
@@ -164,7 +164,7 @@ async function runAllTests() {
   // --------------------------------------------------------------------------
   // TEST 3 — Capability Validation
   // --------------------------------------------------------------------------
-  console.log('\n▶️ TEST 3 — Capability Array Validation')
+  console.log('\n[TEST] TEST 3 — Capability Array Validation')
   // Valid capability arrays
   await db.exec(`
     INSERT INTO public.beds (id, hospital_id, capabilities, status)
@@ -189,7 +189,7 @@ async function runAllTests() {
   // --------------------------------------------------------------------------
   // TEST 4 — Role & Hospital Identity Helpers
   // --------------------------------------------------------------------------
-  console.log('\n▶️ TEST 4 — Profile-Based Role & Hospital Identity Helpers')
+  console.log('\n[TEST] TEST 4 — Profile-Based Role & Hospital Identity Helpers')
   // Check admin role
   await setUserContext('a0000000-0000-4000-8000-000000000001')
   const adminRole = await db.query<{ role: string }>('SELECT public.current_user_role() as role;')
@@ -233,7 +233,7 @@ async function runAllTests() {
   // --------------------------------------------------------------------------
   // TEST 5 — RLS Isolation Boundaries
   // --------------------------------------------------------------------------
-  console.log('\n▶️ TEST 5 — Row Level Security (RLS) Isolation')
+  console.log('\n[TEST] TEST 5 — Row Level Security (RLS) Isolation')
   // TEST 5.1: Nurse from Hospital A can modify beds at Hospital A, but NOT at Hospital B
   await setUserContext('e0000000-0000-4000-8000-000000000001') // Nurse Apex (Hospital 1)
 
@@ -294,7 +294,7 @@ async function runAllTests() {
   // --------------------------------------------------------------------------
   // TEST 6 — Reservation Integrity (Double-Hold & Active Exclusivity)
   // --------------------------------------------------------------------------
-  console.log('\n▶️ TEST 6 — Reservation Invariants & Partial Unique Constraints')
+  console.log('\n[TEST] TEST 6 — Reservation Invariants & Partial Unique Constraints')
   // As admin, create an initial valid HELD reservation
   await setUserContext('a0000000-0000-4000-8000-000000000001')
 
@@ -364,7 +364,7 @@ async function runAllTests() {
   // --------------------------------------------------------------------------
   // TEST 7 — Accepted Reservation Safety & Expiry Filtering
   // --------------------------------------------------------------------------
-  console.log('\n▶️ TEST 7 — Accepted Reservation State & Expiry Safety')
+  console.log('\n[TEST] TEST 7 — Accepted Reservation State & Expiry Safety')
   // Transition reservation 1 to 'accepted'
   await db.exec(`
     UPDATE public.reservations 
@@ -417,7 +417,7 @@ async function runAllTests() {
   const total = results.length
   const passed = results.filter(r => r.passed).length
   const failed = total - passed
-  console.log(`📊 TEST SUITE SUMMARY: ${passed}/${total} PASSED (${failed} FAILED)`)
+  console.log(` TEST SUITE SUMMARY: ${passed}/${total} PASSED (${failed} FAILED)`)
   console.log('====================================================')
 
   if (failed > 0) {
@@ -426,6 +426,6 @@ async function runAllTests() {
 }
 
 runAllTests().catch((err) => {
-  console.error('\n❌ Test suite aborted with unexpected error:', err)
+  console.error('\n Test suite aborted with unexpected error:', err)
   process.exit(1)
 })
