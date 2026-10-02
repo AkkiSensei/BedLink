@@ -18,6 +18,7 @@
     "test:reservations": "tsx scripts/verify-reservations.ts",
     "test:operations": "tsx scripts/verify-operations.ts",
     "test:security": "tsx scripts/verify-security.ts",
+    "test:nurse": "tsx scripts/verify-nurse-ui.ts",
     "db:reset": "tsx scripts/reset-db.ts"
   },
   "dependencies": {
