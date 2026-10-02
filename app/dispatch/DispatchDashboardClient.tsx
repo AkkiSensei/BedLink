@@ -3,6 +3,7 @@
 import React, { useState } from 'react'
 import type { DispatchBedRequestView } from '@/lib/operations/types'
 import { refreshRequestsAction } from './actions'
+import EmergencyRequestForm from './EmergencyRequestForm'
 
 interface DispatchDashboardClientProps {
   initialRequests: DispatchBedRequestView[]
@@ -23,6 +24,13 @@ export default function DispatchDashboardClient({
   const [statusMessage, setStatusMessage] = useState<string | null>(null)
 
   const selectedRequest = requests.find((r) => r.id === selectedRequestId) ?? requests[0] ?? null
+
+  const handleRequestCreated = (newRequest: DispatchBedRequestView) => {
+    setRequests((prev) => [newRequest, ...prev.filter((r) => r.id !== newRequest.id)])
+    setSelectedRequestId(newRequest.id)
+    setStatusMessage(`Emergency request created! Attempt #1 initiated with hospital hold.`)
+    setTimeout(() => setStatusMessage(null), 5000)
+  }
 
   const handleRefresh = async () => {
     setIsRefreshing(true)
@@ -183,33 +191,8 @@ export default function DispatchDashboardClient({
             gap: '1.5rem',
           }}
         >
-          <div
-            id="emergency-request-form-container"
-            style={{
-              backgroundColor: '#ffffff',
-              borderRadius: '10px',
-              border: '1px solid #e2e8f0',
-              padding: '1.25rem',
-              boxShadow: '0 1px 3px 0 rgba(0,0,0,0.05)',
-            }}
-          >
-            <h2
-              style={{
-                fontSize: '1rem',
-                fontWeight: 700,
-                color: '#0f172a',
-                margin: '0 0 1rem 0',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5rem',
-              }}
-            >
-              <span style={{ color: '#dc2626' }}>🚨</span> New Emergency Bed Request
-            </h2>
-            <p style={{ fontSize: '0.85rem', color: '#64748b', margin: 0 }}>
-              Specify ambulance location and clinical bed requirements to initiate automated ranking.
-            </p>
-          </div>
+          <EmergencyRequestForm onRequestCreated={handleRequestCreated} />
+
         </section>
 
         {/* Right Column: Active Offer & Ranked Alternatives */}
