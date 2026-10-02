@@ -1,259 +1,252 @@
-# BedLink
+# BedLink — Emergency Hospital-Bed Coordination Platform
 
 > **TechForge 2026 Submission**  
 > **Team**: Bug Dealers  
-> **Domain**: HealthTech / Emergency Medical Coordination  
+> **Domain**: HealthTech / Emergency Medical Operations  
 > **Live Production Deployment**: [https://bedlink-one.vercel.app](https://bedlink-one.vercel.app)  
+> **Source Repository**: [https://github.com/AkkiSensei/T17-BedLink](https://github.com/AkkiSensei/T17-BedLink)
 
 ---
 
-## 1. Executive Summary
+## 1. Project Overview
 
-BedLink is a real-time emergency hospital-bed coordination platform that automates multi-factor hospital discovery, physical bed reservation holds, and dynamic fallback re-ranking for ambulances in transit. By combining strict medical capability matching, Haversine travel time estimation, hospital load balancing, and bed telemetry freshness scoring, BedLink guarantees that ambulances route exclusively to hospitals equipped and committed to receive their patients.
+BedLink is a real-time, deterministic emergency hospital-bed coordination platform designed to eliminate emergency room diversion, phone-tag delays, and bed double-booking during critical patient transit.
 
-The platform eliminates phone-tag delays and diversion by transactionally holding physical beds upon offer creation, offering a strict 120-second hospital acceptance window, and automatically cascading to the next optimal candidate upon timeout or rejection.
+### The Problem
+During medical emergencies, EMS dispatchers frequently call emergency departments one by one to verify bed availability. In high-density urban environments, verbal confirmations often lag behind actual bed occupancies, leading to ambulances arriving at overloaded facilities, forced patient transfers, and avoidable delays in critical care.
 
----
-
-## 2. Production Architecture
-
-BedLink is built on a single, unified **Next.js App Router** architecture backed by **Supabase PostgreSQL** and **Supabase Realtime**:
-
-```text
-Next.js App Router (Server & Client Components)
-                        ↓
-            Supabase Auth (SSR Cookies)
-                        ↓
-         Supabase PostgreSQL & PL/pgSQL
-                        ↓
-    Transactional Server & Database Operations
-                        ↓
-            Supabase Realtime (WebSockets)
-                        ↓
-   ┌────────────────────┬────────────────────┐
-   │                    │                    │
- Nurse           Dispatch Operator    Hospital Staff
-(/nurse)            (/dispatch)         (/hospital)
-```
-
-### Architectural Principles
-- **Sole Source of Truth**: Supabase PostgreSQL database. Zero dependency on `localStorage`, `sessionStorage`, or `BroadcastChannel` for application state.
-- **Transactional State Engine**: Bed reservation holds, acceptances, rejections, and timeouts are executed through PostgreSQL functions and server operations with row-level locking.
-- **Cross-Device Synchronization**: Supabase Realtime WebSocket channels broadcast change notifications, triggering authoritative server reads.
-- **Edge Security & RBAC**: Next.js Edge Middleware checks authentication and role permissions against database profiles before granting route access.
+### The Solution
+BedLink automates the coordination lifecycle between ambulances, regional dispatch operators, and hospital emergency staff:
+1. **Deterministic Multi-Factor Matching**: Discovers and ranks hospitals using Haversine travel times, clinical telemetry freshness, load balancing, and strict capability gating.
+2. **Atomic Physical Bed Holds**: Locks a matching physical bed at the target hospital immediately upon offer creation using transactional database row-level locking.
+3. **Authoritative 120-Second Response Window**: Provides hospital staff with a strict, synchronized countdown to accept or reject the reservation.
+4. **Dynamic Fallback Cascading**: If an offer is rejected or expires, BedLink automatically re-evaluates and cascades to the next best facility in real time.
+5. **Adaptive Layouts**: Designed to run seamlessly on low-cost Android phones (2 GB RAM, slow 4G, 360px viewport) as well as hospital command laptops.
 
 ---
 
-## 3. User-Facing Roles
-
-BedLink defines exactly three operational user-facing roles:
-
-| Role | Route | Shell / Form Factor | Primary Responsibility |
-| :--- | :--- | :--- | :--- |
-| **Nurse** | `/nurse` | Mobile-First (Phone) | Rapid bed inventory management, single-tap status toggles (`available`, `occupied`, `maintenance`), and real-time telemetry freshness monitoring. |
-| **Dispatch Operator** | `/dispatch` | Operational Console (Desktop/Tablet) | EMS emergency request creation, deterministic multi-factor hospital discovery, candidate rank breakdown inspection, and dynamic fallback tracking. |
-| **Hospital Staff** | `/hospital` | Response Console (Desktop/Tablet) | Real-time intake of incoming emergency reservation offers, clinical capability verification, 120-second countdown decision, and authoritative ACCEPT / REJECT. |
-
----
-
-## 4. Deterministic Ranking Engine
-
-Hospital candidates are ranked using a purely deterministic mathematical model requiring an explicit `evaluationTime` timestamp.
-
-### Hard Capability Gate
-Hospitals lacking an available physical bed that satisfies all requested capabilities (`general`, `oxygen`, `icu`, `ventilator`) are **strictly inelligible** and excluded from the candidate stack.
-
-### Scoring Formula
-$$\text{Score} = \text{TravelComponent} + \text{FreshnessComponent} - \text{LoadPenalty}$$
-
-1. **Travel Time Component ($0 \dots 60$)**:
-   $$\text{TravelComponent} = \max(0, 60 - \text{ETA}_{\text{minutes}})$$
-   - Ambulance baseline speed: $40\text{ km/h}$ via Haversine distance.
-2. **Freshness Component ($0 \dots 30$)**:
-   - $< 30\text{ seconds}$: $+30\text{ points}$
-   - $30 \dots 59\text{ seconds}$: $+20\text{ points}$
-   - $60 \dots 119\text{ seconds}$: $+10\text{ points}$
-   - $\ge 120\text{ seconds}$: $+0\text{ points}$
-   - Unknown / null: $+0\text{ points}$
-3. **Load Penalty ($0 \dots 50$)**:
-   $$\text{LoadPenalty} = \left(\frac{\text{load\_percent}}{100}\right) \times 50$$
-
-### 5-Tier Deterministic Tie-Breaker
-When composite scores tie, candidates are ordered unambiguously:
-1. `score DESC`
-2. `estimated_travel_time_minutes ASC`
-3. `bed_data_freshness_seconds ASC`
-4. `current_load_percent ASC`
-5. `hospital_id ASC` (lexicographical)
-
----
-
-## 5. Reservation Lifecycle & Invariants
-
-```text
- Ambuance En Route (Patient Needs + Location)
-                     ↓
-        DISPATCH CREATES BedRequest
-                     ↓
-         RANKING ENGINE EVALUATES
-                     ↓
-     RESERVATION ATTEMPT #1 INITIATED
-      - Locks physical bed (status: HELD)
-      - Starts authoritative 120s hold
-                     ↓
-           Hospital Staff Decision
-                  /         \
-         ACCEPT              REJECT / TIMEOUT
-          /                     \
-         v                       v
- STATUS: ACCEPTED          STATUS: REJECTED / EXPIRED
- - Bed remains HELD        - Bed released to AVAILABLE
- - Patient en route        - Hospital excluded from re-ranking
-                           - Dynamic Fallback Re-ranking (#N+1)
-```
-
-### Critical Invariants
-- **Hold at Offer Creation**: A physical bed is locked immediately when an offer is generated, eliminating double-booking across concurrent requests.
-- **One Active Hold per Request**: At most one held reservation may exist per emergency request at any time.
-- **One Active Hold per Bed**: A physical bed can be held by at most one active reservation across the entire system (enforced by database partial unique index).
-- **ACCEPTED != OCCUPIED**: Acceptance confirms commitment to receive the patient; the bed remains in `held` status until physical admission.
-- **Dynamic Re-Ranking**: Fallbacks dynamically evaluate current bed availability and freshness across unattempted facilities (`old rank + 1` is strictly forbidden).
-
----
-
-## 6. Whisper Sage Clinical Design System
-
-BedLink uses a clinical restfulness palette tailored for low stress and high readability:
-
-```css
-Canvas:              #F4F6F4 (Calm, neutral background)
-Surface:             #FFFFFF (Clean white card surfaces)
-Primary Accent:      #2D6A4F (Authoritative deep sage)
-Surface Hover:       #EEF3EE
-Border / Dividers:   #E1E7E1
-Primary Text:        #1A2421 (High contrast charcoal)
-Muted Text:          #5C6B64 (Subdued metadata)
-Success:             #E8F5E9 / #2E7D32
-Pending:             #FEF3C7 / #B45309
-Critical Risk:       #FFF1F2 / #E11D48 / #FECDD3
-```
-
-- **Tabular Figures**: Numeric metrics, ETAs, bed counts, and countdown timers use `font-variant-numeric: tabular-nums` to eliminate layout shift during live ticks.
-- **Micro-Animations**: Subtle 150–250ms transitions for rapid feedback.
-- **Red Discipline**: Red is reserved strictly for genuine emergencies (hold timeouts, expired offers, full capacity).
-
----
-
-## 7. Demonstration Accounts
-
-Accessible via 1-tap demo buttons on the `/login` page:
-
-| Persona | Role | Email | Scope |
-| :--- | :--- | :--- | :--- |
-| **Staff Nurse** | `nurse` | `nurse.apex@bedlink.internal` | Apex Hospital Bed Inventory |
-| **Dispatch Operator** | `dispatch` | `dispatch1@bedlink.internal` | EMS Regional Dispatch Console |
-| **Hospital Staff** | `hospital` | `hospital.apex@bedlink.internal` | Apex Hospital Response Console |
-
----
-
-## 8. Verification & Test Suites
-
-BedLink includes a comprehensive verification test suite verifying all invariants:
-
-```bash
-# Run unit tests (Vitest)
-npm test
-
-# Run TypeScript semantic type check
-npm run lint
-
-# Run all 10 domain verification suites (407 tests)
-npm run test:all
-
-# Individual verification suites:
-npm run test:db             # Phase 2: Schema, constraints, RLS (31 tests)
-npm run test:auth           # Phase 3: Supabase Auth & RBAC (29 tests)
-npm run test:ranking        # Phase 4: Deterministic ranking engine (64 tests)
-npm run test:reservations   # Phase 5: Transactional holds & fallback (77 tests)
-npm run test:operations     # Phase 6: Authenticated server operations (51 tests)
-npm run test:security       # Phase 6 Hardening: SQL injection & SECURITY DEFINER (10 tests)
-npm run test:nurse          # Phase 7: Nurse operational interface (25 tests)
-npm run test:dispatch       # Phase 8: Dispatch operational interface (41 tests)
-npm run test:hospital       # Phase 9: Hospital response console (37 tests)
-npm run test:realtime       # Phase 10: Realtime WebSocket synchronization (42 tests)
-npm run test:phone          # Phase 11: Phone & Cheap Android adaptive QA (27 tests)
-```
-
----
-
-## 9. Physical Device & Cheap-Android Testing Guide
-
-BedLink is engineered with an adaptive single-tree architecture that works seamlessly across cheap Android phones (2 GB RAM, slow 4G, 360px display), tablets, and high-resolution laptops.
-
-### How to Test on a Physical Phone
-
-1. **Vercel Production Preview**:
-   Open [https://bedlink-one.vercel.app](https://bedlink-one.vercel.app) directly on your mobile device (Chrome, Safari, or Samsung Internet).
-2. **Local LAN Testing**:
-   Run `npm run dev -- --host` on your workstation. Open the printed local network URL (e.g., `http://192.168.1.x:3000`) on any phone connected to the same Wi-Fi.
-3. **USB Remote Debugging**:
-   Connect your Android phone via USB, enable USB Debugging in Developer Options, and open `chrome://inspect` in desktop Chrome to inspect layout, performance, and touch telemetry in real time.
-
-### Mobile Verification Checklist
-
-| Item | Requirement | Verification Method |
-| :--- | :--- | :--- |
-| **One-Screen Law** | Document root never scrolls (`100dvh`). Only marked `[data-scroll-region]` panels scroll. | Scroll on body/header; confirm zero document pull-to-refresh or bounce. |
-| **Thumb-Zone Controls** | Primary actions (Nurse Confirm, Accept, Reject) are >= 56px and located in lower 40% of viewport. | Tap with single thumb; confirm reachability. |
-| **Bottom Tab Navigation** | 56px tab bar with safe-area insets (`env(safe-area-inset-bottom)`) on phone layouts. | Rotate portrait/landscape; confirm bar adapts. |
-| **Live Request Mini-Banner** | Floats directly above bottom tabs when an active reservation hold is running. | Create emergency request; confirm tappable countdown banner appears. |
-| **Mobile Numeric PIN Entry** | PIN inputs trigger native numeric virtual keyboard without obscuring inputs. | Tap PIN boxes; confirm numeric soft keyboard opens. |
-| **Haptic Feedback** | Subtle vibrations for tap, accept success, and reject signals (`navigator.vibrate`). | Tap buttons on Android device; feel haptic response. |
-| **Screen Wake Lock** | Screen stays awake during active emergency reservation holds. | Trigger active offer; verify screen remains on. |
-| **Zero Emojis** | Strict clinical typography standard; Lucide SVG icons only. | Verified via `npm run test:phone`. |
-
----
-
-## 10. Technology Stack
-
-- **Framework**: Next.js 15 (App Router, Server Actions, Edge Middleware)
-- **UI & Components**: React 19, Lucide React, Radix UI Primitives, Leaflet / React-Leaflet
-- **Styling**: Vanilla CSS Variables (Whisper Sage tokens) & Tailwind CSS utilities
-- **Database & Auth**: Supabase PostgreSQL, Row-Level Security (RLS), Supabase Auth (`@supabase/ssr`)
-- **Realtime**: Supabase Realtime WebSockets (`@supabase/supabase-js`)
-- **Testing**: Vitest 5, PGlite (`@electric-sql/pglite` embedded PostgreSQL), TSX runner
-
----
-
-## 11. Getting Started
+## 2. Setup & Installation Instructions
 
 ### Prerequisites
-- Node.js 20+
-- npm 9+
+- **Node.js**: `v20.x` or higher
+- **npm**: `v9.x` or higher
+- **Git**: Installed and configured
 
-### Setup
+### Clone & Install
 ```bash
+# Clone the repository
 git clone https://github.com/AkkiSensei/T17-BedLink.git
 cd T17-BedLink
 
-# Install dependencies
+# Install all production and development dependencies
 npm install
+```
 
-# Start Next.js development server
+### Environment Configuration
+Create a `.env.local` file in the root directory (or use the hosted Supabase instance):
+```env
+NEXT_PUBLIC_SUPABASE_URL=https://ltawzmyjblvidycnwvvn.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=AIzaSyBy8Mf6rcEEV7K38Ug7CQT9NrqeL3ZXhyM
+```
+
+### Development Server
+```bash
+# Start local development server with hot-reloading
 npm run dev
 
-# Run all test suites
+# For local network testing across physical mobile devices on the same Wi-Fi:
+npm run dev -- --host
+```
+The application will be accessible at `http://localhost:3000`.
+
+### Production Build & Typecheck
+```bash
+# Strict TypeScript validation
+npm run typecheck
+
+# Build optimized production bundle
+npm run build
+
+# Start production server locally
+npm start
+```
+
+### Automated Verification Suites
+BedLink includes 11 comprehensive automated test suites covering database constraints, ranking math, state transitions, security, and mobile layout compliance:
+```bash
+# Run all 11 verification suites sequentially (400+ assertions)
 npm run test:all
 
-# Run production build
-npm run build
+# Individual test suites:
+npm run test:phone          # Phase 11: Phone & Cheap-Android adaptive QA
+npm run test:realtime       # Phase 10: Supabase Realtime WebSocket synchronization
+npm run test:nurse          # Phase 7: Nurse operational interface
+npm run test:dispatch       # Phase 8: Dispatch operator workflow
+npm run test:hospital       # Phase 9: Hospital response console
+npm run test:ranking        # Phase 4: Deterministic ranking engine
+npm run test:reservations   # Phase 5: Transactional holds & dynamic fallback
+npm run test:security       # Phase 6: RLS boundaries & SQL injection prevention
+npm run test:operations     # Phase 6: Authenticated server operations
+npm run test:auth           # Phase 3: Supabase Auth & RBAC
+npm run test:db             # Phase 2: PostgreSQL schema & partial unique indexes
 ```
 
 ---
 
-## Team Bug Dealers
-- **Ritunjay**
-- **Saanvi**
-- **Sylborn**
+## 3. Key Features
 
-*TechForge 2026 Hackathon*
+- **Deterministic Multi-Factor Ranking**: Ranks eligible hospitals based on Haversine distance travel time ($0\dots60\text{ pts}$), bed freshness ($0\dots30\text{ pts}$), and hospital load penalty ($0\dots50\text{ pts}$) with a 5-tier deterministic tie-breaker.
+- **Hard Clinical Capability Gating**: Filters out facilities that cannot provide all requested life-support capabilities (`general`, `oxygen`, `icu`, `ventilator`).
+- **Atomic Physical Bed Holds**: Every active offer is tied directly to a specific physical bed (`room_number`, `bed_id`). Database partial unique indexes guarantee no bed can be held twice simultaneously.
+- **Authoritative 120-Second Countdown**: Real-time timer synchronized with server clocks using zero-JS CSS animations to prevent frame drops on low-end hardware.
+- **Dynamic Fallback Cascading**: Rejection or timeout triggers immediate re-ranking of remaining unattempted facilities without human intervention.
+- **Role-Based Access Control (RBAC)**: Enforced via Next.js Edge Middleware and Supabase Row-Level Security (RLS) across three distinct actors: Nurse, Dispatcher, and Hospital Staff.
+- **Adaptive Single-Tree Layouts**:
+  - **Laptop (`>= 1024px`)**: Command console with interactive Leaflet coordination maps, candidate score breakdowns, and keyboard shortcuts (`1-6`, `+/-`, `Enter`, `Ctrl+Z`).
+  - **Mobile (`< 1024px`)**: 56px bottom tab navigation, thumb-zone pinned primary buttons (`>= 56px`), and persistent live request mini-banners.
+- **Phone Craft for Cheap Hardware**:
+  - `touch-action: manipulation` eliminating 300ms tap delay.
+  - Native soft-keyboard protection (`font-size: 16px` on mobile inputs).
+  - Haptic feedback engine (`navigator.vibrate`) for taps, acceptances, and alerts.
+  - Screen Wake Lock API (`navigator.wakeLock`) keeping screens on during emergency holds.
+  - Automatic Lite Mode for devices with `<= 2 GB RAM` or Save-Data enabled.
+- **Strict Clinical Typography (Zero Emojis)**: Strictly professional medical UI using Lucide SVG icons and the Whisper Sage clinical design system.
+
+---
+
+## 4. Technology Stack
+
+| Layer | Technology | Purpose |
+| :--- | :--- | :--- |
+| **Framework** | Next.js 15 (App Router, Server Actions) | High-performance full-stack framework with edge middleware and SSR cookie handling. |
+| **Language** | TypeScript (Strict Mode) | Full end-to-end type safety across domain models, database schemas, and client UI. |
+| **UI & Styling** | React 19, Vanilla CSS Variables, Tailwind CSS | Whisper Sage design system tokens with high-contrast accessibility and tabular figures. |
+| **Icons & Maps** | Lucide React, Leaflet & React-Leaflet | Crisp SVG clinical icons and live interactive geographic ambulance routing. |
+| **Database & Auth** | Supabase PostgreSQL, Row-Level Security, `@supabase/ssr` | ACID transactional storage, row-level locking, and secure session management. |
+| **Realtime Engine** | Supabase Realtime WebSockets (`@supabase/supabase-js`) | Role-scoped real-time event distribution and coalesced state synchronization. |
+| **Testing** | Vitest 5, PGlite (`@electric-sql/pglite`), TSX | Embedded PostgreSQL in-memory testing and automated regression suites. |
+| **Deployment** | Vercel Serverless Edge Network | Global edge delivery with automated preview environments. |
+
+---
+
+## 5. Architecture / Workflow
+
+### End-to-End System Workflow
+
+```text
+       AMBULANCE EN ROUTE (Patient Telemetry & GPS)
+                            ↓
+       DISPATCH OPERATOR CREATES EMERGENCY REQUEST
+                            ↓
+           DETERMINISTIC RANKING ENGINE
+       - Applies Hard Capability Gate (ICU/O2/Vent)
+       - Evaluates Haversine Travel Time Component
+       - Evaluates Bed Telemetry Freshness Score
+       - Penalizes Current Hospital Load Percentage
+       - Applies 5-Tier Deterministic Tie-Breaker
+                            ↓
+         TRANSACTIONAL PHYSICAL BED HOLD (#1)
+       - Locks physical bed in PostgreSQL (status: HELD)
+       - Attaches hold to Request (Attempt #1)
+       - Starts authoritative 120s response timer
+                            ↓
+            HOSPITAL STAFF RESPONSE CONSOLE
+                   /                  \
+         [ACCEPT]                        [REJECT / TIMEOUT]
+            /                                    \
+           v                                      v
+    STATUS: ACCEPTED                      STATUS: REJECTED / EXPIRED
+    - Bed remains HELD                    - Physical bed released to AVAILABLE
+    - Ambulance routes to facility        - Facility logged in attempted_hospitals
+    - Invariant: ACCEPTED != OCCUPIED     - DYNAMIC FALLBACK RE-RANKING (#N+1)
+```
+
+### Critical Domain Invariants
+- **Hold at Offer Creation**: A physical bed is locked immediately when an offer is generated, completely eliminating race conditions and double-booking.
+- **One Active Hold per Request**: At most one held reservation can exist per emergency request at any given time.
+- **One Active Hold per Bed**: A physical bed can be held by at most one reservation across the entire healthcare system (enforced by PostgreSQL partial unique index).
+- **ACCEPTED != OCCUPIED**: Hospital acceptance confirms commitment to receive the patient; the bed remains `held` until the nurse physically admits the patient upon arrival.
+- **Dynamic Re-Ranking**: Fallbacks dynamically evaluate current availability and freshness across unattempted facilities (`old rank + 1` is strictly forbidden).
+
+---
+
+## 6. Dataset / API Information
+
+### Geographic Region & Facility Dataset
+BedLink is pre-seeded with authoritative geospatial, facility, and bed telemetry data modeled after the **Mumbai Emergency Metropolitan Region**:
+
+| Hospital Name | Location / Area | Latitude | Longitude | Baseline Load | Equipped Capabilities |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **Apex Hospital** | Mulund West | `19.1760` | `72.9520` | 42% | General, Oxygen, ICU, Ventilator |
+| **St. Jude Hospital** | Kurla West | `19.0728` | `72.8797` | 68% | General, Oxygen, ICU, Ventilator |
+| **Metro General Hospital**| Dadar Central | `19.0180` | `72.8480` | 74% | General, Oxygen, ICU |
+| **Lilavati Hospital** | Bandra West | `19.0510` | `72.8290` | 85% | General, Oxygen, ICU, Ventilator |
+| **KEM Hospital** | Parel | `18.9930` | `72.8420` | 91% | General, Oxygen, ICU, Ventilator |
+| **Bombay Hospital** | Marine Lines | `18.9400` | `72.8280` | 55% | General, Oxygen, ICU, Ventilator |
+
+### Database Schemas
+- **`hospitals`**: Facility metadata, geolocation (`lat`/`lng`), load percentage, and operational status.
+- **`beds`**: Individual physical beds, capability arrays (`general`, `oxygen`, `icu`, `ventilator`), status (`available`, `held`, `occupied`, `maintenance`), room number, and freshness timestamps.
+- **`bed_requests`**: Emergency requests, ambulance coordinates, required capabilities, current active reservation, and audit history.
+- **`reservations`**: Transactional hold records linking a bed to a request, hold expiration timestamp, attempt number, and resolution status (`held`, `accepted`, `rejected`, `expired`).
+
+### Internal Server Operations
+All client interactions execute through authenticated Next.js Server Actions with strict parameter validation:
+- `createEmergencyRequestAction(input)`: Generates request and initiates Attempt #1 hold.
+- `selectHospitalAction(bedRequestId, hospitalId)`: Allows manual override to lock an alternative candidate.
+- `acceptHospitalReservationAction(reservationId)`: Transitions hold to accepted state.
+- `rejectHospitalReservationAction(reservationId)`: Releases bed and cascades to dynamic fallback.
+- `updateBedStatusAction(bedId, newStatus)`: Nurse bed status mutation.
+- `confirmNurseInventoryAction()`: Nurse authoritative inventory confirmation.
+
+---
+
+## 7. Screenshots / Demo Information
+
+### Live Demonstration
+Access the live platform at **[https://bedlink-one.vercel.app](https://bedlink-one.vercel.app)**.
+
+### Demonstration Accounts & PINs
+Authentication uses 4-digit role PINs or 1-tap demo shortcuts on the login screen:
+
+| Role | Console Route | Demo Email | Role PIN | Scope |
+| :--- | :--- | :--- | :--- | :--- |
+| **Ward Nurse** | `/nurse` | `nurse.apex@bedlink.internal` | **`2468`** | Apex Hospital Ward Bed Management |
+| **Dispatch Operator** | `/dispatch` | `dispatch1@bedlink.internal` | **`9110`** | Regional EMS Ambulance Dispatch Console |
+| **Hospital Staff** | `/hospital` | `hospital.apex@bedlink.internal` | **`1357`** | Apex Hospital Emergency Response Intake |
+
+### Testing Across Devices
+- **Laptop / Desktop (`>= 1024px`)**: View full multi-column operational consoles with Leaflet live coordination maps.
+- **Mobile (`< 1024px`)**: Test on Chrome or Safari mobile views (`360x640`, `412x915`, or landscape `740x360`).
+- **Physical Phone**: Run `npm run dev -- --host` and open the local network IP on your mobile device over Wi-Fi.
+
+---
+
+## 8. Limitations & Future Scope
+
+### Current Limitations
+1. **Transit Speed Baseline**: Current travel time estimation uses Haversine distance with a constant $40\text{ km/h}$ urban ambulance speed rather than live dynamic traffic routing APIs.
+2. **Telephony Simulation**: Ambulance-to-hospital calling is initiated via `tel:` links; direct VOIP in-app push-to-talk is not yet integrated.
+3. **Hospital EMR Integration**: Bed updates are performed via the Nurse interface or automated hold transitions; direct HL7/FHIR bidirectional synchronization is in planning.
+
+### Future Scope
+- **Live Traffic API Integration**: Integration with Google Maps Distance Matrix or Mapbox Directions API for live congestion-aware ETAs.
+- **CAD (Computer-Aided Dispatch) Federation**: Direct webhooks for existing 911/108 CAD software systems.
+- **IoT Smart Bed Sensors**: Automated bed occupancy telemetry via weight/pressure sensor hardware.
+- **Multi-Region Cluster Scaling**: Sharding hospital discovery across multi-region geographic partitions.
+
+---
+
+## 9. Team Members
+
+**Team Bug Dealers** — *TechForge 2026 Hackathon*
+
+- **Ritunjay** — Full-Stack Architecture, Real-Time Systems & Supabase Integration
+- **Saanvi** — Deterministic Ranking Engine, Mathematical Models & Clinical Operations
+- **Sylborn** — Adaptive UI/UX Design System, Phone Craft & Mobile Performance
+
+---
+
+*BedLink — Deterministic Emergency Hospital-Bed Coordination Platform.*
