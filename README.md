@@ -45,10 +45,7 @@ npm install
 ### Environment Configuration
 Create a `.env.local` file in the root directory (or use the hosted Supabase instance):
 ```env
-NEXT_PUBLIC_SUPABASE_URL=https://ltawzmyjblvidycnwvvn.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
-SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
-NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=AIzaSyBy8Mf6rcEEV7K38Ug7CQT9NrqeL3ZXhyM
+
 ```
 
 ### Development Server
