@@ -6,7 +6,7 @@
   "author": "Bug Dealers",
   "repository": {
     "type": "git",
-    "url": "https://github.com/AkkiSensei/Bug-Dealers-BedLink.git"
+    "url": "https://github.com/AkkiSensei/BugDealers-BedLink.git"
   },
   "scripts": {
     "dev": "next dev",

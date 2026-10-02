@@ -116,10 +116,9 @@ BedLink addresses this by providing an authoritative, automated hospital ranking
 
 1. **Clone the repository**:
    ```bash
-   git clone https://github.com/AkkiSensei/Bug-Dealers-BedLink.git
-   cd Bug-Dealers-BedLink
+   git clone https://github.com/AkkiSensei/BugDealers-BedLink.git
+   cd BugDealers-BedLink
    ```
-   *(If cloning prior to GitHub remote rename, use `https://github.com/AkkiSensei/BedLink.git`)*
 
 2. **Install dependencies**:
    ```bash
