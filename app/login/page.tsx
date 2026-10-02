@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useCallback, Suspense } from 'react'
+import React, { useState, useEffect, useCallback, useRef, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { loginWithPinAction } from '../actions/auth'
@@ -80,6 +80,7 @@ function LoginFormInner() {
 
   // PIN state
   const [pin, setPin] = useState('')
+  const pinInputRef = useRef<HTMLInputElement>(null)
   const [activeTab, setActiveTab] = useState<'nurse' | 'dispatch' | 'hospital'>(() => {
     if (roleParam === 'dispatch' || roleParam === 'hospital' || roleParam === 'nurse') {
       return roleParam
@@ -404,18 +405,50 @@ function LoginFormInner() {
           </p>
         </div>
 
-        {/* 4-Digit PIN Boxes */}
+        {/* 4-Digit PIN Boxes & Mobile Numeric Input */}
         <div 
+          onClick={() => pinInputRef.current?.focus()}
           style={{
+            position: 'relative',
             display: 'flex',
             justifyContent: 'center',
             alignItems: 'center',
             gap: '12px',
             marginBottom: '0.75rem',
+            cursor: 'pointer',
             transform: shake ? 'translateX(6px)' : 'none',
             transition: 'transform 100ms ease-in-out',
           }}
         >
+          {/* Accessible hidden input for mobile numeric keyboard & physical typing */}
+          <input
+            ref={pinInputRef}
+            type="password"
+            inputMode="numeric"
+            pattern="[0-9]*"
+            autoComplete="off"
+            maxLength={4}
+            value={pin}
+            onChange={(e) => {
+              const val = e.target.value.replace(/\D/g, '').slice(0, 4)
+              setPin(val)
+              if (val.length === 4) {
+                setTimeout(() => executePinSubmit(val), 50)
+              }
+            }}
+            style={{
+              position: 'absolute',
+              opacity: 0,
+              width: '100%',
+              height: '100%',
+              top: 0,
+              left: 0,
+              cursor: 'pointer',
+              fontSize: '16px',
+            }}
+            aria-label="4-digit role PIN"
+          />
+
           {[0, 1, 2, 3].map((index) => {
             const hasDigit = index < pin.length
             const isCurrent = index === pin.length && !isAuthenticating
