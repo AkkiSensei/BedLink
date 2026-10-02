@@ -152,28 +152,6 @@ export default function HospitalDashboardClient({
     }
   }, [hospitalId, serverClockOffsetMs])
 
-  // Fallback polling when realtime is disconnected or degraded
-  useEffect(() => {
-    if (!hospitalId || realtimeStatus === 'SUBSCRIBED') return
-
-    const interval = setInterval(async () => {
-      try {
-        const result = await refreshHospitalReservationsAction({ targetHospitalId: hospitalId })
-        if (result.success && result.reservations) {
-          const newOffset = result.serverTime
-            ? new Date(result.serverTime).getTime() - Date.now()
-            : serverClockOffsetMs
-          if (result.serverTime) setServerClockOffsetMs(newOffset)
-          reconcileReservations(result.reservations, newOffset)
-        }
-      } catch {
-        // quiet fallback poll
-      }
-    }, 10000)
-
-    return () => clearInterval(interval)
-  }, [hospitalId, realtimeStatus, serverClockOffsetMs])
-
   // Sort reservations deterministically: held offers first (earliest expiry), then terminal offers
   const sortedReservations = [...reservations].sort((a, b) => {
     if (a.status === 'held' && b.status !== 'held') return -1
@@ -448,7 +426,7 @@ export default function HospitalDashboardClient({
               <div>
                 <span style={{ fontWeight: 700 }}>Realtime Sync Offline ({realtimeStatus}).</span>{' '}
                 <span style={{ fontSize: '0.85rem' }}>
-                  Live offers may lag. Background 10-second polling fallback is active.
+                  Click Re-Sync to refresh active emergency bed offers from the server.
                 </span>
               </div>
             </div>

@@ -156,7 +156,7 @@ export default async function HospitalPage({
 
   // 4. Resolve hospital details
   let hospitalName = 'Authorized Emergency Facility'
-  let hospitalCity = 'Emergency Operations Desk'
+  let hospitalCity = 'Emergency Operations'
   const targetHospitalId = profile.hospital_id || params?.hospitalId || null
 
   if (targetHospitalId) {

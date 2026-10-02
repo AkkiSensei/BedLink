@@ -58,7 +58,7 @@ const ROLE_TABS: RoleTabConfig[] = [
   {
     id: 'hospital',
     label: 'Hospital Staff',
-    sublabel: 'Apex Emergency Desk',
+    sublabel: 'Apex Emergency Coordination',
     pin: '1357',
     icon: <ClipboardList className="w-4 h-4" />,
     color: '#1565C0',
@@ -400,7 +400,7 @@ function LoginFormInner() {
           <p style={{ fontSize: '0.8rem', color: '#5C6B64', margin: 0 }}>
             {activeTab === 'nurse' && 'Type 2468 to launch Nurse Inventory Console'}
             {activeTab === 'dispatch' && 'Type 9110 to launch Dispatch Operator Console'}
-            {activeTab === 'hospital' && 'Type 1357 to launch Hospital Staff Desk'}
+            {activeTab === 'hospital' && 'Type 1357 to launch Hospital Staff Console'}
           </p>
         </div>
 
