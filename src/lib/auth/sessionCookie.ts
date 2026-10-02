@@ -12,11 +12,16 @@ export interface PinSessionData {
   createdAt: number
 }
 
-/**
- * Encodes session data to cookie value
- */
 export function encodePinSession(data: PinSessionData): string {
-  return Buffer.from(JSON.stringify(data)).toString('base64')
+  try {
+    const json = JSON.stringify(data)
+    if (typeof Buffer !== 'undefined') {
+      return Buffer.from(json).toString('base64')
+    }
+    return btoa(encodeURIComponent(json))
+  } catch {
+    return ''
+  }
 }
 
 /**
@@ -25,7 +30,12 @@ export function encodePinSession(data: PinSessionData): string {
 export function decodePinSession(value?: string | null): PinSessionData | null {
   if (!value) return null
   try {
-    const raw = Buffer.from(value, 'base64').toString('utf-8')
+    let raw = ''
+    if (typeof Buffer !== 'undefined') {
+      raw = Buffer.from(value, 'base64').toString('utf-8')
+    } else {
+      raw = decodeURIComponent(atob(value))
+    }
     const parsed = JSON.parse(raw)
     if (parsed && parsed.userId && parsed.role) {
       return parsed as PinSessionData
