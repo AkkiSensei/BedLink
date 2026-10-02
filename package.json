@@ -21,6 +21,7 @@
     "test:nurse": "tsx scripts/verify-nurse-ui.ts",
     "test:dispatch": "tsx scripts/verify-dispatch-ui.ts",
     "test:hospital": "tsx scripts/verify-hospital-ui.ts",
+    "test:realtime": "tsx scripts/verify-realtime.ts",
     "db:reset": "tsx scripts/reset-db.ts"
   },
   "dependencies": {
