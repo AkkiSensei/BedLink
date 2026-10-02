@@ -283,8 +283,8 @@ export async function getDispatchBedRequest(
         .from('reservations')
         .select(
           `id, hospital_id, bed_id, status, attempt_number, hold_expires_at, created_at,
-           hospitals:hospital_id ( name ),
-           beds:bed_id ( room_number, capabilities )`
+           hospitals ( name ),
+           beds ( room_number, capabilities )`
         )
         .eq('bed_request_id', bedRequest.id)
         .order('attempt_number', { ascending: true })

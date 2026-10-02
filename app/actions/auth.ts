@@ -38,26 +38,57 @@ export async function loginWithPinAction(pin: string): Promise<PinAuthResult> {
     if (isServerSupabaseConfigured()) {
       try {
         const supabase = await createServerSupabaseClient()
-        const { error: signInError } = await supabase.auth.signInWithPassword({
+        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
           email: mapping.email,
           password: 'DemoPassword123!',
         })
 
         if (signInError) {
-          // Attempt sign-up in GoTrue if account was only seeded in Postgres auth.users
-          const { error: signUpError } = await supabase.auth.signUp({
+          console.warn(
+            `[BedLink Auth] signInWithPassword failed for ${mapping.email}:`,
+            signInError.message,
+            '— attempting signUp to create GoTrue account...'
+          )
+
+          // GoTrue doesn't have this user yet — create them
+          const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
             email: mapping.email,
             password: 'DemoPassword123!',
+            options: {
+              data: { full_name: mapping.fullName },
+              emailRedirectTo: undefined,
+            },
           })
-          if (!signUpError) {
-            await supabase.auth.signInWithPassword({
+
+          if (signUpError) {
+            console.warn(
+              `[BedLink Auth] signUp also failed for ${mapping.email}:`,
+              signUpError.message,
+              '— PIN session cookie will be used as fallback auth.'
+            )
+          } else if (signUpData.user) {
+            console.log(
+              `[BedLink Auth] Created GoTrue user for ${mapping.email}, attempting re-login...`
+            )
+            const { error: retryError } = await supabase.auth.signInWithPassword({
               email: mapping.email,
               password: 'DemoPassword123!',
             })
+            if (retryError) {
+              console.warn(
+                `[BedLink Auth] Re-login after signup failed:`,
+                retryError.message,
+                '— PIN cookie is authoritative fallback.'
+              )
+            } else {
+              console.log(`[BedLink Auth] Session established for ${mapping.email} after signup.`)
+            }
           }
+        } else if (signInData?.session) {
+          console.log(`[BedLink Auth] Supabase session established for ${mapping.email}`)
         }
       } catch (e) {
-        console.warn('Optional Supabase GoTrue sync skipped:', e)
+        console.warn('[BedLink Auth] Optional Supabase GoTrue sync skipped:', e)
       }
     }
 

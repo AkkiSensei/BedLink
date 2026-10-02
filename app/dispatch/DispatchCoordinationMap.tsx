@@ -64,15 +64,23 @@ export default function DispatchCoordinationMap({
     const handleSuccess = () => setMapsLoaded(true)
     const handleError = () => setMapsError(true)
 
-    // Capture Google Maps auth failure hook
-    ;(window as any).gm_authFailure = () => {
-      setMapsError(true)
+    // Set gm_authFailure BEFORE the script loads so the Google-injected
+    // popup is intercepted and replaced by our clean SVG fallback.
+    // This must be synchronous and global.
+    if (typeof window !== 'undefined') {
+      ;(window as any).gm_authFailure = () => {
+        setMapsError(true)
+        // Find and remove any Google-injected error dialogs
+        const existingDialogs = document.querySelectorAll('.dismissButton, [id^="gm-err"]')
+        existingDialogs.forEach((el) => el.remove())
+      }
     }
 
     if (!script) {
       script = document.createElement('script')
       script.id = scriptId
-      script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=geometry`
+      // loading=async parameter for modern Maps API compliance
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=geometry&loading=async`
       script.async = true
       script.defer = true
       script.onload = handleSuccess

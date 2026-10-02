@@ -93,3 +93,39 @@ ON CONFLICT (id) DO UPDATE SET
   status = EXCLUDED.status,
   capabilities = EXCLUDED.capabilities,
   last_updated_at = now();
+
+-- ==============================================================================
+-- 6. DEMO READ POLICIES — Run once to enable PIN session fallback reads
+-- Allows anon key (unauthenticated) to read core tables for the demo.
+-- All WRITES still require authenticated sessions with the correct role.
+-- ==============================================================================
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname='public' AND tablename='hospitals' AND policyname='Anon users can read hospitals for demo') THEN
+    CREATE POLICY "Anon users can read hospitals for demo" ON public.hospitals FOR SELECT TO anon USING (true);
+  END IF;
+END; $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname='public' AND tablename='beds' AND policyname='Anon users can read beds for demo') THEN
+    CREATE POLICY "Anon users can read beds for demo" ON public.beds FOR SELECT TO anon USING (true);
+  END IF;
+END; $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname='public' AND tablename='profiles' AND policyname='Anon users can read profiles for demo') THEN
+    CREATE POLICY "Anon users can read profiles for demo" ON public.profiles FOR SELECT TO anon USING (true);
+  END IF;
+END; $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname='public' AND tablename='reservations' AND policyname='Anon users can read reservations for demo') THEN
+    CREATE POLICY "Anon users can read reservations for demo" ON public.reservations FOR SELECT TO anon USING (true);
+  END IF;
+END; $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname='public' AND tablename='bed_requests' AND policyname='Anon users can read bed_requests for demo') THEN
+    CREATE POLICY "Anon users can read bed_requests for demo" ON public.bed_requests FOR SELECT TO anon USING (true);
+  END IF;
+END; $$;
+

@@ -74,13 +74,13 @@ export async function getHospitalReservations(
         .from('reservations')
         .select(
           `id, bed_request_id, hospital_id, bed_id, status, attempt_number, hold_expires_at, created_at,
-           bed_requests:bed_request_id (
+           bed_requests!reservations_bed_request_id_fkey (
              required_capabilities, ambulance_latitude, ambulance_longitude, ambulance_phone
            ),
-           beds:bed_id (
+           beds (
              room_number, capabilities
            ),
-           hospitals:hospital_id (
+           hospitals (
              name, latitude, longitude
            )`
         )
