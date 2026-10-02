@@ -250,7 +250,9 @@ export default function HospitalReservationCard({
               fontWeight: 800,
               textTransform: 'uppercase',
               letterSpacing: '0.04em',
-              backgroundColor: isHeld
+              backgroundColor: submittingAction
+                ? '#FEF3C7'
+                : isHeld
                 ? '#E8F5E9'
                 : isAccepted
                 ? '#E8F5E9'
@@ -259,7 +261,9 @@ export default function HospitalReservationCard({
                 : isExpired
                 ? '#FEF3C7'
                 : '#EEF3EE',
-              color: isHeld
+              color: submittingAction
+                ? '#B45309'
+                : isHeld
                 ? '#2E7D32'
                 : isAccepted
                 ? '#2E7D32'
@@ -271,7 +275,17 @@ export default function HospitalReservationCard({
               border: '1px solid currentColor',
             }}
           >
-            {isHeld ? 'HELD · ACTION REQUIRED' : localStatus}
+            {submittingAction
+              ? 'PROCESSING...'
+              : isHeld
+              ? 'INCOMING · ACTION REQUIRED'
+              : isAccepted
+              ? 'CONFIRMED · ACCEPTED'
+              : isRejected
+              ? 'REJECTED · FALLBACK INITIATED'
+              : isExpired
+              ? 'OFFER EXPIRED'
+              : 'OFFER SUPERSEDED'}
           </span>
         </div>
       </div>
