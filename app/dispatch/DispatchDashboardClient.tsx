@@ -5,6 +5,7 @@ import type { DispatchBedRequestView, DispatchRankedCandidateView } from '@/lib/
 import { refreshRequestsAction, fetchRankedCandidatesAction } from './actions'
 import EmergencyRequestForm from './EmergencyRequestForm'
 import RankedCandidatesList from './RankedCandidatesList'
+import ActiveOfferCard from './ActiveOfferCard'
 
 interface DispatchDashboardClientProps {
   initialRequests: DispatchBedRequestView[]
@@ -265,6 +266,15 @@ export default function DispatchDashboardClient({
                 : 'No emergency requests recorded. Enter requirements on the left to begin.'}
             </p>
           </div>
+
+          {selectedRequest && selectedRequest.active_reservation && (
+            <ActiveOfferCard
+              reservation={selectedRequest.active_reservation}
+              bedRequestStatus={selectedRequest.status}
+              requiredCapabilities={selectedRequest.required_capabilities}
+              onRefresh={handleRefresh}
+            />
+          )}
 
           {selectedRequest && (
             <RankedCandidatesList
