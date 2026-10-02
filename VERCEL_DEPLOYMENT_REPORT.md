@@ -1,54 +1,61 @@
-# BedLink — Vercel Production Deployment Report
+# BedLink — Vercel Production Deployment Guide
 
 **Project**: `bug-dealers-bed-link`  
-**Repository**: `https://github.com/AkkiSensei/BugDealers-BedLink.git`  
+**Repository**: [https://github.com/AkkiSensei/BugDealers-BedLink.git](https://github.com/AkkiSensei/BugDealers-BedLink.git)  
 **Production URL**: [https://bug-dealers-bed-link-gamma.vercel.app](https://bug-dealers-bed-link-gamma.vercel.app)  
-**Deployment Target**: Production  
-**Deployment Status**: `READY` (HTTP 200 OK)  
+**Target Architecture**: Next.js App Router (Sole Production Application)  
 
 ---
 
-## 1. Authentication & Project Linking
+## 1. Prerequisites / Environment Variables
 
-- **Authenticated User**: `sylbornfurtado19`
-- **Scope**: Personal / Hobby scope (`sylbornfurtado19's projects`)
-- **Project Linked**: `bug-dealers-bed-link` (`prj_SEhmViEs3kVrFzBeUJ5JTRYVLkaH`)
-- **Root Directory**: `.` (Repository root)
+Ensure these environment variables are set in **Vercel Project Settings → Environment Variables** (for `Production`, `Preview`, and `Development`):
 
----
-
-## 2. Environment Variables Configuration
-
-The required client-facing Supabase variables were configured across `Production`, `Preview`, and `Development` environments in Vercel:
-
-| Variable Name | Type | Environments | Status |
-| :--- | :---: | :--- | :---: |
-| `NEXT_PUBLIC_SUPABASE_URL` | Config | Production, Preview, Development | ✅ Configured |
-| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Config | Production, Preview, Development | ✅ Configured |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Config | Production, Preview, Development | ✅ Configured |
-
-*Note: In accordance with security requirements, no service role keys or management tokens (`SUPABASE_ACCESS_TOKEN`, `SUPABASE_SERVICE_ROLE_KEY`) were added.*
+| Variable Name | Value / Format | Purpose |
+| :--- | :--- | :--- |
+| `NEXT_PUBLIC_SUPABASE_URL` | `https://ltawzmyjblvidycnwvvn.supabase.co` | Supabase API URL |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | *(Your Supabase publishable key)* | Client & Server Operations |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | *(Your Supabase anon key)* | Client & Server Operations |
 
 ---
 
-## 3. Build & Deployment Diagnostics
+## 2. Crucial Vercel Dashboard Settings Change
 
-1. **Build Diagnostics & Microcommit**:
-   - The repository's primary client application is built via Vite SPA (`"build": "tsc && vite build"`) outputting to `dist/`.
-   - Vercel project preset was updated to `framework: vite` via CLI (`prj_SEhmViEs3kVrFzBeUJ5JTRYVLkaH`).
-   - Root `middleware.ts` (Next.js server-side edge middleware) was renamed to [`middleware.next.ts`](file:///c:/Users/Dell/.gemini/antigravity-ide/scratch/BedLink/middleware.next.ts) in commit [`ed2c881`](https://github.com/AkkiSensei/BugDealers-BedLink/commit/ed2c881) to eliminate edge invocation conflicts on the static SPA build.
-2. **Build Execution**:
-   - `npm run build` executed successfully locally and in the Vercel build container in 1.16s.
-   - PWA assets and client bundles generated cleanly in `dist/`.
+Previously, the project was manually configured for Vite (`Framework: Vite`, `Output: dist`).
+For the consolidated Next.js architecture:
+
+1. Open your project on **[Vercel Dashboard](https://vercel.com/dashboard)**.
+2. Go to **Settings → General**:
+   - **Framework Preset**: Change from `Vite` to **`Next.js`**.
+   - **Build Command**: Toggle override OFF (or set to `npm run build`).
+   - **Output Directory**: Toggle override OFF (default Next.js `.next`).
+   - **Root Directory**: `./` (leave default).
+3. Save changes.
 
 ---
 
-## 4. Post-Deployment Verification
+## 3. Triggering Deployment
 
-- **Deployment Status**: `READY`
-- **HTTP Response**: `200 OK`
-- **Runtime Errors**: None. Middleware invocation error resolved.
-- **HTML Payload**: Correctly served `index.html` with bundled scripts and PWA manifest.
-- **Live URLs**:
-  - Main Alias: [https://bug-dealers-bed-link-gamma.vercel.app](https://bug-dealers-bed-link-gamma.vercel.app)
-  - Deployment Instance: [https://bug-dealers-bed-link-7vcumvehg-sylbornfurtado19s-projects.vercel.app](https://bug-dealers-bed-link-7vcumvehg-sylbornfurtado19s-projects.vercel.app)
+### Option A: Via Vercel Dashboard (Recommended)
+1. Go to the **Deployments** tab in the project dashboard.
+2. Click the three dots (`...`) on the latest commit (`main`).
+3. Select **Redeploy**.
+4. Make sure **"Use existing Build Cache"** is **UNCHECKED**.
+5. Click **Redeploy**.
+
+### Option B: Via Vercel CLI (Local Terminal)
+Run the following in your terminal:
+```bash
+# 1. Log in to your Vercel account
+npx vercel login
+
+# 2. Link this local project to your Vercel project
+npx vercel link
+
+# 3. Deploy to production
+npx vercel --prod
+```
+Or if using a personal token:
+```bash
+npx vercel --prod --token <YOUR_VERCEL_TOKEN>
+```
