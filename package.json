@@ -11,15 +11,14 @@
   },
   "homepage": "https://bug-dealers-bed-link-gamma.vercel.app",
   "scripts": {
-    "dev": "vite",
-    "dev:next": "next dev",
-    "build": "tsc && vite build",
-    "build:next": "next build",
+    "dev": "next dev",
+    "build": "next build",
     "start": "next start",
-    "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
-    "preview": "vite preview",
+    "typecheck": "tsc --project tsconfig.next.json --noEmit",
+    "lint": "tsc --project tsconfig.next.json --noEmit",
     "test": "vitest run",
     "test:unit": "vitest run",
+    "test:all": "tsx scripts/verify-db.ts && tsx scripts/verify-auth.ts && tsx scripts/verify-ranking.ts && tsx scripts/verify-reservations.ts && tsx scripts/verify-operations.ts && tsx scripts/verify-security.ts && tsx scripts/verify-nurse-ui.ts && tsx scripts/verify-dispatch-ui.ts && tsx scripts/verify-hospital-ui.ts && tsx scripts/verify-realtime.ts",
     "test:db": "tsx scripts/verify-db.ts",
     "test:auth": "tsx scripts/verify-auth.ts",
     "test:ranking": "tsx scripts/verify-ranking.ts",
@@ -41,11 +40,9 @@
     "@radix-ui/react-tooltip": "^1.2.16",
     "@supabase/ssr": "^0.5.2",
     "@supabase/supabase-js": "^2.49.1",
-    "@tailwindcss/vite": "^4.3.3",
     "@testing-library/jest-dom": "^7.0.1",
     "@testing-library/react": "^16.3.3",
     "@types/leaflet": "^1.9.22",
-    "@vitejs/plugin-react": "^6.1.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "jsdom": "^30.1.1",
@@ -55,14 +52,9 @@
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-leaflet": "^5.0.0",
-    "react-router-dom": "^7.18.4",
     "sonner": "^2.0.8",
     "tailwind-merge": "^3.7.0",
-    "tailwindcss": "^4.3.3",
-    "vite": "^8.3.2",
-    "vite-plugin-pwa": "^1.3.0",
-    "vitest": "^5.0.3",
-    "zustand": "^5.0.15"
+    "tailwindcss": "^4.3.3"
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.2.14",
@@ -71,6 +63,8 @@
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "tsx": "^4.19.3",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vite": "^8.3.2",
+    "vitest": "^5.0.3"
   }
 }
