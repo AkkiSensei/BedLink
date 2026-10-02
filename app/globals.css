@@ -1,0 +1,64 @@
+:root {
+  --bg-primary: #f8fafc;
+  --bg-card: #ffffff;
+  --bg-subtle: #f1f5f9;
+  --border-color: #e2e8f0;
+  --border-focus: #0284c7;
+
+  --text-main: #0f172a;
+  --text-muted: #64748b;
+  --text-inverse: #ffffff;
+
+  --status-available-bg: #ecfdf5;
+  --status-available-text: #065f46;
+  --status-available-border: #a7f3d0;
+  --status-available-dot: #10b981;
+
+  --status-occupied-bg: #f1f5f9;
+  --status-occupied-text: #334155;
+  --status-occupied-border: #cbd5e1;
+  --status-occupied-dot: #64748b;
+
+  --status-held-bg: #faf5ff;
+  --status-held-text: #6b21a8;
+  --status-held-border: #e9d5ff;
+  --status-held-dot: #a855f7;
+
+  --status-maint-bg: #fffbeb;
+  --status-maint-text: #92400e;
+  --status-maint-border: #fde68a;
+  --status-maint-dot: #f59e0b;
+
+  --freshness-fresh-dot: #10b981;
+  --freshness-recent-dot: #f59e0b;
+  --freshness-stale-dot: #ef4444;
+
+  --touch-min: 44px;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  background-color: var(--bg-primary);
+  color: var(--text-main);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+}
+
+button, input, select {
+  font: inherit;
+}
+
+button:focus-visible, a:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 2px;
+}

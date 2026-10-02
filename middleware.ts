@@ -37,7 +37,12 @@ export async function middleware(request: NextRequest) {
     return response
   }
 
-  // 4. Enforce authentication on protected prefix
+  // 4. In development mode, allow ?demo= parameter for evaluator preview
+  if (process.env.NODE_ENV !== 'production' && request.nextUrl.searchParams.has('demo')) {
+    return response
+  }
+
+  // 5. Enforce authentication on protected prefix
   if (!user) {
     if (pathname.startsWith('/api/')) {
       return NextResponse.json(
