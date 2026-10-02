@@ -168,7 +168,7 @@ export async function rejectReservation(
   client: any,
   params: RejectReservationParams
 ): Promise<RejectReservationResult> {
-  const { reservationId, evaluationTime } = params
+  const { reservationId, evaluationTime, autoFallback = false } = params
   const evalIso = parseEvaluationTime(evaluationTime)
 
   const result = await executeRpc<RejectReservationResult>(
@@ -180,6 +180,19 @@ export async function rejectReservation(
     },
     [reservationId, evalIso]
   )
+
+  if (autoFallback && result.success && !result.idempotent) {
+    const { executeReservationFallback } = await import('./fallback')
+    const fallbackRes = await executeReservationFallback(client, {
+      bedRequestId: result.bed_request_id,
+      evaluationTime,
+    })
+    return {
+      ...result,
+      fallbackReservation: fallbackRes.reservation ?? null,
+      noCandidatesRemaining: !fallbackRes.hasCandidate,
+    }
+  }
 
   return result
 }
