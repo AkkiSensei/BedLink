@@ -377,6 +377,20 @@ async function runNurseWorkflowVerification() {
     409
   )
 
+  await expectOperationError(
+    () => updateNurseBed({ bedId: heldBedId, capabilities: ['icu'] }, testClient),
+    'TEST 5.3: Nurse blocked from modifying capabilities of actively held bed (409 Conflict)',
+    'CONFLICT',
+    409
+  )
+
+  await expectOperationError(
+    () => updateNurseBed({ bedId: heldBedId, room_number: 'RM-HOLD-99' }, testClient),
+    'TEST 5.4: Nurse blocked from modifying room number of actively held bed (409 Conflict)',
+    'CONFLICT',
+    409
+  )
+
   // --------------------------------------------------------------------------
   // TEST 6 — Organizational Isolation & Input Boundary
   // --------------------------------------------------------------------------

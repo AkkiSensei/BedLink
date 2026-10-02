@@ -206,7 +206,7 @@ export async function updateNurseBed(
 
     if (bed.status === 'held' || activeReservationCount > 0) {
       throw new ConflictOperationError(
-        'Cannot modify status or capabilities of a physical bed while it is held by an active emergency reservation'
+        'Cannot modify status, capabilities, or details of a physical bed while it is held by an active emergency reservation'
       )
     }
 
