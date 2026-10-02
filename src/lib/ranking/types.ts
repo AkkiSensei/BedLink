@@ -86,7 +86,7 @@ export interface RankHospitalsParams {
   }
   hospitals: Hospital[]
   beds: Bed[]
-  referenceTime?: Date | string | number
+  evaluationTime: Date | string | number
   config?: Partial<RankingConfig>
 }
 
@@ -99,6 +99,6 @@ export interface RankCandidateInputsParams {
     attempted_hospitals?: string[]
   }
   candidates: HospitalCandidateInput[]
-  referenceTime?: Date | string | number
+  evaluationTime: Date | string | number
   config?: Partial<RankingConfig>
 }

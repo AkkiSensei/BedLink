@@ -54,8 +54,22 @@ export function evaluateHospitalEligibility(
   beds: Bed[],
   requiredCapabilities: BedCapability[],
   attemptedHospitals: string[] = [],
-  referenceTime: Date = new Date()
+  evaluationTime: Date | string | number
 ): EligibilityEvaluation {
+  if (evaluationTime === undefined || evaluationTime === null) {
+    throw new RankingValidationError(
+      'evaluationTime is required for deterministic hospital eligibility evaluation'
+    )
+  }
+  const evalDate =
+    evaluationTime instanceof Date
+      ? evaluationTime
+      : new Date(evaluationTime)
+  if (isNaN(evalDate.getTime())) {
+    throw new RankingValidationError(
+      `evaluationTime must be a valid Date, ISO string, or timestamp. Received: ${evaluationTime}`
+    )
+  }
   validateRequiredCapabilities(requiredCapabilities)
 
   // 1. Operational status gate
@@ -90,7 +104,7 @@ export function evaluateHospitalEligibility(
   }
 
   // 3. Find the freshest available matching bed
-  const refTimeMs = referenceTime.getTime()
+  const refTimeMs = evalDate.getTime()
   let freshestBed: Bed = matchingAvailableBeds[0]
   let freshestAgeSeconds: number | null = null
 

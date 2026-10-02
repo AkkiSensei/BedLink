@@ -137,7 +137,7 @@ function runRankingSuite() {
         { hospital: hospB, beds: [bedB], etaMinutes: 15 },
         { hospital: hospC, beds: [bedC], etaMinutes: 20 },
       ],
-      referenceTime: now,
+      evaluationTime: now,
     })
 
     assert(result.candidates.length === 3, 'TEST A.1: All 3 candidates are eligible')
@@ -212,7 +212,7 @@ function runRankingSuite() {
       },
       hospitals: [hospA, hospB],
       beds: [bedA, bedB],
-      referenceTime: now,
+      evaluationTime: now,
     })
 
     assert(result.candidates.length === 1, 'TEST B.1: Exactly 1 hospital passed the gate')
@@ -270,7 +270,7 @@ function runRankingSuite() {
         { hospital: hosp3, beds: [bed3], etaMinutes: 10 },
         { hospital: hosp4, beds: [bed4], etaMinutes: 10 },
       ],
-      referenceTime: now,
+      evaluationTime: now,
     })
 
     assert(
@@ -313,7 +313,7 @@ function runRankingSuite() {
         { hospital: hosp2, beds: [bed2], etaMinutes: 10 },
         { hospital: hosp3, beds: [bed3], etaMinutes: 10 },
       ],
-      referenceTime: now,
+      evaluationTime: now,
     })
 
     assert(
@@ -351,7 +351,7 @@ function runRankingSuite() {
         { hospital: hosp2, beds: [bed2], etaMinutes: 25 },
         { hospital: hosp3, beds: [bed3], etaMinutes: 50 },
       ],
-      referenceTime: now,
+      evaluationTime: now,
     })
 
     assert(
@@ -381,7 +381,7 @@ function runRankingSuite() {
       },
       hospitals: [hospA, hospB],
       beds: [bedA, bedB],
-      referenceTime: now,
+      evaluationTime: now,
     })
 
     assert(result.candidates.length === 1, 'TEST F.1: Exactly 1 candidate remains')
@@ -424,7 +424,7 @@ function runRankingSuite() {
         { hospital: hospTie1, beds: [bedTie1], etaMinutes: 20 },
         { hospital: hospTie2, beds: [bedTie2], etaMinutes: 10 },
       ],
-      referenceTime: now,
+      evaluationTime: now,
     })
 
     assert(resTieETA.candidates[0].score === resTieETA.candidates[1].score, 'TEST G.1: Scores tie at 50')
@@ -457,7 +457,7 @@ function runRankingSuite() {
         { hospital: hospFresherB, beds: [bedFresherB], etaMinutes: 10 },
         { hospital: hospFresherA, beds: [bedFresherA], etaMinutes: 10 },
       ],
-      referenceTime: now,
+      evaluationTime: now,
     })
 
     assert(resTieFresh.candidates[0].score === 70 && resTieFresh.candidates[1].score === 70, 'TEST G.3: Scores tie at 70')
@@ -481,7 +481,7 @@ function runRankingSuite() {
         { hospital: hospIdZ, beds: [bedIdZ], etaMinutes: 15 },
         { hospital: hospIdA, beds: [bedIdA], etaMinutes: 15 },
       ],
-      referenceTime: now,
+      evaluationTime: now,
     })
 
     assert(
@@ -505,7 +505,7 @@ function runRankingSuite() {
       },
       hospitals: [hospA, hospB],
       beds: [], // no beds
-      referenceTime: now,
+      evaluationTime: now,
     })
 
     assert(result.candidates.length === 0, 'TEST H.1: Returns empty candidate list')
@@ -538,7 +538,7 @@ function runRankingSuite() {
       },
       hospitals: [hosp1, hosp2, hosp3],
       beds: [bed1, bed2, bed3],
-      referenceTime: now,
+      evaluationTime: now,
     })
 
     assert(result.candidates.length === 2, 'TEST I.1: Exactly 2 hospitals match both required capabilities')
@@ -589,7 +589,7 @@ function runRankingSuite() {
       },
       hospitals: [hosp],
       beds: [bedStale, bedFresh, bedIrrelevant],
-      referenceTime: now,
+      evaluationTime: now,
     })
 
     assert(result.candidates.length === 1, 'TEST J.1: Hospital is eligible')
@@ -618,7 +618,7 @@ function runRankingSuite() {
     const result = rankHospitalCandidates({
       request: { required_capabilities: ['icu'], ambulance_latitude: 37.77, ambulance_longitude: -122.42 },
       candidates: [{ hospital: hosp, beds: [bed], etaMinutes: 75 }],
-      referenceTime: now,
+      evaluationTime: now,
     })
 
     assert(result.candidates.length === 1, 'TEST K.1: Candidate remains eligible even with ETA > 60')
@@ -642,7 +642,7 @@ function runRankingSuite() {
     const result = rankHospitalCandidates({
       request: { required_capabilities: ['icu'], ambulance_latitude: 37.77, ambulance_longitude: -122.42 },
       candidates: [{ hospital: hosp, beds: [bed], etaMinutes: 10 }], // travel = 50 pts
-      referenceTime: now,
+      evaluationTime: now,
     })
 
     assert(result.candidates.length === 1, 'TEST L.1: Candidate at 100% load remains eligible')
@@ -673,7 +673,7 @@ function runRankingSuite() {
     const baseResult = rankHospitalCandidates({
       request: { required_capabilities: ['icu'], ambulance_latitude: 37.77, ambulance_longitude: -122.42 },
       candidates: candidatesList,
-      referenceTime: now,
+      evaluationTime: now,
     })
 
     let allIdentical = true
@@ -683,7 +683,7 @@ function runRankingSuite() {
       const iterationResult = rankHospitalCandidates({
         request: { required_capabilities: ['icu'], ambulance_latitude: 37.77, ambulance_longitude: -122.42 },
         candidates: shuffled,
-        referenceTime: now,
+        evaluationTime: now,
       })
 
       for (let j = 0; j < baseResult.candidates.length; j++) {
@@ -710,6 +710,7 @@ function runRankingSuite() {
           request: { required_capabilities: [], ambulance_latitude: 37.77, ambulance_longitude: -122.42 },
           hospitals: [createHospital()],
           beds: [createBed()],
+          evaluationTime: now,
         }),
       'TEST N.1: Empty required_capabilities throws RankingValidationError',
       RankingValidationError
@@ -722,6 +723,7 @@ function runRankingSuite() {
           request: { required_capabilities: ['icu'], ambulance_latitude: 95.5, ambulance_longitude: -122.42 },
           hospitals: [createHospital()],
           beds: [createBed()],
+          evaluationTime: now,
         }),
       'TEST N.2: Out-of-bounds latitude throws RankingValidationError',
       RankingValidationError
@@ -734,6 +736,7 @@ function runRankingSuite() {
           request: { required_capabilities: ['icu'], ambulance_latitude: 37.77, ambulance_longitude: -122.42 },
           hospitals: [createHospital({ longitude: 200.0 })],
           beds: [createBed()],
+          evaluationTime: now,
         }),
       'TEST N.3: Out-of-bounds hospital longitude throws RankingValidationError',
       RankingValidationError
@@ -748,10 +751,32 @@ function runRankingSuite() {
             { hospital: createHospital({ id: 'dup-1' }), beds: [createBed({ hospital_id: 'dup-1' })] },
             { hospital: createHospital({ id: 'dup-1' }), beds: [createBed({ hospital_id: 'dup-1' })] },
           ],
+          evaluationTime: now,
         }),
       'TEST N.4: Duplicate hospital ID throws RankingValidationError',
       RankingValidationError
     )
+
+    // Missing evaluationTime must throw
+    expectThrow(
+      () =>
+        (rankHospitals as any)({
+          request: { required_capabilities: ['icu'], ambulance_latitude: 37.77, ambulance_longitude: -122.42 },
+          hospitals: [createHospital()],
+          beds: [createBed()],
+        }),
+      'TEST N.5: Missing evaluationTime throws RankingValidationError',
+      RankingValidationError
+    )
+
+    // Positional signature: rankHospitals(request, hospitals, beds, evaluationTime)
+    const positionalResult = rankHospitals(
+      { required_capabilities: ['icu'], ambulance_latitude: 37.77, ambulance_longitude: -122.42 },
+      [createHospital()],
+      [createBed()],
+      now
+    )
+    assert(positionalResult.candidates.length === 1, 'TEST N.6: Positional rankHospitals(request, hospitals, beds, evaluationTime) succeeds')
   }
 
   // --------------------------------------------------------------------------
@@ -786,7 +811,7 @@ function runRankingSuite() {
       request: { required_capabilities: ['icu'], ambulance_latitude: 37.77, ambulance_longitude: -122.42 },
       hospitals: [hosp],
       beds: [bedOccupied, bedHeld, bedMaint],
-      referenceTime: now,
+      evaluationTime: now,
     })
 
     assert(result.candidates.length === 0, 'TEST P.1: Occupied/held/maintenance beds do not satisfy gate')
@@ -810,7 +835,7 @@ function runRankingSuite() {
     const result = rankHospitalCandidates({
       request: { required_capabilities: ['icu'], ambulance_latitude: 37.77, ambulance_longitude: -122.42 },
       candidates: [{ hospital: hosp, beds: [bed], etaMinutes: 10 }],
-      referenceTime: now,
+      evaluationTime: now,
     })
 
     assert(result.candidates.length === 1, 'TEST Q.1: Hospital remains eligible despite missing freshness')

@@ -8,6 +8,13 @@ The engine strictly separates:
 - **Numeric Scoring**: Multi-factor scoring calculated from Travel Time (ETA), Data Freshness, and Hospital Load.
 - **Deterministic Ordering**: Absolute tie-breaking hierarchy guaranteeing reproducible ordering.
 
+### Explicit Evaluation Time
+To remove all hidden wall-clock dependence and guarantee 100% deterministic reproducibility:
+$$\text{same request} + \text{same hospitals} + \text{same beds} + \text{same evaluationTime} \implies \text{identical ranking}$$
+- `evaluationTime` is a **REQUIRED** parameter for `rankHospitals(request, hospitals, beds, evaluationTime)` and `rankHospitalCandidates(params)`.
+- The ranking engine never silently calls `Date.now()` or obtains the system time.
+- All freshness calculations derive strictly from `evaluationTime - bed.last_updated_at`.
+
 ```
 BedRequest + Candidate Hospitals + Beds
                   │

@@ -5,6 +5,9 @@ import type {
   RankCandidateInputsParams,
   ExcludedHospital,
   RankingConfig,
+  BedRequest,
+  Hospital,
+  Bed,
 } from './types'
 import { DEFAULT_RANKING_CONFIG } from './config'
 import { RankingValidationError } from './errors'
@@ -33,10 +36,28 @@ import { sortCandidatesDeterministically } from './sorter'
 export function rankHospitalCandidates(
   params: RankCandidateInputsParams
 ): RankingResult {
-  const { request, candidates, config: userConfig, referenceTime } = params
+  const { request, candidates, config: userConfig, evaluationTime } = params
   const config: RankingConfig = { ...DEFAULT_RANKING_CONFIG, ...userConfig }
 
-  // 1. Validate request inputs
+  // 1. Validate evaluationTime is explicitly provided
+  if (evaluationTime === undefined || evaluationTime === null) {
+    throw new RankingValidationError(
+      'evaluationTime is required for deterministic hospital ranking'
+    )
+  }
+
+  const evalDate =
+    evaluationTime instanceof Date
+      ? evaluationTime
+      : new Date(evaluationTime)
+
+  if (isNaN(evalDate.getTime())) {
+    throw new RankingValidationError(
+      `evaluationTime must be a valid Date, ISO string, or timestamp. Received: ${evaluationTime}`
+    )
+  }
+
+  // 2. Validate request inputs
   validateRequiredCapabilities(request.required_capabilities)
   validateCoordinates(
     request.ambulance_latitude,
@@ -44,14 +65,7 @@ export function rankHospitalCandidates(
     'Ambulance'
   )
 
-  const refDate =
-    referenceTime instanceof Date
-      ? referenceTime
-      : referenceTime
-      ? new Date(referenceTime)
-      : new Date()
-
-  // 2. Check for duplicate hospital records in the candidate input
+  // 3. Check for duplicate hospital records in the candidate input
   const seenHospitalIds = new Set<string>()
   for (const candidate of candidates) {
     if (seenHospitalIds.has(candidate.hospital.id)) {
@@ -80,7 +94,7 @@ export function rankHospitalCandidates(
       beds,
       request.required_capabilities,
       attemptedHospitals,
-      refDate
+      evalDate
     )
 
     if (!evaluation.isEligible) {
@@ -156,16 +170,64 @@ export function rankHospitalCandidates(
     total_hospitals_evaluated: candidates.length,
     eligible_hospitals_count: sortedCandidates.length,
     excluded_hospitals: excludedHospitals,
-    timestamp: refDate.toISOString(),
+    timestamp: evalDate.toISOString(),
   }
 }
 
 /**
  * Standard entrypoint that accepts raw hospital and bed lists,
  * maps them to candidate inputs, and executes the ranking engine.
+ *
+ * evaluationTime is a REQUIRED parameter for deterministic ranking.
  */
-export function rankHospitals(params: RankHospitalsParams): RankingResult {
-  const { request, hospitals, beds, referenceTime, config } = params
+export function rankHospitals(
+  request: Pick<
+    BedRequest,
+    'required_capabilities' | 'ambulance_latitude' | 'ambulance_longitude'
+  > & {
+    id?: string
+    attempted_hospitals?: string[]
+  },
+  hospitals: Hospital[],
+  beds: Bed[],
+  evaluationTime: Date | string | number,
+  config?: Partial<RankingConfig>
+): RankingResult
+export function rankHospitals(params: RankHospitalsParams): RankingResult
+export function rankHospitals(
+  requestOrParams:
+    | (Pick<
+        BedRequest,
+        'required_capabilities' | 'ambulance_latitude' | 'ambulance_longitude'
+      > & {
+        id?: string
+        attempted_hospitals?: string[]
+      })
+    | RankHospitalsParams,
+  hospitalsArg?: Hospital[],
+  bedsArg?: Bed[],
+  evaluationTimeArg?: Date | string | number,
+  configArg?: Partial<RankingConfig>
+): RankingResult {
+  let request: any
+  let hospitals: Hospital[]
+  let beds: Bed[]
+  let evaluationTime: Date | string | number
+  let config: Partial<RankingConfig> | undefined
+
+  if ('hospitals' in requestOrParams) {
+    request = requestOrParams.request
+    hospitals = requestOrParams.hospitals
+    beds = requestOrParams.beds
+    evaluationTime = requestOrParams.evaluationTime
+    config = requestOrParams.config
+  } else {
+    request = requestOrParams
+    hospitals = hospitalsArg!
+    beds = bedsArg!
+    evaluationTime = evaluationTimeArg!
+    config = configArg
+  }
 
   const candidateInputs = hospitals.map((hospital) => ({
     hospital,
@@ -175,7 +237,7 @@ export function rankHospitals(params: RankHospitalsParams): RankingResult {
   return rankHospitalCandidates({
     request,
     candidates: candidateInputs,
-    referenceTime,
+    evaluationTime,
     config,
   })
 }
