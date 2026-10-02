@@ -63,10 +63,42 @@ export interface DispatchReservationView {
   hospital_id: string
   hospital_name?: string
   bed_id: string
+  room_number?: string | null
+  capabilities?: BedCapability[]
   status: ReservationStatus
   attempt_number: number
   hold_expires_at: string
   created_at: string
+}
+
+export interface DispatchReservationHistoryView {
+  id: string
+  hospital_id: string
+  hospital_name: string
+  bed_id: string
+  status: ReservationStatus
+  attempt_number: number
+  hold_expires_at: string
+  created_at: string
+}
+
+export interface DispatchRankedCandidateView {
+  rank: number
+  hospital_id: string
+  hospital_name: string
+  estimated_travel_time_minutes: number
+  bed_data_freshness_seconds: number | null
+  current_load_percent: number
+  score: number
+  matched_bed_id?: string
+  matched_bed_room_number?: string | null
+  matched_bed_capabilities?: BedCapability[]
+  is_current_offer: boolean
+  breakdown: {
+    travel_component: number
+    freshness_component: number
+    load_penalty: number
+  }
 }
 
 export interface DispatchBedRequestView {
@@ -82,6 +114,8 @@ export interface DispatchBedRequestView {
   created_at: string
   updated_at: string
   active_reservation: DispatchReservationView | null
+  reservation_history?: DispatchReservationHistoryView[]
+  ranked_candidates?: DispatchRankedCandidateView[]
 }
 
 // ==========================================

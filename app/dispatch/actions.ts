@@ -4,11 +4,13 @@ import {
   createDispatchBedRequest,
   getDispatchBedRequest,
   listDispatchBedRequests,
+  getDispatchRankedCandidates,
 } from '@/lib/operations/dispatch'
 import { toOperationError } from '@/lib/operations/errors'
 import type {
   CreateBedRequestInput,
   DispatchBedRequestView,
+  DispatchRankedCandidateView,
 } from '@/lib/operations/types'
 
 export interface CreateRequestActionResult {
@@ -103,6 +105,41 @@ export async function fetchDispatchBedRequestAction(
     return {
       success: true,
       request,
+    }
+  } catch (err: any) {
+    const opErr = toOperationError(err)
+    return {
+      success: false,
+      error: {
+        code: opErr.code,
+        message: opErr.message,
+        status: opErr.status,
+      },
+    }
+  }
+}
+
+export interface RankedCandidatesActionResult {
+  success: boolean
+  candidates?: DispatchRankedCandidateView[]
+  error?: {
+    code: string
+    message: string
+    status: number
+  }
+}
+
+/**
+ * Server Action: Fetches authoritative ranked hospital candidates for a BedRequest.
+ */
+export async function fetchRankedCandidatesAction(
+  bedRequestId: string
+): Promise<RankedCandidatesActionResult> {
+  try {
+    const candidates = await getDispatchRankedCandidates(bedRequestId)
+    return {
+      success: true,
+      candidates,
     }
   } catch (err: any) {
     const opErr = toOperationError(err)
