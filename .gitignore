@@ -37,6 +37,10 @@ Desktop.ini
 .vercel
 .turbo
 
+# supabase
+supabase/.temp/
+.temp/
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts
