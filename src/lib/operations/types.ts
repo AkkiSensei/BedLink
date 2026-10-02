@@ -86,6 +86,8 @@ export interface DispatchRankedCandidateView {
   rank: number
   hospital_id: string
   hospital_name: string
+  latitude?: number
+  longitude?: number
   estimated_travel_time_minutes: number
   bed_data_freshness_seconds: number | null
   current_load_percent: number

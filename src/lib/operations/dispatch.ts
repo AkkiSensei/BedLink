@@ -477,11 +477,17 @@ export async function getDispatchRankedCandidates(
       bedMap.set(b.id, b)
     }
 
+    const hospMap = new Map<string, Hospital>()
+    for (const h of hospitals) {
+      hospMap.set(h.id, h)
+    }
+
     const activeHospitalId = bedRequestView.active_reservation?.hospital_id
 
     const rankedViews: DispatchRankedCandidateView[] = rankingResult.candidates.map(
       (c, idx) => {
         const matchedBed = c.matched_bed_id ? bedMap.get(c.matched_bed_id) : undefined
+        const hosp = hospMap.get(c.hospital_id)
         const isCurrentOffer = Boolean(
           activeHospitalId && c.hospital_id === activeHospitalId
         )
@@ -497,6 +503,8 @@ export async function getDispatchRankedCandidates(
           rank: idx + 1,
           hospital_id: c.hospital_id,
           hospital_name: c.hospital_name,
+          latitude: hosp?.latitude,
+          longitude: hosp?.longitude,
           estimated_travel_time_minutes: c.estimated_travel_time_minutes,
           bed_data_freshness_seconds: c.bed_data_freshness_seconds,
           current_load_percent: c.current_load_percent,
