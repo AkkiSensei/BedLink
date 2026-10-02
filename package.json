@@ -8,6 +8,7 @@
     "start": "next start",
     "test:db": "tsx scripts/verify-db.ts",
     "test:auth": "tsx scripts/verify-auth.ts",
+    "test:ranking": "tsx scripts/verify-ranking.ts",
     "db:reset": "tsx scripts/reset-db.ts"
   },
   "dependencies": {
