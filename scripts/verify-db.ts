@@ -94,17 +94,14 @@ async function runAllTests() {
 
   // Apply migrations
   console.log('📦 Applying Migrations...')
-  const migration1 = fs.readFileSync(
-    path.join(process.cwd(), 'supabase', 'migrations', '20261002000000_phase2_foundation.sql'),
-    'utf8'
-  )
-  await db.exec(migration1)
-
-  const migration2 = fs.readFileSync(
-    path.join(process.cwd(), 'supabase', 'migrations', '20261002000001_reset_mechanism.sql'),
-    'utf8'
-  )
-  await db.exec(migration2)
+  const migrationsDir = path.join(process.cwd(), 'supabase', 'migrations')
+  const migrationFiles = fs.readdirSync(migrationsDir).sort()
+  for (const file of migrationFiles) {
+    if (file.endsWith('.sql')) {
+      const sql = fs.readFileSync(path.join(migrationsDir, file), 'utf8')
+      await db.exec(sql)
+    }
+  }
   console.log('   Migrations applied successfully.\n')
 
   // --------------------------------------------------------------------------
