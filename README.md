@@ -34,9 +34,9 @@ BedLink addresses this by providing an authoritative, automated hospital ranking
 - **Authenticated Server Operation Boundary**: Typed server operations exposing Nurse (inventory management), Dispatch (request creation and tracking), and Hospital (offer review, accept, reject) workflows.
 - **Nurse Inventory Interface (`/nurse`)**: Operational bed management UI allowing hospital nurses to view departmental beds, update statuses, and monitor telemetry freshness.
 - **Dispatch Operational Interface (`/dispatch`)**: End-to-end EMS dispatch console for emergency bed request creation, multi-factor ranked hospital visualization, single-hold offer monitoring, countdown timers, and fallback progression tracking.
+- **Hospital Operational Interface (`/hospital`)**: Dedicated response console for hospital operations desks to review incoming emergency bed reservation holds, examine patient clinical requirements and ETA, and execute authoritative Accept or Reject decisions within the 120-second hold window.
 
 ### Planned / Future Scope
-- **Phase 9: Hospital Interface (`/hospital`)**: Interactive intake console for emergency department staff to review, accept, or decline incoming reservation offers.
 - **Phase 10: Supabase Realtime**: Instant status push notifications via WebSockets.
 - **GPS Telemetry**: Live ambulance GPS telemetry and dynamic ETA re-computation.
 - **Clinical Admission**: Post-arrival workflows transitioning beds from `held` to `occupied`.
@@ -151,7 +151,7 @@ BedLink addresses this by providing an authoritative, automated hospital ranking
 
 ## Running Tests
 
-BedLink features a comprehensive, 328-assertion automated test suite covering every layer of the architecture:
+BedLink features a comprehensive, 366-assertion automated test suite covering every layer of the architecture:
 
 ```bash
 # 1. Database Foundation & RLS Policies (31 tests)
@@ -178,10 +178,13 @@ npm run test:nurse
 # 8. Dispatch Operational Interface (41 tests)
 npm run test:dispatch
 
-# 9. Development State Reset Verification
+# 9. Hospital Operational Interface (38 tests)
+npm run test:hospital
+
+# 10. Development State Reset Verification
 npm run db:reset
 
-# 10. Production Build Check
+# 11. Production Build Check
 npm run build
 ```
 
@@ -197,7 +200,8 @@ npm run build
 | **Security** | `scripts/verify-security.ts` | 10 | Explicit search_path hardening, SECURITY DEFINER privilege escalation defense, function security audit. |
 | **Nurse UI** | `scripts/verify-nurse-ui.ts` | 25 | Hospital inventory display, role protection, bed status updates, freshness badges, organization boundaries. |
 | **Dispatch UI** | `scripts/verify-dispatch-ui.ts` | 41 | Route RBAC, request creation, server validations, ranking display, single-hold invariant, fallback progression. |
-| **Total** | | **328** | **100% Passing** |
+| **Hospital UI** | `scripts/verify-hospital-ui.ts` | 38 | Response console, ownership isolation, accept/reject workflows, ACCEPTED != OCCUPIED invariant, fallback trigger, expired hold defense. |
+| **Total** | | **366** | **100% Passing** |
 
 ---
 
@@ -218,7 +222,7 @@ Screenshots and demo video links will be recorded and published following comple
 | **Phase 6** | Authenticated Server Operations / Backend API Layer | ✅ Implemented |
 | **Phase 7** | Nurse Interface (`/nurse`) & Inventory Management | ✅ Implemented |
 | **Phase 8** | Dispatch Interface (`/dispatch`), Emergency Requests, Ranking & Fallback | ✅ Implemented |
-| **Phase 9** | Hospital Interface (`/hospital`), Emergency Department Intake | ⏳ Future |
+| **Phase 9** | Hospital Interface (`/hospital`), Emergency Department Response Console | ✅ Implemented |
 | **Phase 10** | Supabase Realtime Live Subscriptions & Notifications | ⏳ Future |
 
 ---
