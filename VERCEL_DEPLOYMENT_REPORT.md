@@ -1,8 +1,10 @@
 # BedLink — Vercel Production Deployment Guide
 
-**Project**: `bug-dealers-bed-link`  
+**Project**: `bedlink`  
 **Repository**: [https://github.com/AkkiSensei/BugDealers-BedLink.git](https://github.com/AkkiSensei/BugDealers-BedLink.git)  
-**Production URL**: [https://bug-dealers-bed-link-gamma.vercel.app](https://bug-dealers-bed-link-gamma.vercel.app)  
+**Primary Production URL**: [https://bedlink-one.vercel.app](https://bedlink-one.vercel.app)  
+**Deployment Preview URL**: [https://bedlink-b22l0h0bo-renegadeds-projects.vercel.app](https://bedlink-b22l0h0bo-renegadeds-projects.vercel.app)  
+**Deployment Status**: `Ready` (Verified Live Next.js App Router)  
 **Target Architecture**: Next.js App Router (Sole Production Application)  
 
 ---
@@ -59,3 +61,17 @@ Or if using a personal token:
 ```bash
 npx vercel --prod --token <YOUR_VERCEL_TOKEN>
 ```
+
+---
+
+## 4. Customizing / Shortening Your Domain
+
+Vercel provides free custom domain and subdomain routing:
+
+1. **Current Production Domain**: `bedlink-one.vercel.app` is already active and clean.
+2. **Custom Domain (e.g. `bedlink.org` or `bedlink.app`)**:
+   - In your Vercel project, go to **Settings → Domains** (or click **Domains** on the left menu).
+   - Enter your domain name and click **Add**.
+   - Vercel will guide you through setting up the CNAME/A records and will automatically issue free SSL certificates.
+3. **Alternative `.vercel.app` Subdomain**:
+   - In **Settings → Domains**, type a new prefix like `bedlink-live.vercel.app` or `bedlink-app.vercel.app` to see if it is available.

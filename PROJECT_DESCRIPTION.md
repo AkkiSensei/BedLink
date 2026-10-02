@@ -64,4 +64,4 @@ BedLink replaces manual inquiries with an automated, end-to-end coordination pip
 - **Database & Domain Engine**: PostgreSQL (tested with PGlite for self-contained validation and hosted Supabase PostgreSQL), PL/pgSQL stored procedures, Row Level Security (RLS).
 - **Realtime Protocol**: Supabase Realtime (WebSocket channels with role-scoped security filters, coalesced debouncing, and automatic reconnect resync).
 - **Testing & Quality Assurance**: Vitest, tsx verification suites covering 374 rigorous regression assertions across 10 verification dimensions.
-- **Deployment**: Vercel production hosting (`https://bug-dealers-bed-link-gamma.vercel.app`).
+- **Deployment**: Vercel production hosting (`https://bedlink-one.vercel.app`).

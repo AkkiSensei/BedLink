@@ -3,7 +3,7 @@
 > **TechForge 2026 Submission**  
 > **Team**: Bug Dealers  
 > **Domain**: HealthTech / Emergency Medical Coordination  
-> **Live Production Deployment**: [https://bug-dealers-bed-link-gamma.vercel.app](https://bug-dealers-bed-link-gamma.vercel.app)  
+> **Live Production Deployment**: [https://bedlink-one.vercel.app](https://bedlink-one.vercel.app)  
 
 ---
 
