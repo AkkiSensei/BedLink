@@ -8,6 +8,8 @@ import RankedCandidatesList from './RankedCandidatesList'
 import ActiveOfferCard from './ActiveOfferCard'
 import RequestHistoryList from './RequestHistoryList'
 import RequestDetailView from './RequestDetailView'
+import FallbackHistoryView from './FallbackHistoryView'
+import NoMatchState from './NoMatchState'
 
 interface DispatchDashboardClientProps {
   initialRequests: DispatchBedRequestView[]
@@ -271,6 +273,18 @@ export default function DispatchDashboardClient({
           )}
 
 
+          {/* 1. Terminal No-Match State when all candidates are exhausted */}
+          {selectedRequest &&
+            selectedRequest.status === 'fallback' &&
+            !selectedRequest.active_reservation && (
+              <NoMatchState
+                attemptedCount={selectedRequest.attempted_hospitals?.length ?? 0}
+                requiredCapabilities={selectedRequest.required_capabilities}
+                onRefresh={handleRefresh}
+              />
+            )}
+
+          {/* 2. Active Offer Card with live hold countdown */}
           {selectedRequest && selectedRequest.active_reservation && (
             <ActiveOfferCard
               reservation={selectedRequest.active_reservation}
@@ -280,6 +294,17 @@ export default function DispatchDashboardClient({
             />
           )}
 
+          {/* 3. Fallback Attempt History (Attempt #1 -> Attempt #2) */}
+          {selectedRequest &&
+            selectedRequest.reservation_history &&
+            selectedRequest.reservation_history.length > 0 && (
+              <FallbackHistoryView
+                history={selectedRequest.reservation_history}
+                activeReservationId={selectedRequest.current_active_reservation_id}
+              />
+            )}
+
+          {/* 4. Ranked Hospital Alternatives */}
           {selectedRequest && (
             <RankedCandidatesList
               candidates={rankedCandidates}
