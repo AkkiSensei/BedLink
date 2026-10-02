@@ -231,9 +231,12 @@ export default function DispatchCoordinationMap({
         })
       }
 
-      // Auto fit zoom with padding
-      if (!bounds.isEmpty()) {
+      // Auto fit zoom with padding if candidates exist; otherwise center on ambulance
+      if (candidates.length > 0 && !bounds.isEmpty()) {
         map.fitBounds(bounds, { top: 40, right: 40, bottom: 40, left: 40 })
+      } else {
+        map.setCenter(ambulanceLatLng)
+        map.setZoom(13)
       }
     } catch {
       setMapsError(true)
@@ -373,25 +376,41 @@ export default function DispatchCoordinationMap({
       </div>
 
       {/* Map Viewport Area */}
-      <div style={{ position: 'relative', width: '100%', height: '340px', backgroundColor: '#EEF3EE' }}>
+      <div style={{ position: 'relative', width: '100%', height: '340px', backgroundColor: '#EEF3EE', overflow: 'hidden' }}>
         {/* Real Google Maps Container */}
         {!mapsError && (
           <div
             ref={mapContainerRef}
             style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
               width: '100%',
               height: '100%',
-              display: mapsLoaded ? 'block' : 'none',
+              zIndex: mapsLoaded ? 2 : 0,
+              opacity: mapsLoaded ? 1 : 0,
+              pointerEvents: mapsLoaded ? 'auto' : 'none',
+              transition: 'opacity 0.25s ease',
             }}
           />
         )}
 
         {/* Tactical SVG Radar Fallback (Always rendered if Maps is loading or failed) */}
         {(mapsError || !mapsLoaded) && (
-          <svg
-            viewBox={`0 0 ${radarView.width} ${radarView.height}`}
-            style={{ width: '100%', height: '100%', display: 'block' }}
+          <div
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              width: '100%',
+              height: '100%',
+              zIndex: 1,
+            }}
           >
+            <svg
+              viewBox={`0 0 ${radarView.width} ${radarView.height}`}
+              style={{ width: '100%', height: '100%', display: 'block' }}
+            >
             <defs>
               {/* Radar Grid Pattern */}
               <pattern id="radar-grid" width="40" height="40" patternUnits="userSpaceOnUse">
@@ -486,7 +505,8 @@ export default function DispatchCoordinationMap({
                 </text>
               </g>
             )}
-          </svg>
+            </svg>
+          </div>
         )}
 
         {/* Legend / Overlay pill */}
@@ -495,6 +515,7 @@ export default function DispatchCoordinationMap({
             position: 'absolute',
             bottom: '10px',
             left: '10px',
+            zIndex: 10,
             backgroundColor: 'rgba(255, 255, 255, 0.95)',
             backdropFilter: 'blur(4px)',
             borderRadius: '8px',
