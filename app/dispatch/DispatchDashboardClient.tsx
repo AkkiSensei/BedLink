@@ -73,7 +73,7 @@ export default function DispatchDashboardClient({
           const res = await refreshRequestsAction()
           if (res.success && res.requests) {
             setRequests(res.requests)
-            const currentId = selectedRequestIdRef.current
+            const currentId = selectedRequestIdRef.current || res.requests[0]?.id
             if (currentId) {
               const cRes = await fetchRankedCandidatesAction(currentId)
               if (cRes.success && cRes.candidates) {

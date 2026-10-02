@@ -81,6 +81,11 @@ export default function HospitalDashboardClient({
     }
   }, [reservations])
 
+  const serverClockOffsetMsRef = useRef(serverClockOffsetMs)
+  useEffect(() => {
+    serverClockOffsetMsRef.current = serverClockOffsetMs
+  }, [serverClockOffsetMs])
+
   // Re-sync on visibility change (when tab regains focus) and online events
   useEffect(() => {
     const handleVisibility = () => {
@@ -90,7 +95,7 @@ export default function HospitalDashboardClient({
             if (res.success && res.reservations) {
               const newOffset = res.serverTime
                 ? new Date(res.serverTime).getTime() - Date.now()
-                : serverClockOffsetMs
+                : serverClockOffsetMsRef.current
               if (res.serverTime) setServerClockOffsetMs(newOffset)
               reconcileReservations(res.reservations, newOffset)
             }
@@ -106,7 +111,7 @@ export default function HospitalDashboardClient({
             if (res.success && res.reservations) {
               const newOffset = res.serverTime
                 ? new Date(res.serverTime).getTime() - Date.now()
-                : serverClockOffsetMs
+                : serverClockOffsetMsRef.current
               if (res.serverTime) setServerClockOffsetMs(newOffset)
               reconcileReservations(res.reservations, newOffset)
             }
@@ -122,7 +127,7 @@ export default function HospitalDashboardClient({
       document.removeEventListener('visibilitychange', handleVisibility)
       window.removeEventListener('online', handleOnline)
     }
-  }, [hospitalId, serverClockOffsetMs])
+  }, [hospitalId])
 
   // Subscribe to real-time incoming and updated hospital offers
   useEffect(() => {
@@ -137,7 +142,7 @@ export default function HospitalDashboardClient({
           if (result.success && result.reservations) {
             const newOffset = result.serverTime
               ? new Date(result.serverTime).getTime() - Date.now()
-              : serverClockOffsetMs
+              : serverClockOffsetMsRef.current
             if (result.serverTime) setServerClockOffsetMs(newOffset)
             reconcileReservations(result.reservations, newOffset)
           }
@@ -150,7 +155,7 @@ export default function HospitalDashboardClient({
     return () => {
       handle.unsubscribe()
     }
-  }, [hospitalId, serverClockOffsetMs])
+  }, [hospitalId])
 
   // Sort reservations deterministically: held offers first (earliest expiry), then terminal offers
   const sortedReservations = [...reservations].sort((a, b) => {

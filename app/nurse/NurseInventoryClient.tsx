@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useTransition } from 'react'
+import React, { useState, useEffect, useRef, useTransition } from 'react'
 import type { NurseBedView } from '@/lib/operations/types'
 import type { BedStatus } from '@/lib/types/database'
 import {
@@ -46,6 +46,11 @@ export default function NurseInventoryClient({
   const [realtimeStatus, setRealtimeStatus] = useState<RealtimeConnectionStatus>('CONNECTING')
   const [isPending, startTransition] = useTransition()
 
+  const updatingBedIdRef = useRef(updatingBedId)
+  useEffect(() => {
+    updatingBedIdRef.current = updatingBedId
+  }, [updatingBedId])
+
   // Realtime subscription: role-scoped to nurse's hospital beds
   useEffect(() => {
     if (!hospitalId) return
@@ -55,7 +60,7 @@ export default function NurseInventoryClient({
       onStatusChange: (status) => setRealtimeStatus(status),
       onReconcile: async () => {
         // Avoid overwriting local state while the nurse is mid-mutation
-        if (updatingBedId) return
+        if (updatingBedIdRef.current) return
         try {
           const result = await refreshNurseBedsAction()
           if (result.success && result.beds) {
@@ -70,7 +75,7 @@ export default function NurseInventoryClient({
     return () => {
       handle.unsubscribe()
     }
-  }, [hospitalId, updatingBedId])
+  }, [hospitalId])
 
   // Calculate summary metrics
   const totalCount = beds.length

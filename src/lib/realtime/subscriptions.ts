@@ -14,10 +14,10 @@ import type {
 function createDebouncedReconciler(
   onReconcile: () => Promise<void> | void,
   delayMs = 150
-): () => void {
+): (() => void) & { cancel: () => void } {
   let timeoutId: ReturnType<typeof setTimeout> | null = null
 
-  return () => {
+  const fn = () => {
     if (timeoutId) {
       clearTimeout(timeoutId)
     }
@@ -31,6 +31,15 @@ function createDebouncedReconciler(
       }
     }, delayMs)
   }
+
+  fn.cancel = () => {
+    if (timeoutId) {
+      clearTimeout(timeoutId)
+      timeoutId = null
+    }
+  }
+
+  return fn
 }
 
 /**
@@ -126,6 +135,7 @@ export function subscribeNurseBeds(
   return {
     unsubscribe: () => {
       try {
+        debouncedReconcile.cancel()
         if (typeof window !== 'undefined') {
           window.removeEventListener('online', handleOnline)
           document.removeEventListener('visibilitychange', handleVisibility)
@@ -259,6 +269,7 @@ export function subscribeDispatchWorkflow(
   return {
     unsubscribe: () => {
       try {
+        debouncedReconcile.cancel()
         if (typeof window !== 'undefined') {
           window.removeEventListener('online', handleOnline)
           document.removeEventListener('visibilitychange', handleVisibility)
@@ -373,6 +384,7 @@ export function subscribeHospitalOffers(
   return {
     unsubscribe: () => {
       try {
+        debouncedReconcile.cancel()
         if (typeof window !== 'undefined') {
           window.removeEventListener('online', handleHospitalOnline)
           document.removeEventListener('visibilitychange', handleHospitalVisibility)
