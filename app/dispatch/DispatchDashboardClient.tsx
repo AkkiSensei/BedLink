@@ -217,6 +217,8 @@ export default function DispatchDashboardClient({
     <div
       style={{
         minHeight: '100vh',
+        width: '100%',
+        overflowX: 'hidden',
         backgroundColor: '#F4F6F4',
         color: '#1A2421',
         fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
@@ -474,7 +476,7 @@ export default function DispatchDashboardClient({
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(460px, 1fr))',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 460px), 1fr))',
             gap: '1.5rem',
             alignItems: 'start',
           }}
@@ -567,7 +569,7 @@ export default function DispatchDashboardClient({
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(420px, 1fr))',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 420px), 1fr))',
             gap: '1.5rem',
             alignItems: 'start',
           }}
