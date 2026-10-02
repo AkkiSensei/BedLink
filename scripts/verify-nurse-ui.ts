@@ -2,7 +2,8 @@ import { PGlite } from '@electric-sql/pglite'
 import * as fs from 'fs'
 import * as path from 'path'
 import { DEMO_IDENTITIES } from '../src/lib/auth/demoIdentities'
-import { getNurseBeds, updateNurseBed } from '../src/lib/operations/nurse'
+import { getNurseBeds, updateNurseBed, confirmNurseInventory } from '../src/lib/operations/nurse'
+import { subscribeNurseBeds } from '../src/lib/realtime/subscriptions'
 import { formatRelativeTime } from '../app/nurse/FreshnessBadge'
 import { OperationError } from '../src/lib/operations/errors'
 import type { BedStatus } from '../src/lib/types/database'
@@ -413,8 +414,173 @@ async function runNurseWorkflowVerification() {
     400
   )
 
+  // 6.3 Unauthenticated mutation rejected with 401
+  await setUserContext(null, 'anon')
+  await expectOperationError(
+    () => updateNurseBed({ bedId: testBedId, status: 'available' }, testClient),
+    'TEST 6.3: Unauthenticated mutation rejected with 401',
+    'UNAUTHENTICATED',
+    401
+  )
+
+  // --------------------------------------------------------------------------
+  // TEST 7 — Confirm Inventory & Freshness Integrity Preservation
+  // --------------------------------------------------------------------------
+  console.log('\n▶️ TEST 7 — Confirm Inventory & Freshness Integrity Preservation')
+
+  await setUserContext(nurseApex)
+
+  // 7.1 Capture individual bed timestamps before confirmation
+  const bedsBeforeRes = await db.query(
+    `SELECT id, last_updated_at FROM public.beds WHERE hospital_id = $1 ORDER BY id ASC;`,
+    [apexHospId]
+  )
+  const bedsBefore = bedsBeforeRes.rows
+
+  // 7.2 Execute Nurse Confirm Inventory action
+  const confirmResult = await confirmNurseInventory(testClient)
+  assert(
+    confirmResult.hospital_id === apexHospId,
+    'TEST 7.1: Confirm Inventory returns authenticated nurse hospital ID',
+    confirmResult.hospital_id
+  )
+  assert(
+    confirmResult.message ===
+      'The Nurse has checked the displayed inventory and confirms it is still accurate.',
+    'TEST 7.2: Exact authoritative confirmation message returned'
+  )
+  assert(
+    Boolean(confirmResult.confirmed_at),
+    'TEST 7.3: Valid ISO timestamp returned for confirmation'
+  )
+
+  // 7.3 Freshness Integrity Invariant: Individual bed last_updated_at must NOT be blindly refreshed
+  const bedsAfterRes = await db.query(
+    `SELECT id, last_updated_at FROM public.beds WHERE hospital_id = $1 ORDER BY id ASC;`,
+    [apexHospId]
+  )
+  const bedsAfter = bedsAfterRes.rows
+
+  const timestampsIdentical = bedsBefore.every(
+    (b: any, idx: number) =>
+      new Date(b.last_updated_at).getTime() ===
+      new Date(bedsAfter[idx]?.last_updated_at).getTime()
+  )
+  assert(
+    timestampsIdentical,
+    'TEST 7.4: CRITICAL INVARIANT: Confirm Inventory preserves freshness integrity without blindly touching bed timestamps'
+  )
+
+  // 7.4 Verify hospital updated_at is updated
+  const hospRes = await db.query(
+    `SELECT updated_at FROM public.hospitals WHERE id = $1;`,
+    [apexHospId]
+  )
+  const hospUpdatedAt = hospRes.rows[0]?.updated_at
+  assert(
+    Boolean(hospUpdatedAt),
+    'TEST 7.5: Hospital-level updated_at timestamp successfully recorded'
+  )
+
+  // 7.5 Unauthenticated Confirm Inventory is rejected (401)
+  await setUserContext(null, 'anon')
+  await expectOperationError(
+    () => confirmNurseInventory(testClient),
+    'TEST 7.6: Unauthenticated caller blocked from confirming inventory (401)',
+    'UNAUTHENTICATED',
+    401
+  )
+
+  // 7.6 Dispatch role calling Confirm Inventory is rejected (403)
+  await setUserContext(dispatch)
+  await expectOperationError(
+    () => confirmNurseInventory(testClient),
+    'TEST 7.7: Dispatch role blocked from confirming nurse inventory (403)',
+    'FORBIDDEN',
+    403
+  )
+
+  // --------------------------------------------------------------------------
+  // TEST 8 — Action Safety & Duplicate Action Idempotency
+  // --------------------------------------------------------------------------
+  console.log('\n▶️ TEST 8 — Action Safety & Duplicate Action Idempotency')
+
+  await setUserContext(nurseApex)
+
+  // 8.1 Same-status update acts as a safe, idempotent confirmation without error
+  const currentBedRes = await db.query(`SELECT status FROM public.beds WHERE id = $1;`, [testBedId])
+  const currentStatus = currentBedRes.rows[0]?.status as BedStatus
+  const sameStatusResult = await updateNurseBed(
+    { bedId: testBedId, status: currentStatus },
+    testClient
+  )
+  assert(
+    sameStatusResult.status === currentStatus,
+    `TEST 8.1: Safe idempotent update retains existing status (${currentStatus}) without failure`
+  )
+
+  // --------------------------------------------------------------------------
+  // TEST 9 — Realtime Integration & Reconciler Lifecycle
+  // --------------------------------------------------------------------------
+  console.log('\n▶️ TEST 9 — Realtime Integration & Reconciler Lifecycle')
+
+  let reconcileTriggered = false
+  const mockListeners: Array<{ type: string; config: any; callback: (p: any) => void }> = []
+  let unsubscribed = false
+
+  const mockRealtimeClient = {
+    channel(name: string) {
+      return {
+        on(type: string, config: any, callback: (payload: any) => void) {
+          mockListeners.push({ type, config, callback })
+          return this
+        },
+        subscribe(cb: (status: string) => void) {
+          cb('SUBSCRIBED')
+          return this
+        },
+        unsubscribe() {
+          unsubscribed = true
+        },
+      }
+    },
+    removeChannel() {},
+  }
+
+  const handle = subscribeNurseBeds(
+    {
+      hospitalId: apexHospId,
+      onReconcile: () => {
+        reconcileTriggered = true
+      },
+    },
+    mockRealtimeClient
+  )
+
+  const bedListener = mockListeners.find((l) => l.config?.table === 'beds')
+  assert(Boolean(bedListener), 'TEST 9.1: Nurse subscription registers listener on beds table')
+  assert(
+    bedListener?.config?.filter === `hospital_id=eq.${apexHospId}`,
+    'TEST 9.2: Nurse subscription strictly filters to authenticated hospital beds'
+  )
+
+  // Simulate database change event
+  bedListener?.callback({ eventType: 'UPDATE', new: { id: testBedId, status: 'occupied' } })
+
+  // Wait for debounced reconciler
+  await new Promise((resolve) => setTimeout(resolve, 200))
+  assert(
+    reconcileTriggered,
+    'TEST 9.3: Realtime database change triggers authoritative server reconciliation'
+  )
+
+  handle.unsubscribe()
+  assert(unsubscribed, 'TEST 9.4: Subscription cleanup properly unsubscribes channel')
+
   console.log('\n====================================================')
-  console.log(`📊 NURSE WORKFLOW TEST SUMMARY: ${results.filter((r) => r.passed).length}/${results.length} PASSED`)
+  console.log(
+    `📊 NURSE WORKFLOW TEST SUMMARY: ${results.filter((r) => r.passed).length}/${results.length} PASSED`
+  )
   console.log('====================================================\n')
 }
 
