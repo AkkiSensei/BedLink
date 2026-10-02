@@ -69,7 +69,7 @@ export default async function NursePage({
         </p>
         <div style={{ marginTop: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
           <a
-            href="/?unauthorized=1"
+            href="/login?unauthorized=1"
             style={{
               display: 'inline-block',
               padding: '10px 16px',

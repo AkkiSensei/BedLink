@@ -83,7 +83,7 @@ export default async function HospitalPage({
         </p>
         <div style={{ marginTop: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
           <a
-            href="/?unauthorized=1"
+            href="/login?unauthorized=1"
             style={{
               display: 'inline-block',
               padding: '10px 16px',
@@ -110,7 +110,7 @@ export default async function HospitalPage({
               textDecoration: 'none',
             }}
           >
-            Demo Preview: Hospital Ops Desk (Apex Hospital)
+            Demo Preview: Hospital Staff (Apex Hospital)
           </a>
           <a
             href="/hospital?demo=stjude"
@@ -125,7 +125,7 @@ export default async function HospitalPage({
               textDecoration: 'none',
             }}
           >
-            Demo Preview: Hospital Ops Desk (St. Jude Healthcare)
+            Demo Preview: Hospital Staff (St. Jude Healthcare)
           </a>
         </div>
       </div>

@@ -6,6 +6,7 @@ import type { BedStatus } from '@/lib/types/database'
 import { updateBedStatusAction, refreshNurseBedsAction } from './actions'
 import BedCard from './BedCard'
 import { subscribeNurseBeds, type RealtimeConnectionStatus } from '@/lib/realtime'
+import { logoutAction } from '../actions/auth'
 
 interface NurseInventoryClientProps {
   initialBeds: NurseBedView[]
@@ -258,13 +259,13 @@ export default function NurseInventoryClient({
           </button>
         </div>
 
-        {/* Staff Identity Tag */}
+        {/* Staff Identity Tag & Sign Out */}
         <div
           style={{
-            padding: '4px 8px',
+            padding: '6px 10px',
             backgroundColor: 'var(--bg-subtle)',
             borderRadius: 'var(--radius-sm)',
-            fontSize: '0.78rem',
+            fontSize: '0.8rem',
             color: 'var(--text-muted)',
             display: 'flex',
             justifyContent: 'space-between',
@@ -272,9 +273,40 @@ export default function NurseInventoryClient({
           }}
         >
           <span>
-            Logged in as: <strong>{nurseName}</strong> ({nurseRole})
+            Logged in as: <strong style={{ color: 'var(--text-main)' }}>{nurseName}</strong>{' '}
+            <span
+              style={{
+                backgroundColor: '#dcfce7',
+                color: '#166534',
+                fontSize: '0.72rem',
+                fontWeight: 700,
+                padding: '2px 6px',
+                borderRadius: '4px',
+                marginLeft: '4px',
+              }}
+            >
+              Nurse
+            </span>
           </span>
-          <span style={{ fontSize: '0.72rem' }}>10s Touch Target Enabled</span>
+          <form action={logoutAction} style={{ margin: 0 }}>
+            <button
+              type="submit"
+              style={{
+                padding: '3px 8px',
+                backgroundColor: 'transparent',
+                color: 'var(--text-muted)',
+                border: '1px solid var(--border-color)',
+                borderRadius: '4px',
+                fontSize: '0.75rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+              }}
+              title="Sign out of Nurse Inventory"
+              aria-label="Sign out"
+            >
+              Sign Out
+            </button>
+          </form>
         </div>
       </header>
 

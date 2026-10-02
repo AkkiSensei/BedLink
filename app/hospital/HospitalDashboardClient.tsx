@@ -1,10 +1,12 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import type { HospitalReservationView } from '@/lib/operations/types'
 import HospitalReservationCard from './HospitalReservationCard'
 import { refreshHospitalReservationsAction } from './actions'
 import { subscribeHospitalOffers, type RealtimeConnectionStatus } from '@/lib/realtime'
+import { playAlertChime } from '@/lib/sound'
+import { logoutAction } from '../actions/auth'
 
 interface HospitalDashboardClientProps {
   initialReservations: HospitalReservationView[]
@@ -27,6 +29,18 @@ export default function HospitalDashboardClient({
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [refreshError, setRefreshError] = useState<string | null>(null)
   const [realtimeStatus, setRealtimeStatus] = useState<RealtimeConnectionStatus>('CONNECTING')
+
+  // Calculate active held count
+  const activeHeldCount = reservations.filter((r) => r.status === 'held').length
+
+  // Sound chime when a new offer arrives
+  const prevHeldCountRef = useRef(activeHeldCount)
+  useEffect(() => {
+    if (activeHeldCount > prevHeldCountRef.current) {
+      playAlertChime()
+    }
+    prevHeldCountRef.current = activeHeldCount
+  }, [activeHeldCount])
 
   // Subscribe to real-time incoming and updated hospital offers
   useEffect(() => {
@@ -58,8 +72,6 @@ export default function HospitalDashboardClient({
     const timeB = new Date(b.hold_expires_at).getTime()
     return timeA - timeB
   })
-
-  const activeHeldCount = reservations.filter((r) => r.status === 'held').length
 
   const handleRefresh = async () => {
     setIsRefreshing(true)
@@ -156,7 +168,7 @@ export default function HospitalDashboardClient({
                     border: '1px solid #334155',
                   }}
                 >
-                  Hospital Console
+                  Hospital Staff Console
                 </span>
                 {realtimeStatus === 'SUBSCRIBED' ? (
                   <span
@@ -234,13 +246,13 @@ export default function HospitalDashboardClient({
           </div>
 
           {/* User profile & Action */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.875rem' }}>
             <div style={{ textAlign: 'right' }}>
               <div style={{ fontSize: '0.85rem', fontWeight: 600, color: '#f1f5f9' }}>
                 {staffName}
               </div>
-              <div style={{ fontSize: '0.75rem', color: '#64748b', textTransform: 'capitalize' }}>
-                Role: {staffRole}
+              <div style={{ fontSize: '0.75rem', color: '#93c5fd', fontWeight: 600 }}>
+                Hospital Staff
               </div>
             </div>
             <button
@@ -250,12 +262,12 @@ export default function HospitalDashboardClient({
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: '0.5rem',
-                padding: '8px 14px',
+                padding: '7px 12px',
                 backgroundColor: '#1e293b',
                 color: '#f8fafc',
                 border: '1px solid #334155',
                 borderRadius: '8px',
-                fontSize: '0.85rem',
+                fontSize: '0.8rem',
                 fontWeight: 600,
                 cursor: isRefreshing ? 'not-allowed' : 'pointer',
                 opacity: isRefreshing ? 0.7 : 1,
@@ -268,6 +280,26 @@ export default function HospitalDashboardClient({
               </span>
               {isRefreshing ? 'Refreshing...' : 'Refresh'}
             </button>
+            <form action={logoutAction}>
+              <button
+                type="submit"
+                style={{
+                  padding: '7px 12px',
+                  backgroundColor: 'transparent',
+                  color: '#94a3b8',
+                  border: '1px solid #334155',
+                  borderRadius: '8px',
+                  fontSize: '0.8rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  transition: 'color 0.2s, border-color 0.2s',
+                }}
+                title="Sign out of Hospital Console"
+                aria-label="Sign out"
+              >
+                Sign Out
+              </button>
+            </form>
           </div>
         </div>
       </header>

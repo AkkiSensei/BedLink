@@ -11,6 +11,7 @@ import RequestHistoryList from './RequestHistoryList'
 import RequestDetailView from './RequestDetailView'
 import FallbackHistoryView from './FallbackHistoryView'
 import NoMatchState from './NoMatchState'
+import { logoutAction } from '../actions/auth'
 
 interface DispatchDashboardClientProps {
   initialRequests: DispatchBedRequestView[]
@@ -188,7 +189,7 @@ export default function DispatchDashboardClient({
                   borderRadius: '9999px',
                 }}
               >
-                Dispatch Console
+                Dispatch Operator Console
               </span>
               {realtimeStatus === 'SUBSCRIBED' ? (
                 <span
@@ -250,12 +251,12 @@ export default function DispatchDashboardClient({
           </div>
         </div>
 
-        {/* User Badge & Manual Refresh */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+        {/* User Badge & Manual Refresh & Sign Out */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.875rem' }}>
           <div style={{ textAlign: 'right' }}>
             <div style={{ fontSize: '0.85rem', fontWeight: 600 }}>{dispatcherName}</div>
-            <div style={{ fontSize: '0.75rem', color: '#38bdf8', textTransform: 'capitalize' }}>
-              Role: {dispatcherRole}
+            <div style={{ fontSize: '0.75rem', color: '#38bdf8', fontWeight: 600 }}>
+              Dispatch Operator
             </div>
           </div>
           <button
@@ -280,6 +281,26 @@ export default function DispatchDashboardClient({
             <span style={{ fontSize: '0.9rem' }}>{isRefreshing ? '⏳' : '🔄'}</span>
             <span>{isRefreshing ? 'Syncing...' : 'Refresh'}</span>
           </button>
+          <form action={logoutAction}>
+            <button
+              type="submit"
+              style={{
+                padding: '7px 12px',
+                backgroundColor: 'transparent',
+                color: '#94a3b8',
+                border: '1px solid #334155',
+                borderRadius: '6px',
+                fontSize: '0.8rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+                transition: 'color 0.2s, border-color 0.2s',
+              }}
+              title="Sign out of Dispatch Console"
+              aria-label="Sign out"
+            >
+              Sign Out
+            </button>
+          </form>
         </div>
       </header>
 

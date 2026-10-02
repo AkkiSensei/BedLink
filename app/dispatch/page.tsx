@@ -73,12 +73,12 @@ export default async function DispatchPage({
           Dispatch Access Restricted
         </h1>
         <p style={{ fontSize: '0.925rem', color: '#64748b', lineHeight: 1.5, margin: 0 }}>
-          The Emergency Dispatch Console is restricted to authenticated EMS coordinators with the{' '}
-          <strong>dispatch</strong> or <strong>admin</strong> role.
+          The Emergency Dispatch Console is restricted to authenticated users with the{' '}
+          <strong>Dispatch Operator</strong> role.
         </p>
         <div style={{ marginTop: '1.75rem', display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
           <a
-            href="/?unauthorized=1"
+            href="/login?unauthorized=1"
             style={{
               display: 'inline-block',
               padding: '11px 18px',
