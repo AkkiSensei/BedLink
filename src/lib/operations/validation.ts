@@ -71,6 +71,13 @@ export function validateCoordinates(
     )
   }
 
+  // Safeguard against uninitialized default (0, 0) GPS coordinates
+  if (Math.abs(nLat) < 0.00001 && Math.abs(nLon) < 0.00001) {
+    throw new ValidationOperationError(
+      `${context} coordinates (0, 0) indicate uninitialized default GPS telemetry. Real emergency coordinates are required.`
+    )
+  }
+
   return { latitude: nLat, longitude: nLon }
 }
 
@@ -114,6 +121,7 @@ export function validateBedStatus(status: unknown, fieldName: string = 'status')
 
 /**
  * Validates an optional ambulance contact phone number.
+ * Enforces emergency contact standards: requires between 7 and 15 digits (ITU-T E.164).
  */
 export function validateAmbulancePhone(phone: unknown): string | null {
   if (phone === null || phone === undefined || phone === '') {
@@ -125,15 +133,27 @@ export function validateAmbulancePhone(phone: unknown): string | null {
   }
 
   const trimmed = phone.trim()
-  if (trimmed.length < 5 || trimmed.length > 30) {
-    throw new ValidationOperationError('Ambulance phone length must be between 5 and 30 characters')
+  if (!trimmed) {
+    return null
   }
 
-  // Permitted phone characters: digits, plus, hyphens, spaces, parentheses
-  const PHONE_REGEX = /^[+0-9()\- ]+$/
+  if (trimmed.length < 7 || trimmed.length > 30) {
+    throw new ValidationOperationError('Ambulance phone length must be between 7 and 30 characters')
+  }
+
+  // Permitted phone characters: digits, leading +, hyphens, spaces, parentheses
+  const PHONE_REGEX = /^\+?[0-9()\- ]+$/
   if (!PHONE_REGEX.test(trimmed)) {
     throw new ValidationOperationError(
       'Ambulance phone contains invalid characters. Only numbers, +, -, (), and spaces are permitted.'
+    )
+  }
+
+  // Count raw digits to ensure it contains a genuine phone number
+  const digits = trimmed.replace(/\D/g, '')
+  if (digits.length < 7 || digits.length > 15) {
+    throw new ValidationOperationError(
+      `Ambulance phone must contain between 7 and 15 digits according to emergency communication standards. Received ${digits.length} digits.`
     )
   }
 

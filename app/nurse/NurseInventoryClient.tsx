@@ -7,7 +7,7 @@ import { updateBedStatusAction, refreshNurseBedsAction } from './actions'
 import BedCard from './BedCard'
 import { subscribeNurseBeds, type RealtimeConnectionStatus } from '@/lib/realtime'
 import { logoutAction } from '../actions/auth'
-import { Loader2, RotateCw, X, Bed } from 'lucide-react'
+import { Loader2, RotateCw, X, Bed, AlertTriangle } from 'lucide-react'
 
 interface NurseInventoryClientProps {
   initialBeds: NurseBedView[]
@@ -329,6 +329,55 @@ export default function NurseInventoryClient({
           </form>
         </div>
       </header>
+
+      {/* Realtime Disconnection Banner */}
+      {realtimeStatus !== 'SUBSCRIBED' && realtimeStatus !== 'CONNECTING' && (
+        <div
+          role="alert"
+          style={{
+            marginBottom: '0.875rem',
+            padding: '0.625rem 1rem',
+            backgroundColor: '#fffbeb',
+            border: '1px solid #fde68a',
+            borderRadius: 'var(--radius-sm)',
+            color: '#92400e',
+            fontSize: '0.8rem',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: '0.5rem',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <AlertTriangle size={15} className="text-amber-600 shrink-0" />
+            <span>
+              <strong>Nurse Sync Offline ({realtimeStatus}).</strong> Automatic bed sync degraded. Fallback polling active every 10s.
+            </span>
+          </div>
+          <button
+            type="button"
+            disabled={isPending}
+            onClick={handleRefresh}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '4px',
+              padding: '3px 8px',
+              backgroundColor: '#b45309',
+              color: '#ffffff',
+              border: 'none',
+              borderRadius: '4px',
+              fontSize: '0.72rem',
+              fontWeight: 600,
+              cursor: isPending ? 'not-allowed' : 'pointer',
+            }}
+          >
+            <RotateCw size={11} className={isPending ? 'animate-spin' : ''} />
+            Re-Sync Inventory
+          </button>
+        </div>
+      )}
 
       {/* 2. Summary Metric Cards */}
       <section

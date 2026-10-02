@@ -43,7 +43,7 @@ export async function middleware(request: NextRequest) {
     if (role === 'dispatch') return NextResponse.redirect(new URL('/dispatch', request.url))
     if (role === 'hospital') return NextResponse.redirect(new URL('/hospital', request.url))
     if (role === 'admin') return NextResponse.redirect(new URL('/nurse', request.url))
-    return NextResponse.redirect(new URL('/login', request.url))
+    return NextResponse.redirect(new URL('/login?error=missing_profile', request.url))
   }
 
   // 4. Find matching protected route rule
@@ -58,6 +58,15 @@ export async function middleware(request: NextRequest) {
 
   // 5. Enforce authentication on protected prefix
   if (!user) {
+    // Only allow demo parameter through if explicit evaluation mode is enabled via environment
+    const allowDemo =
+      process.env.ALLOW_DEMO_BYPASS === 'true' ||
+      process.env.NEXT_PUBLIC_ALLOW_DEMO_BYPASS === 'true'
+    const demoParam = request.nextUrl.searchParams.get('demo')
+    if (allowDemo && demoParam) {
+      return response
+    }
+
     if (pathname.startsWith('/api/')) {
       return NextResponse.json(
         { error: 'Unauthorized: Authentication required' },
@@ -87,7 +96,11 @@ export async function middleware(request: NextRequest) {
       )
     }
     const redirectUrl = new URL('/login', request.url)
-    redirectUrl.searchParams.set('forbidden', '1')
+    if (!profile) {
+      redirectUrl.searchParams.set('error', 'missing_profile')
+    } else {
+      redirectUrl.searchParams.set('forbidden', '1')
+    }
     return NextResponse.redirect(redirectUrl)
   }
 

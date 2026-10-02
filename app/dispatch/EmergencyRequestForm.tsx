@@ -71,6 +71,20 @@ export default function EmergencyRequestForm({ onRequestCreated, onSubmittingCha
       return
     }
 
+    if (Math.abs(parsedLat) < 0.00001 && Math.abs(parsedLng) < 0.00001) {
+      setFormError('Ambulance coordinates (0, 0) indicate uninitialized GPS telemetry. Real emergency coordinates are required.')
+      return
+    }
+
+    const trimmedPhone = ambulancePhone.trim()
+    if (trimmedPhone) {
+      const digits = trimmedPhone.replace(/\D/g, '')
+      if (digits.length < 7 || digits.length > 15) {
+        setFormError('Ambulance contact phone must contain between 7 and 15 digits according to emergency communication standards.')
+        return
+      }
+    }
+
     setIsSubmitting(true)
     onSubmittingChange?.(true)
 

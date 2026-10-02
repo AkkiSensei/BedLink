@@ -1,7 +1,7 @@
 'use client'
 
-import React, { useState, useEffect, useCallback, useTransition } from 'react'
-import { useRouter } from 'next/navigation'
+import React, { useState, useEffect, useCallback, useTransition, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { loginWithPinAction, ROLE_PINS } from '../actions/auth'
 import { 
@@ -69,13 +69,55 @@ const ROLE_TABS: RoleTabConfig[] = [
   },
 ]
 
-export default function LoginPage() {
+function LoginFormInner() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const supabase = createClient()
+
+  const urlError = searchParams.get('error')
+  const isForbidden = searchParams.get('forbidden') === '1'
+  const isUnauthorized = searchParams.get('unauthorized') === '1'
+  const roleParam = searchParams.get('role')
 
   // PIN state
   const [pin, setPin] = useState('')
-  const [activeTab, setActiveTab] = useState<'nurse' | 'dispatch' | 'hospital'>('nurse')
+  const [activeTab, setActiveTab] = useState<'nurse' | 'dispatch' | 'hospital'>(() => {
+    if (roleParam === 'dispatch' || roleParam === 'hospital' || roleParam === 'nurse') {
+      return roleParam
+    }
+    return 'nurse'
+  })
+
+  useEffect(() => {
+    if (roleParam === 'nurse' || roleParam === 'dispatch' || roleParam === 'hospital') {
+      setActiveTab(roleParam)
+    }
+  }, [roleParam])
+
+  let urlNotice: { title: string; description: string; type: 'error' | 'warning' } | null = null
+  if (urlError === 'missing_profile') {
+    urlNotice = {
+      title: 'Operational Profile Required',
+      description:
+        'Your user account is authenticated, but is not mapped to an active hospital staff or dispatch profile in the database. Please select your operational console below and authenticate with the role PIN.',
+      type: 'error',
+    }
+  } else if (isForbidden) {
+    urlNotice = {
+      title: 'Console Access Restricted',
+      description:
+        'Your account role does not have authorization to view the requested dashboard. Enter the authorized role PIN for that console below.',
+      type: 'warning',
+    }
+  } else if (isUnauthorized) {
+    urlNotice = {
+      title: 'Authentication Required',
+      description:
+        'Please enter your operational role PIN to access the emergency coordination dashboard.',
+      type: 'warning',
+    }
+  }
+
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [statusMessage, setStatusMessage] = useState<string | null>(null)
   const [isAuthenticating, setIsAuthenticating] = useState(false)
@@ -288,6 +330,34 @@ export default function LoginPage() {
         padding: '1.75rem',
         boxSizing: 'border-box',
       }}>
+        {/* Auth Transition Error / Warning Banner */}
+        {urlNotice && (
+          <div
+            role="alert"
+            style={{
+              marginBottom: '1.25rem',
+              padding: '0.75rem 1rem',
+              borderRadius: '10px',
+              backgroundColor: urlNotice.type === 'error' ? '#FEF2F2' : '#FFFBEB',
+              border: `1px solid ${urlNotice.type === 'error' ? '#FECACA' : '#FDE68A'}`,
+              color: urlNotice.type === 'error' ? '#991B1B' : '#92400E',
+              fontSize: '0.825rem',
+              lineHeight: 1.45,
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: '8px',
+            }}
+          >
+            <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+            <div>
+              <strong style={{ display: 'block', fontWeight: 700, marginBottom: '2px' }}>
+                {urlNotice.title}
+              </strong>
+              <span>{urlNotice.description}</span>
+            </div>
+          </div>
+        )}
+
         {/* Role Selector Tabs */}
         <div style={{
           display: 'grid',
@@ -789,5 +859,19 @@ export default function LoginPage() {
         <span>Authoritative Supabase PostgreSQL & Realtime Protected</span>
       </div>
     </div>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#F4F6F4' }}>
+          <Loader2 className="w-8 h-8 animate-spin text-[#2D6A4F]" />
+        </div>
+      }
+    >
+      <LoginFormInner />
+    </Suspense>
   )
 }

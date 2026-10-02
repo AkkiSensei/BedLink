@@ -30,5 +30,5 @@ export default async function RootPage() {
   if (role === 'hospital') redirect('/hospital')
   if (role === 'admin') redirect('/nurse')
 
-  redirect('/login')
+  redirect('/login?error=missing_profile')
 }

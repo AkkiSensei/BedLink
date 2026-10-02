@@ -12,7 +12,7 @@ import RequestDetailView from './RequestDetailView'
 import FallbackHistoryView from './FallbackHistoryView'
 import NoMatchState from './NoMatchState'
 import { logoutAction } from '../actions/auth'
-import { Loader2, RotateCw, Info, Ambulance } from 'lucide-react'
+import { Loader2, RotateCw, Info, Ambulance, AlertTriangle } from 'lucide-react'
 
 interface DispatchDashboardClientProps {
   initialRequests: DispatchBedRequestView[]
@@ -356,6 +356,52 @@ export default function DispatchDashboardClient({
             <Info size={16} className="text-sky-600 shrink-0" />
           </span>{' '}
           {statusMessage}
+        </div>
+      )}
+
+      {/* Realtime Disconnection Banner */}
+      {realtimeStatus !== 'SUBSCRIBED' && realtimeStatus !== 'CONNECTING' && (
+        <div
+          role="alert"
+          style={{
+            backgroundColor: '#fffbeb',
+            color: '#92400e',
+            borderBottom: '1px solid #fde68a',
+            padding: '0.625rem 1.5rem',
+            fontSize: '0.825rem',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: '0.5rem',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <AlertTriangle size={16} className="text-amber-600 shrink-0" />
+            <span>
+              <strong>Dispatch Live Sync Offline ({realtimeStatus}).</strong> Automated updates may lag. Polling fallback active every 10s.
+            </span>
+          </div>
+          <button
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '4px',
+              padding: '4px 10px',
+              backgroundColor: '#b45309',
+              color: '#ffffff',
+              border: 'none',
+              borderRadius: '5px',
+              fontSize: '0.75rem',
+              fontWeight: 600,
+              cursor: isRefreshing ? 'not-allowed' : 'pointer',
+            }}
+          >
+            <RotateCw size={12} className={isRefreshing ? 'animate-spin' : ''} />
+            Force Re-Sync
+          </button>
         </div>
       )}
 

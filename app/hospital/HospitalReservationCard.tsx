@@ -22,16 +22,20 @@ import {
 
 interface HospitalReservationCardProps {
   reservation: HospitalReservationView
+  serverClockOffsetMs?: number
   onReservationUpdated?: (
     reservationId: string,
     newStatus: 'accepted' | 'rejected' | 'expired',
     details?: { statusMessage?: string }
   ) => void
+  onRefreshNeeded?: () => void
 }
 
 export default function HospitalReservationCard({
   reservation,
+  serverClockOffsetMs = 0,
   onReservationUpdated,
+  onRefreshNeeded,
 }: HospitalReservationCardProps) {
   const [submittingAction, setSubmittingAction] = useState<'accept' | 'reject' | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
@@ -46,7 +50,17 @@ export default function HospitalReservationCard({
   const isStale = localStatus === 'stale'
 
   const handleAccept = async () => {
-    if (!isHeld || submittingAction) return
+    if (!isHeld || submittingAction || isCountdownExpired) return
+    
+    // Authoritative clock check
+    const authoritativeNow = Date.now() + serverClockOffsetMs
+    if (new Date(reservation.hold_expires_at).getTime() <= authoritativeNow) {
+      setIsCountdownExpired(true)
+      setErrorMessage('Hold duration has elapsed based on server-synchronized time. Actions are disabled.')
+      onRefreshNeeded?.()
+      return
+    }
+
     setSubmittingAction('accept')
     setErrorMessage(null)
 
@@ -85,7 +99,17 @@ export default function HospitalReservationCard({
   }
 
   const handleReject = async () => {
-    if (!isHeld || submittingAction) return
+    if (!isHeld || submittingAction || isCountdownExpired) return
+
+    // Authoritative clock check
+    const authoritativeNow = Date.now() + serverClockOffsetMs
+    if (new Date(reservation.hold_expires_at).getTime() <= authoritativeNow) {
+      setIsCountdownExpired(true)
+      setErrorMessage('Hold duration has elapsed based on server-synchronized time. Actions are disabled.')
+      onRefreshNeeded?.()
+      return
+    }
+
     setSubmittingAction('reject')
     setErrorMessage(null)
 
@@ -517,6 +541,8 @@ export default function HospitalReservationCard({
           <HospitalCountdown
             holdExpiresAt={reservation.hold_expires_at}
             isHeld={isHeld}
+            serverClockOffsetMs={serverClockOffsetMs}
+            onRefresh={onRefreshNeeded}
             onExpired={() => setIsCountdownExpired(true)}
           />
         )}

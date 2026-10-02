@@ -36,8 +36,12 @@ export default async function HospitalPage({
     profile = profileData ?? null
   }
 
-  // Demo fallback mode for local development/preview or direct demo parameter
-  if (!profile && (params?.demo || process.env.NODE_ENV !== 'production')) {
+  // Demo fallback mode strictly gated behind explicit ALLOW_DEMO_BYPASS environment flag
+  const allowDemoBypass =
+    process.env.ALLOW_DEMO_BYPASS === 'true' ||
+    process.env.NEXT_PUBLIC_ALLOW_DEMO_BYPASS === 'true'
+
+  if (!profile && allowDemoBypass && params?.demo) {
     if (params?.demo === 'stjude') {
       profile = {
         role: DEMO_IDENTITIES.HOSPITAL_STJUDE.role,
@@ -51,7 +55,7 @@ export default async function HospitalPage({
         full_name: DEMO_IDENTITIES.ADMIN.fullName,
       }
     } else {
-      // Default dev demo: Hospital Apex
+      // Default demo: Hospital Apex
       profile = {
         role: DEMO_IDENTITIES.HOSPITAL_APEX.role,
         hospital_id: DEMO_IDENTITIES.HOSPITAL_APEX.hospitalId,
@@ -82,11 +86,11 @@ export default async function HospitalPage({
           Access Restricted
         </h1>
         <p style={{ fontSize: '0.9rem', color: '#64748b', marginTop: '0.5rem', lineHeight: 1.5 }}>
-          The Hospital Response Console is accessible only to authenticated operational staff with the <strong>hospital</strong> or <strong>admin</strong> role.
+          The Hospital Response Console is accessible only to authenticated operational staff with the <strong>hospital</strong> or <strong>admin</strong> role. Please sign in with authorized hospital staff credentials.
         </p>
         <div style={{ marginTop: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
           <a
-            href="/login?unauthorized=1"
+            href="/login?role=hospital"
             style={{
               display: 'inline-block',
               padding: '10px 16px',
@@ -98,10 +102,10 @@ export default async function HospitalPage({
               textDecoration: 'none',
             }}
           >
-            Return to Login
+            Sign In with Hospital PIN
           </a>
           <a
-            href="/hospital?demo=apex"
+            href="/login"
             style={{
               display: 'inline-block',
               padding: '8px 16px',
@@ -111,24 +115,10 @@ export default async function HospitalPage({
               fontWeight: 500,
               fontSize: '0.8rem',
               textDecoration: 'none',
+              border: '1px solid #e2e8f0',
             }}
           >
-            Demo Preview: Hospital Staff (Apex Hospital)
-          </a>
-          <a
-            href="/hospital?demo=stjude"
-            style={{
-              display: 'inline-block',
-              padding: '8px 16px',
-              backgroundColor: '#f1f5f9',
-              color: '#334155',
-              borderRadius: '8px',
-              fontWeight: 500,
-              fontSize: '0.8rem',
-              textDecoration: 'none',
-            }}
-          >
-            Demo Preview: Hospital Staff (St. Jude Healthcare)
+            Switch Role or Return to Login
           </a>
         </div>
       </div>
@@ -152,7 +142,7 @@ export default async function HospitalPage({
     }
   }
 
-  // 5. Fetch initial active reservations (held offers)
+  // 5. Fetch initial active reservations directly without fake mock fallback
   let initialReservations: HospitalReservationView[] = []
   try {
     initialReservations = await getHospitalReservations(supabase, {
@@ -162,33 +152,10 @@ export default async function HospitalPage({
     initialReservations = []
   }
 
-  // Fallback demo reservations for local evaluator preview in development mode
-  if (initialReservations.length === 0 && process.env.NODE_ENV !== 'production') {
-    initialReservations = [
-      {
-        id: 'r1000000-0000-4000-8000-000000000001',
-        bed_request_id: '9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d',
-        hospital_id: targetHospitalId || DEMO_IDENTITIES.HOSPITAL_APEX.hospitalId!,
-        bed_id: 'b1000000-0000-4000-8000-000000000003',
-        status: 'held',
-        attempt_number: 1,
-        hold_expires_at: new Date(Date.now() + 104 * 1000).toISOString(),
-        created_at: new Date(Date.now() - 16 * 1000).toISOString(),
-        required_capabilities: ['icu', 'ventilator'],
-        ambulance_latitude: 18.9280,
-        ambulance_longitude: 72.8310,
-        ambulance_phone: '+91-98200-11223',
-        hospital_name: hospitalName,
-        room_number: 'ICU-201',
-        bed_capabilities: ['icu', 'ventilator'],
-        estimated_travel_time_minutes: 6,
-      },
-    ]
-  }
-
   return (
     <HospitalDashboardClient
       initialReservations={initialReservations}
+      initialServerTime={new Date().toISOString()}
       hospitalId={targetHospitalId || ''}
       hospitalName={hospitalName}
       hospitalCity={hospitalCity}

@@ -2,6 +2,8 @@ import { requireRole } from '@/lib/auth/server'
 import { ReservationService } from '@/lib/reservations/service'
 import type { AcceptReservationResult, RejectReservationResult } from '@/lib/reservations/types'
 import {
+  ConflictOperationError,
+  ExpiredReservationOperationError,
   ForbiddenOperationError,
   NotFoundOperationError,
   toOperationError,
@@ -212,7 +214,24 @@ export async function acceptHospitalReservation(
       }
     }
 
-    // 4. Delegate to Phase 5 domain service (atomic acceptance state machine)
+    // 4. Authoritative state guard: reservation must not be expired or in incompatible terminal status
+    if (reservation.status === 'expired') {
+      throw new ExpiredReservationOperationError(
+        `Cannot accept reservation ${reservationId} in terminal status expired`
+      )
+    }
+    if (reservation.status !== 'held' && reservation.status !== 'accepted') {
+      throw new ConflictOperationError(
+        `Cannot accept reservation ${reservationId} in status ${reservation.status}`
+      )
+    }
+    if (reservation.status === 'held' && new Date(reservation.hold_expires_at).getTime() <= evaluationTime.getTime()) {
+      throw new ExpiredReservationOperationError(
+        `Reservation hold expired at ${reservation.hold_expires_at}, current time is ${evaluationTime.toISOString()}`
+      )
+    }
+
+    // 5. Delegate to Phase 5 domain service (atomic acceptance state machine)
     const reservationService = new ReservationService(client)
     return await reservationService.accept({
       reservationId,
@@ -279,7 +298,19 @@ export async function rejectHospitalReservation(
       }
     }
 
-    // 4. Delegate to Phase 5 domain service (atomic rejection & dynamic fallback state machine)
+    // 4. Authoritative state guard: reservation must not be expired or in incompatible status
+    if (reservation.status === 'expired') {
+      throw new ExpiredReservationOperationError(
+        `Cannot reject reservation ${reservationId} in status expired`
+      )
+    }
+    if (reservation.status !== 'held' && reservation.status !== 'rejected') {
+      throw new ConflictOperationError(
+        `Cannot reject reservation ${reservationId} in status ${reservation.status}`
+      )
+    }
+
+    // 5. Delegate to Phase 5 domain service (atomic rejection & dynamic fallback state machine)
     const reservationService = new ReservationService(client)
     return await reservationService.reject({
       reservationId,

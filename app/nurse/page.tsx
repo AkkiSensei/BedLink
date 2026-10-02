@@ -36,8 +36,12 @@ export default async function NursePage({
     profile = profileData ?? null
   }
 
-  // Demo fallback mode for local development/preview or direct demo parameter
-  if (!profile && (params?.demo || process.env.NODE_ENV !== 'production')) {
+  // Demo fallback mode strictly gated behind explicit ALLOW_DEMO_BYPASS environment flag
+  const allowDemoBypass =
+    process.env.ALLOW_DEMO_BYPASS === 'true' ||
+    process.env.NEXT_PUBLIC_ALLOW_DEMO_BYPASS === 'true'
+
+  if (!profile && allowDemoBypass && params?.demo) {
     const demoTarget = params?.demo === 'stjude' ? DEMO_IDENTITIES.NURSE_STJUDE : DEMO_IDENTITIES.NURSE_APEX
     profile = {
       role: demoTarget.role,
@@ -67,12 +71,12 @@ export default async function NursePage({
         <h1 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#0f172a' }}>
           Access Restricted
         </h1>
-        <p style={{ fontSize: '0.9rem', color: '#64748b', marginTop: '0.5rem' }}>
-          The Nurse Bed Inventory is accessible only to authenticated staff with the <strong>nurse</strong> or <strong>admin</strong> role.
+        <p style={{ fontSize: '0.9rem', color: '#64748b', marginTop: '0.5rem', lineHeight: 1.5 }}>
+          The Nurse Bed Inventory is accessible only to authenticated staff with the <strong>nurse</strong> or <strong>admin</strong> role. Please sign in with your hospital staff credentials.
         </p>
         <div style={{ marginTop: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
           <a
-            href="/login?unauthorized=1"
+            href="/login?role=nurse"
             style={{
               display: 'inline-block',
               padding: '10px 16px',
@@ -84,10 +88,10 @@ export default async function NursePage({
               textDecoration: 'none',
             }}
           >
-            Return to Login
+            Sign In with Nurse PIN
           </a>
           <a
-            href="/nurse?demo=apex"
+            href="/login"
             style={{
               display: 'inline-block',
               padding: '8px 16px',
@@ -97,9 +101,10 @@ export default async function NursePage({
               fontWeight: 500,
               fontSize: '0.8rem',
               textDecoration: 'none',
+              border: '1px solid #e2e8f0',
             }}
           >
-            Demo Preview: Staff Nurse (Apex Hospital)
+            Switch Role or Return to Login
           </a>
         </div>
       </div>
@@ -121,34 +126,12 @@ export default async function NursePage({
     }
   }
 
-  // 5. Fetch initial bed inventory
+  // 5. Fetch initial bed inventory directly from database without fake mock fallback
   let initialBeds: NurseBedView[] = []
   try {
     initialBeds = await getNurseBeds(supabase)
   } catch {
     initialBeds = []
-  }
-
-  // Fallback to deterministic seed beds for preview in dev mode if database is offline
-  if (initialBeds.length === 0 && process.env.NODE_ENV !== 'production') {
-    if (profile.hospital_id === DEMO_IDENTITIES.NURSE_STJUDE.hospitalId) {
-      initialBeds = [
-        { id: 'b2000000-0000-4000-8000-000000000001', hospital_id: DEMO_IDENTITIES.NURSE_STJUDE.hospitalId!, capabilities: ['general'], status: 'available', room_number: 'GEN-201', last_updated_at: new Date(Date.now() - 4 * 3600000).toISOString(), created_at: new Date().toISOString() },
-        { id: 'b2000000-0000-4000-8000-000000000002', hospital_id: DEMO_IDENTITIES.NURSE_STJUDE.hospitalId!, capabilities: ['oxygen'], status: 'available', room_number: 'OXY-202', last_updated_at: new Date(Date.now() - 45 * 60000).toISOString(), created_at: new Date().toISOString() },
-        { id: 'b2000000-0000-4000-8000-000000000003', hospital_id: DEMO_IDENTITIES.NURSE_STJUDE.hospitalId!, capabilities: ['icu', 'ventilator'], status: 'available', room_number: 'ICU-301', last_updated_at: new Date(Date.now() - 20 * 60000).toISOString(), created_at: new Date().toISOString() },
-        { id: 'b2000000-0000-4000-8000-000000000004', hospital_id: DEMO_IDENTITIES.NURSE_STJUDE.hospitalId!, capabilities: ['icu', 'ventilator', 'oxygen'], status: 'maintenance', room_number: 'ICU-302', last_updated_at: new Date(Date.now() - 3 * 3600000).toISOString(), created_at: new Date().toISOString() },
-        { id: 'b2000000-0000-4000-8000-000000000005', hospital_id: DEMO_IDENTITIES.NURSE_STJUDE.hospitalId!, capabilities: ['general'], status: 'occupied', room_number: 'GEN-203', last_updated_at: new Date(Date.now() - 6 * 3600000).toISOString(), created_at: new Date().toISOString() },
-      ]
-    } else {
-      initialBeds = [
-        { id: 'b1000000-0000-4000-8000-000000000001', hospital_id: '11111111-1111-4111-8111-111111111101', capabilities: ['general'], status: 'available', room_number: 'GEN-101', last_updated_at: new Date(Date.now() - 3600000).toISOString(), created_at: new Date().toISOString() },
-        { id: 'b1000000-0000-4000-8000-000000000002', hospital_id: '11111111-1111-4111-8111-111111111101', capabilities: ['oxygen'], status: 'available', room_number: 'OXY-102', last_updated_at: new Date(Date.now() - 1800000).toISOString(), created_at: new Date().toISOString() },
-        { id: 'b1000000-0000-4000-8000-000000000003', hospital_id: '11111111-1111-4111-8111-111111111101', capabilities: ['icu'], status: 'available', room_number: 'ICU-201', last_updated_at: new Date(Date.now() - 900000).toISOString(), created_at: new Date().toISOString() },
-        { id: 'b1000000-0000-4000-8000-000000000004', hospital_id: '11111111-1111-4111-8111-111111111101', capabilities: ['ventilator'], status: 'held', room_number: 'VENT-202', last_updated_at: new Date(Date.now() - 300000).toISOString(), created_at: new Date().toISOString() },
-        { id: 'b1000000-0000-4000-8000-000000000005', hospital_id: '11111111-1111-4111-8111-111111111101', capabilities: ['icu', 'ventilator'], status: 'occupied', room_number: 'ICU-VENT-301', last_updated_at: new Date(Date.now() - 7200000).toISOString(), created_at: new Date().toISOString() },
-        { id: 'b1000000-0000-4000-8000-000000000006', hospital_id: '11111111-1111-4111-8111-111111111101', capabilities: ['icu', 'ventilator', 'oxygen'], status: 'available', room_number: 'TRAUMA-401', last_updated_at: new Date(Date.now() - 600000).toISOString(), created_at: new Date().toISOString() },
-      ]
-    }
   }
 
   return (

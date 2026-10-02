@@ -39,6 +39,7 @@ export interface RejectReservationActionResult {
 export interface RefreshReservationsActionResult {
   success: boolean
   reservations?: HospitalReservationView[]
+  serverTime?: string
   error?: {
     code: string
     message: string
@@ -121,6 +122,7 @@ export async function refreshHospitalReservationsAction(options?: {
     return {
       success: true,
       reservations,
+      serverTime: new Date().toISOString(),
     }
   } catch (err: any) {
     const opErr = toOperationError(err)

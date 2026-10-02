@@ -11,6 +11,7 @@ import { Building2, RotateCw, AlertTriangle, Inbox, X } from 'lucide-react'
 
 interface HospitalDashboardClientProps {
   initialReservations: HospitalReservationView[]
+  initialServerTime?: string
   hospitalId: string
   hospitalName: string
   hospitalCity: string
@@ -20,6 +21,7 @@ interface HospitalDashboardClientProps {
 
 export default function HospitalDashboardClient({
   initialReservations,
+  initialServerTime,
   hospitalId,
   hospitalName,
   hospitalCity,
@@ -30,6 +32,12 @@ export default function HospitalDashboardClient({
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [refreshError, setRefreshError] = useState<string | null>(null)
   const [realtimeStatus, setRealtimeStatus] = useState<RealtimeConnectionStatus>('CONNECTING')
+  const [serverClockOffsetMs, setServerClockOffsetMs] = useState<number>(() => {
+    if (initialServerTime) {
+      return new Date(initialServerTime).getTime() - Date.now()
+    }
+    return 0
+  })
 
   // Calculate active held count
   const activeHeldCount = reservations.filter((r) => r.status === 'held').length
@@ -55,6 +63,9 @@ export default function HospitalDashboardClient({
           const result = await refreshHospitalReservationsAction({ targetHospitalId: hospitalId })
           if (result.success && result.reservations) {
             setReservations(result.reservations)
+            if (result.serverTime) {
+              setServerClockOffsetMs(new Date(result.serverTime).getTime() - Date.now())
+            }
           }
         } catch {
           // background sync error ignored
@@ -76,6 +87,9 @@ export default function HospitalDashboardClient({
         const result = await refreshHospitalReservationsAction({ targetHospitalId: hospitalId })
         if (result.success && result.reservations) {
           setReservations(result.reservations)
+          if (result.serverTime) {
+            setServerClockOffsetMs(new Date(result.serverTime).getTime() - Date.now())
+          }
         }
       } catch {
         // quiet fallback poll
@@ -99,6 +113,9 @@ export default function HospitalDashboardClient({
       const result = await refreshHospitalReservationsAction({ targetHospitalId: hospitalId })
       if (result.success && result.reservations) {
         setReservations(result.reservations)
+        if (result.serverTime) {
+          setServerClockOffsetMs(new Date(result.serverTime).getTime() - Date.now())
+        }
       } else if (result.error) {
         setRefreshError(result.error.message)
       }
@@ -325,6 +342,55 @@ export default function HospitalDashboardClient({
 
       {/* Main Container */}
       <main style={{ maxWidth: '1200px', margin: '0 auto', padding: '1.5rem 1rem' }}>
+        {/* Realtime Disconnection Banner */}
+        {realtimeStatus !== 'SUBSCRIBED' && realtimeStatus !== 'CONNECTING' && (
+          <div
+            role="alert"
+            style={{
+              marginBottom: '1rem',
+              padding: '0.75rem 1rem',
+              backgroundColor: '#fffbeb',
+              border: '1px solid #fde68a',
+              borderRadius: '8px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: '0.75rem',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', color: '#92400e' }}>
+              <AlertTriangle size={18} className="text-amber-600 shrink-0" />
+              <div>
+                <span style={{ fontWeight: 700 }}>Realtime Sync Offline ({realtimeStatus}).</span>{' '}
+                <span style={{ fontSize: '0.85rem' }}>
+                  Live offers may lag. Background 10-second polling fallback is active.
+                </span>
+              </div>
+            </div>
+            <button
+              onClick={handleRefresh}
+              disabled={isRefreshing}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px',
+                padding: '5px 12px',
+                backgroundColor: '#b45309',
+                color: '#ffffff',
+                border: 'none',
+                borderRadius: '6px',
+                fontSize: '0.75rem',
+                fontWeight: 600,
+                cursor: isRefreshing ? 'not-allowed' : 'pointer',
+              }}
+            >
+              <RotateCw size={12} className={isRefreshing ? 'animate-spin' : ''} />
+              Re-Sync Server State
+            </button>
+          </div>
+        )}
+
         {refreshError && (
           <div
             style={{
@@ -431,7 +497,9 @@ export default function HospitalDashboardClient({
               <HospitalReservationCard
                 key={reservation.id}
                 reservation={reservation}
+                serverClockOffsetMs={serverClockOffsetMs}
                 onReservationUpdated={handleReservationUpdated}
+                onRefreshNeeded={handleRefresh}
               />
             ))}
           </div>

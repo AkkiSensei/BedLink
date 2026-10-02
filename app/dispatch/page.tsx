@@ -36,8 +36,12 @@ export default async function DispatchPage({
     profile = profileData ?? null
   }
 
-  // Demo fallback mode for local development/preview or direct demo parameter
-  if (!profile && (params?.demo || process.env.NODE_ENV !== 'production')) {
+  // Demo fallback mode strictly gated behind explicit ALLOW_DEMO_BYPASS environment flag
+  const allowDemoBypass =
+    process.env.ALLOW_DEMO_BYPASS === 'true' ||
+    process.env.NEXT_PUBLIC_ALLOW_DEMO_BYPASS === 'true'
+
+  if (!profile && allowDemoBypass && params?.demo) {
     let demoTarget: (typeof DEMO_IDENTITIES)[keyof typeof DEMO_IDENTITIES] = DEMO_IDENTITIES.DISPATCH_1
     if (params?.demo === 'dispatch2') {
       demoTarget = DEMO_IDENTITIES.DISPATCH_2
@@ -75,11 +79,11 @@ export default async function DispatchPage({
         </h1>
         <p style={{ fontSize: '0.925rem', color: '#64748b', lineHeight: 1.5, margin: 0 }}>
           The Emergency Dispatch Console is restricted to authenticated users with the{' '}
-          <strong>Dispatch Operator</strong> role.
+          <strong>Dispatch Operator</strong> or <strong>Admin</strong> role. Please sign in with verified dispatch credentials.
         </p>
         <div style={{ marginTop: '1.75rem', display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
           <a
-            href="/login?unauthorized=1"
+            href="/login?role=dispatch"
             style={{
               display: 'inline-block',
               padding: '11px 18px',
@@ -91,10 +95,10 @@ export default async function DispatchPage({
               textDecoration: 'none',
             }}
           >
-            Return to Login
+            Sign In with Dispatch PIN
           </a>
           <a
-            href="/dispatch?demo=dispatch1"
+            href="/login"
             style={{
               display: 'inline-block',
               padding: '9px 18px',
@@ -107,23 +111,7 @@ export default async function DispatchPage({
               border: '1px solid #e2e8f0',
             }}
           >
-            Demo Preview: Dispatcher Alpha (Metro EMS)
-          </a>
-          <a
-            href="/dispatch?demo=dispatch2"
-            style={{
-              display: 'inline-block',
-              padding: '9px 18px',
-              backgroundColor: '#f1f5f9',
-              color: '#334155',
-              borderRadius: '8px',
-              fontWeight: 500,
-              fontSize: '0.825rem',
-              textDecoration: 'none',
-              border: '1px solid #e2e8f0',
-            }}
-          >
-            Demo Preview: Dispatcher Beta (Suburban EMS)
+            Switch Role or Return to Login
           </a>
         </div>
       </div>

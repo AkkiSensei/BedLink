@@ -6,6 +6,7 @@ import { Clock, AlertCircle, RefreshCw } from 'lucide-react'
 interface HospitalCountdownProps {
   holdExpiresAt: string
   isHeld: boolean
+  serverClockOffsetMs?: number
   onRefresh?: () => void
   onExpired?: () => void
 }
@@ -20,26 +21,31 @@ function formatRemainingSeconds(secs: number): string {
 export default function HospitalCountdown({
   holdExpiresAt,
   isHeld,
+  serverClockOffsetMs = 0,
   onRefresh,
   onExpired,
 }: HospitalCountdownProps) {
-  const [remainingSeconds, setRemainingSeconds] = useState<number>(() => {
-    if (!holdExpiresAt) return 0
-    const expiresMs = new Date(holdExpiresAt).getTime()
-    return Math.max(0, Math.floor((expiresMs - Date.now()) / 1000))
-  })
+  const calculateRemaining = (expiresAtStr: string, offsetMs: number) => {
+    if (!expiresAtStr) return 0
+    const expiresMs = new Date(expiresAtStr).getTime()
+    const authoritativeNow = Date.now() + offsetMs
+    return Math.max(0, Math.floor((expiresMs - authoritativeNow) / 1000))
+  }
+
+  const [remainingSeconds, setRemainingSeconds] = useState<number>(() =>
+    calculateRemaining(holdExpiresAt, serverClockOffsetMs)
+  )
 
   const hasNotifiedExpiryRef = useRef<boolean>(false)
 
-  // PRESENTATIONAL ONLY: Visual clock synchronized with onExpired callback
+  // Authoritative countdown synchronized with server clock offset
   useEffect(() => {
     if (!holdExpiresAt || !isHeld) return
 
     hasNotifiedExpiryRef.current = false
 
     const updateTimer = () => {
-      const expiresMs = new Date(holdExpiresAt).getTime()
-      const diffSecs = Math.max(0, Math.floor((expiresMs - Date.now()) / 1000))
+      const diffSecs = calculateRemaining(holdExpiresAt, serverClockOffsetMs)
       setRemainingSeconds(diffSecs)
 
       if (diffSecs <= 0 && !hasNotifiedExpiryRef.current) {
@@ -51,7 +57,7 @@ export default function HospitalCountdown({
     updateTimer()
     const interval = setInterval(updateTimer, 1000)
     return () => clearInterval(interval)
-  }, [holdExpiresAt, isHeld, onExpired])
+  }, [holdExpiresAt, isHeld, serverClockOffsetMs, onExpired])
 
   if (!isHeld) return null
 
