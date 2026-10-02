@@ -50,4 +50,9 @@ export interface RealtimeSubscriptionHandle {
    * Retrieves the current channel connection status.
    */
   getStatus: () => RealtimeConnectionStatus
+
+  /**
+   * Forces an immediate authoritative server state reconciliation.
+   */
+  resync?: () => void
 }

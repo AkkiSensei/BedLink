@@ -111,9 +111,25 @@ export function subscribeNurseBeds(
       }
     })
 
+  const handleOnline = () => debouncedReconcile()
+  const handleVisibility = () => {
+    if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+      debouncedReconcile()
+    }
+  }
+
+  if (typeof window !== 'undefined') {
+    window.addEventListener('online', handleOnline)
+    document.addEventListener('visibilitychange', handleVisibility)
+  }
+
   return {
     unsubscribe: () => {
       try {
+        if (typeof window !== 'undefined') {
+          window.removeEventListener('online', handleOnline)
+          document.removeEventListener('visibilitychange', handleVisibility)
+        }
         if (typeof channel.unsubscribe === 'function') {
           channel.unsubscribe()
         }
@@ -125,6 +141,9 @@ export function subscribeNurseBeds(
       }
     },
     getStatus: () => currentStatus,
+    resync: () => {
+      debouncedReconcile()
+    },
   }
 }
 
@@ -214,9 +233,25 @@ export function subscribeDispatchWorkflow(
       }
     })
 
+  const handleOnline = () => debouncedReconcile()
+  const handleVisibility = () => {
+    if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+      debouncedReconcile()
+    }
+  }
+
+  if (typeof window !== 'undefined') {
+    window.addEventListener('online', handleOnline)
+    document.addEventListener('visibilitychange', handleVisibility)
+  }
+
   return {
     unsubscribe: () => {
       try {
+        if (typeof window !== 'undefined') {
+          window.removeEventListener('online', handleOnline)
+          document.removeEventListener('visibilitychange', handleVisibility)
+        }
         if (typeof channel.unsubscribe === 'function') {
           channel.unsubscribe()
         }
@@ -228,6 +263,9 @@ export function subscribeDispatchWorkflow(
       }
     },
     getStatus: () => currentStatus,
+    resync: () => {
+      debouncedReconcile()
+    },
   }
 }
 
@@ -309,9 +347,25 @@ export function subscribeHospitalOffers(
       }
     })
 
+  const handleHospitalOnline = () => debouncedReconcile()
+  const handleHospitalVisibility = () => {
+    if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+      debouncedReconcile()
+    }
+  }
+
+  if (typeof window !== 'undefined') {
+    window.addEventListener('online', handleHospitalOnline)
+    document.addEventListener('visibilitychange', handleHospitalVisibility)
+  }
+
   return {
     unsubscribe: () => {
       try {
+        if (typeof window !== 'undefined') {
+          window.removeEventListener('online', handleHospitalOnline)
+          document.removeEventListener('visibilitychange', handleHospitalVisibility)
+        }
         if (typeof channel.unsubscribe === 'function') {
           channel.unsubscribe()
         }
@@ -323,5 +377,8 @@ export function subscribeHospitalOffers(
       }
     },
     getStatus: () => currentStatus,
+    resync: () => {
+      debouncedReconcile()
+    },
   }
 }
