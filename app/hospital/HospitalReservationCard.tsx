@@ -102,7 +102,7 @@ export default function HospitalReservationCard({
   }
 
   const handleReject = async () => {
-    if (!isHeld || submittingAction || isCountdownExpired) return
+    if (!isHeld || isSubmittingRef.current || submittingAction || isCountdownExpired) return
 
     // Authoritative clock check
     const authoritativeNow = Date.now() + serverClockOffsetMs
@@ -113,6 +113,7 @@ export default function HospitalReservationCard({
       return
     }
 
+    isSubmittingRef.current = true
     setSubmittingAction('reject')
     setErrorMessage(null)
 
@@ -146,6 +147,7 @@ export default function HospitalReservationCard({
     } catch (err: any) {
       setErrorMessage(err.message || 'Unexpected network error during rejection')
     } finally {
+      isSubmittingRef.current = false
       setSubmittingAction(null)
     }
   }
