@@ -1,9 +1,10 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import type { HospitalReservationView } from '@/lib/operations/types'
 import HospitalReservationCard from './HospitalReservationCard'
 import { refreshHospitalReservationsAction } from './actions'
+import { subscribeHospitalOffers, type RealtimeConnectionStatus } from '@/lib/realtime'
 
 interface HospitalDashboardClientProps {
   initialReservations: HospitalReservationView[]
@@ -25,6 +26,31 @@ export default function HospitalDashboardClient({
   const [reservations, setReservations] = useState<HospitalReservationView[]>(initialReservations)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [refreshError, setRefreshError] = useState<string | null>(null)
+  const [realtimeStatus, setRealtimeStatus] = useState<RealtimeConnectionStatus>('CONNECTING')
+
+  // Subscribe to real-time incoming and updated hospital offers
+  useEffect(() => {
+    if (!hospitalId) return
+
+    const unsubscribe = subscribeHospitalOffers({
+      hospitalId,
+      onStatusChange: (status) => setRealtimeStatus(status),
+      onReconcile: async () => {
+        try {
+          const result = await refreshHospitalReservationsAction({ targetHospitalId: hospitalId })
+          if (result.success && result.reservations) {
+            setReservations(result.reservations)
+          }
+        } catch {
+          // background sync error ignored
+        }
+      },
+    })
+
+    return () => {
+      unsubscribe()
+    }
+  }, [hospitalId])
 
   // Sort reservations deterministically: earliest hold expiry first
   const sortedReservations = [...reservations].sort((a, b) => {
@@ -132,6 +158,59 @@ export default function HospitalDashboardClient({
                 >
                   Hospital Console
                 </span>
+                {realtimeStatus === 'SUBSCRIBED' ? (
+                  <span
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      fontSize: '0.675rem',
+                      fontWeight: 700,
+                      color: '#34d399',
+                      backgroundColor: 'rgba(16, 185, 129, 0.15)',
+                      border: '1px solid rgba(16, 185, 129, 0.3)',
+                      borderRadius: '9999px',
+                      padding: '2px 7px',
+                    }}
+                    title="Connected to Supabase Realtime"
+                  >
+                    <span
+                      style={{
+                        width: '5px',
+                        height: '5px',
+                        borderRadius: '50%',
+                        backgroundColor: '#34d399',
+                      }}
+                    />
+                    LIVE
+                  </span>
+                ) : realtimeStatus === 'CONNECTING' ? (
+                  <span
+                    style={{
+                      fontSize: '0.675rem',
+                      fontWeight: 600,
+                      color: '#f59e0b',
+                      backgroundColor: 'rgba(245, 158, 11, 0.15)',
+                      padding: '2px 7px',
+                      borderRadius: '9999px',
+                    }}
+                  >
+                    Connecting...
+                  </span>
+                ) : (
+                  <span
+                    style={{
+                      fontSize: '0.675rem',
+                      fontWeight: 600,
+                      color: '#94a3b8',
+                      backgroundColor: 'rgba(148, 163, 184, 0.15)',
+                      padding: '2px 7px',
+                      borderRadius: '9999px',
+                    }}
+                  >
+                    Offline
+                  </span>
+                )}
                 {activeHeldCount > 0 && (
                   <span
                     style={{
