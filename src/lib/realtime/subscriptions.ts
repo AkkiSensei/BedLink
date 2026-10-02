@@ -207,6 +207,17 @@ export function subscribeDispatchWorkflow(
         debouncedReconcile()
       }
     )
+    .on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'beds',
+      },
+      () => {
+        debouncedReconcile()
+      }
+    )
     .subscribe((status: string, err?: Error) => {
       if (err) {
         onError?.(err)

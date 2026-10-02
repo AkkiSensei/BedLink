@@ -2,7 +2,7 @@
 
 import React from 'react'
 import type { DispatchBedRequestView } from '@/lib/operations/types'
-import { MapPin, Phone, Clock, RotateCw } from 'lucide-react'
+import { MapPin, Phone, Clock, RotateCw, CheckCircle2 } from 'lucide-react'
 
 interface RequestDetailViewProps {
   request: DispatchBedRequestView
@@ -12,19 +12,19 @@ export default function RequestDetailView({ request }: RequestDetailViewProps) {
   return (
     <div
       style={{
-        backgroundColor: '#ffffff',
-        borderRadius: '10px',
-        border: '1px solid #e2e8f0',
+        backgroundColor: '#FFFFFF',
+        borderRadius: '12px',
+        border: '1px solid #E1E7E1',
         padding: '1.25rem',
-        boxShadow: '0 1px 3px 0 rgba(0,0,0,0.05)',
+        boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
         <div>
-          <span style={{ fontSize: '0.725rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>
-            Emergency Request Details
+          <span style={{ fontSize: '0.725rem', fontWeight: 700, color: '#5C6B64', textTransform: 'uppercase' }}>
+            Active Emergency Request
           </span>
-          <h2 style={{ fontSize: '1.15rem', fontWeight: 800, color: '#0f172a', margin: '2px 0 0 0', fontFamily: 'monospace' }}>
+          <h2 style={{ fontSize: '1.15rem', fontWeight: 800, color: '#1A2421', margin: '2px 0 0 0', fontFamily: 'monospace' }}>
             #{request.id}
           </h2>
         </div>
@@ -40,20 +40,20 @@ export default function RequestDetailView({ request }: RequestDetailViewProps) {
               borderRadius: '9999px',
               backgroundColor:
                 request.status === 'confirmed'
-                  ? '#dcfce7'
+                  ? '#E8F5E9'
                   : request.status === 'offered'
-                  ? '#e0f2fe'
+                  ? '#FEF3C7'
                   : request.status === 'fallback'
-                  ? '#fef3c7'
-                  : '#f1f5f9',
+                  ? '#FFF1F2'
+                  : '#EEF3EE',
               color:
                 request.status === 'confirmed'
-                  ? '#15803d'
+                  ? '#2E7D32'
                   : request.status === 'offered'
-                  ? '#0369a1'
+                  ? '#B45309'
                   : request.status === 'fallback'
-                  ? '#b45309'
-                  : '#475569',
+                  ? '#E11D48'
+                  : '#5C6B64',
               border: '1px solid currentColor',
             }}
           >
@@ -66,10 +66,10 @@ export default function RequestDetailView({ request }: RequestDetailViewProps) {
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
           gap: '0.75rem',
-          backgroundColor: '#f8fafc',
-          border: '1px solid #e2e8f0',
+          backgroundColor: '#F4F6F4',
+          border: '1px solid #E1E7E1',
           borderRadius: '8px',
           padding: '0.875rem 1rem',
           fontSize: '0.8rem',
@@ -77,41 +77,41 @@ export default function RequestDetailView({ request }: RequestDetailViewProps) {
         }}
       >
         <div>
-          <div style={{ color: '#64748b', fontSize: '0.7rem', textTransform: 'uppercase', fontWeight: 700 }}>
+          <div style={{ color: '#5C6B64', fontSize: '0.675rem', textTransform: 'uppercase', fontWeight: 700 }}>
             Ambulance Origin GPS
           </div>
-          <div style={{ fontWeight: 700, color: '#0f172a', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-            <MapPin size={14} className="text-slate-600" />
+          <div style={{ fontWeight: 700, color: '#1A2421', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <MapPin size={14} style={{ color: '#2D6A4F' }} />
             <span>{request.ambulance_latitude.toFixed(4)}, {request.ambulance_longitude.toFixed(4)}</span>
           </div>
         </div>
 
         <div>
-          <div style={{ color: '#64748b', fontSize: '0.7rem', textTransform: 'uppercase', fontWeight: 700 }}>
+          <div style={{ color: '#5C6B64', fontSize: '0.675rem', textTransform: 'uppercase', fontWeight: 700 }}>
             Comms Contact
           </div>
-          <div style={{ fontWeight: 700, color: '#0f172a', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-            <Phone size={14} className="text-slate-600" />
+          <div style={{ fontWeight: 700, color: '#1A2421', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <Phone size={14} style={{ color: '#2D6A4F' }} />
             <span>{request.ambulance_phone || 'Radio Dispatch Only'}</span>
           </div>
         </div>
 
         <div>
-          <div style={{ color: '#64748b', fontSize: '0.7rem', textTransform: 'uppercase', fontWeight: 700 }}>
+          <div style={{ color: '#5C6B64', fontSize: '0.675rem', textTransform: 'uppercase', fontWeight: 700 }}>
             Created Timestamp
           </div>
-          <div style={{ fontWeight: 600, color: '#334155', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-            <Clock size={14} className="text-slate-600" />
-            <span>{new Date(request.created_at).toLocaleString()}</span>
+          <div style={{ fontWeight: 600, color: '#1A2421', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <Clock size={14} style={{ color: '#5C6B64' }} />
+            <span>{new Date(request.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
           </div>
         </div>
 
         <div>
-          <div style={{ color: '#64748b', fontSize: '0.7rem', textTransform: 'uppercase', fontWeight: 700 }}>
-            Total Attempted Facilities
+          <div style={{ color: '#5C6B64', fontSize: '0.675rem', textTransform: 'uppercase', fontWeight: 700 }}>
+            Attempted Facilities
           </div>
-          <div style={{ fontWeight: 700, color: '#0f172a', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-            <RotateCw size={14} className="text-slate-600" />
+          <div style={{ fontWeight: 700, color: '#1A2421', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <RotateCw size={14} style={{ color: '#5C6B64' }} />
             <span>{request.attempted_hospitals?.length ?? 0} {request.attempted_hospitals?.length === 1 ? 'hospital' : 'hospitals'}</span>
           </div>
         </div>
@@ -119,7 +119,7 @@ export default function RequestDetailView({ request }: RequestDetailViewProps) {
 
       {/* Required Bed Capabilities */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-        <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>
+        <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#5C6B64', textTransform: 'uppercase' }}>
           Required Capabilities:
         </span>
         {request.required_capabilities.map((cap) => (
@@ -128,11 +128,11 @@ export default function RequestDetailView({ request }: RequestDetailViewProps) {
             style={{
               fontSize: '0.725rem',
               fontWeight: 700,
-              backgroundColor: '#f1f5f9',
-              color: '#334155',
+              backgroundColor: '#EEF3EE',
+              color: '#2D6A4F',
               padding: '2px 8px',
               borderRadius: '6px',
-              border: '1px solid #cbd5e1',
+              border: '1px solid #E1E7E1',
             }}
           >
             {cap.toUpperCase()}
@@ -142,3 +142,4 @@ export default function RequestDetailView({ request }: RequestDetailViewProps) {
     </div>
   )
 }
+

@@ -103,7 +103,7 @@ export default async function DispatchPage({
             style={{
               display: 'inline-block',
               padding: '11px 18px',
-              backgroundColor: '#0284c7',
+              backgroundColor: '#2D6A4F',
               color: '#ffffff',
               borderRadius: '8px',
               fontWeight: 600,
@@ -111,20 +111,20 @@ export default async function DispatchPage({
               textDecoration: 'none',
             }}
           >
-            Sign In with Dispatch PIN
+            Sign In as Dispatch Operator
           </a>
           <a
             href="/login"
             style={{
               display: 'inline-block',
               padding: '9px 18px',
-              backgroundColor: '#f1f5f9',
-              color: '#334155',
+              backgroundColor: '#EEF3EE',
+              color: '#1A2421',
               borderRadius: '8px',
               fontWeight: 500,
               fontSize: '0.825rem',
               textDecoration: 'none',
-              border: '1px solid #e2e8f0',
+              border: '1px solid #E1E7E1',
             }}
           >
             Switch Role or Return to Login
@@ -152,8 +152,9 @@ export default async function DispatchPage({
     <DispatchDashboardClient
       initialRequests={initialRequests}
       userId={currentUserId}
-      dispatcherName={profile.full_name || 'EMS Dispatcher'}
+      dispatcherName={profile.full_name || 'Dispatch Operator'}
       dispatcherRole={profile.role}
     />
   )
 }
+
