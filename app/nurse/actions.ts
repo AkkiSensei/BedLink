@@ -1,6 +1,6 @@
 'use server'
 
-import { updateNurseBed, getNurseBeds } from '@/lib/operations/nurse'
+import { updateNurseBed, getNurseBeds, confirmNurseInventory } from '@/lib/operations/nurse'
 import { toOperationError } from '@/lib/operations/errors'
 import type { NurseBedView } from '@/lib/operations/types'
 import type { BedStatus } from '@/lib/types/database'
@@ -18,6 +18,17 @@ export interface UpdateBedActionResult {
 export interface RefreshBedsActionResult {
   success: boolean
   beds?: NurseBedView[]
+  error?: {
+    code: string
+    message: string
+    status: number
+  }
+}
+
+export interface ConfirmInventoryActionResult {
+  success: boolean
+  confirmedAt?: string
+  message?: string
   error?: {
     code: string
     message: string
@@ -66,6 +77,31 @@ export async function refreshNurseBedsAction(): Promise<RefreshBedsActionResult>
     return {
       success: true,
       beds,
+    }
+  } catch (err: any) {
+    const opErr = toOperationError(err)
+    return {
+      success: false,
+      error: {
+        code: opErr.code,
+        message: opErr.message,
+        status: opErr.status,
+      },
+    }
+  }
+}
+
+/**
+ * Server Action: Explicitly confirms that displayed hospital bed inventory is accurate.
+ * Delegates to confirmNurseInventory operation.
+ */
+export async function confirmNurseInventoryAction(): Promise<ConfirmInventoryActionResult> {
+  try {
+    const result = await confirmNurseInventory()
+    return {
+      success: true,
+      confirmedAt: result.confirmed_at,
+      message: result.message,
     }
   } catch (err: any) {
     const opErr = toOperationError(err)

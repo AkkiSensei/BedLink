@@ -292,3 +292,62 @@ export async function updateNurseBed(
     throw toOperationError(err)
   }
 }
+
+export interface ConfirmNurseInventoryResult {
+  hospital_id: string
+  confirmed_at: string
+  message: string
+}
+
+/**
+ * Explicitly confirms that the nurse has checked the displayed hospital bed inventory
+ * and confirms it is still accurate.
+ *
+ * Preserves bed freshness integrity: This does NOT blindly update bed.last_updated_at timestamps
+ * for all beds or categories, preserving truthful telemetry and ranking freshness.
+ * Instead, updates public.hospitals.updated_at as the authoritative hospital-level confirmation timestamp.
+ */
+export async function confirmNurseInventory(
+  client?: any
+): Promise<ConfirmNurseInventoryResult> {
+  try {
+    const authContext = await requireRole(['nurse', 'admin'], client)
+    const { profile } = authContext
+
+    if (!profile.hospital_id) {
+      throw new ForbiddenOperationError('Nurse profile missing hospital affiliation')
+    }
+
+    const hospitalId = profile.hospital_id
+    const nowIso = new Date().toISOString()
+
+    if (typeof client?.query === 'function') {
+      await client.query(
+        `UPDATE public.hospitals SET updated_at = $1 WHERE id = $2;`,
+        [nowIso, hospitalId]
+      )
+    } else if (typeof client?.from === 'function') {
+      const { error } = await client
+        .from('hospitals')
+        .update({ updated_at: nowIso })
+        .eq('id', hospitalId)
+      if (error) throw error
+    } else {
+      const { createServerSupabaseClient } = await import('@/lib/supabase/server')
+      const supabase = await createServerSupabaseClient()
+      const { error } = await supabase
+        .from('hospitals')
+        .update({ updated_at: nowIso })
+        .eq('id', hospitalId)
+      if (error) throw error
+    }
+
+    return {
+      hospital_id: hospitalId,
+      confirmed_at: nowIso,
+      message: 'The Nurse has checked the displayed inventory and confirms it is still accurate.',
+    }
+  } catch (err) {
+    throw toOperationError(err)
+  }
+}

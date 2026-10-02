@@ -130,15 +130,17 @@ export default async function NursePage({
   // 4. Resolve hospital details
   let hospitalName = 'Authorized Facility'
   let hospitalCity = 'Emergency Operations'
+  let hospitalUpdatedAt: string | null = null
   if (profile.hospital_id) {
     const { data: hospData } = await supabase
       .from('hospitals')
-      .select('name, city')
+      .select('name, city, updated_at')
       .eq('id', profile.hospital_id)
       .maybeSingle()
     if (hospData) {
       hospitalName = hospData.name
       hospitalCity = hospData.city
+      hospitalUpdatedAt = hospData.updated_at
     }
   }
 
@@ -158,6 +160,7 @@ export default async function NursePage({
       hospitalCity={hospitalCity}
       nurseName={profile.full_name || 'Staff Nurse'}
       nurseRole={profile.role}
+      initialConfirmedAt={hospitalUpdatedAt}
     />
   )
 }
