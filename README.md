@@ -35,9 +35,11 @@ BedLink addresses this by providing an authoritative, automated hospital ranking
 - **Nurse Inventory Interface (`/nurse`)**: Operational bed management UI allowing hospital nurses to view departmental beds, update statuses, and monitor telemetry freshness.
 - **Dispatch Operational Interface (`/dispatch`)**: End-to-end EMS dispatch console for emergency bed request creation, multi-factor ranked hospital visualization, single-hold offer monitoring, countdown timers, and fallback progression tracking.
 - **Hospital Operational Interface (`/hospital`)**: Dedicated response console for hospital operations desks to review incoming emergency bed reservation holds, examine patient clinical requirements and ETA, and execute authoritative Accept or Reject decisions within the 120-second hold window.
+- **Supabase Realtime Synchronization**: Role-scoped WebSocket push synchronization across Nurse, Dispatch, and Hospital operational interfaces with debounced server invalidation, connection lifecycle management, and reconnect resync.
 
 ### Planned / Future Scope
-- **Phase 10: Supabase Realtime**: Instant status push notifications via WebSockets.
+- **Phase 11: QA / Demo Hardening**: End-to-end multi-client browser demonstration scenarios.
+- **Phase 12: Production Deployment**: Hosted infrastructure orchestration and cloud telemetry.
 - **GPS Telemetry**: Live ambulance GPS telemetry and dynamic ETA re-computation.
 - **Clinical Admission**: Post-arrival workflows transitioning beds from `held` to `occupied`.
 
@@ -201,7 +203,8 @@ npm run build
 | **Nurse UI** | `scripts/verify-nurse-ui.ts` | 25 | Hospital inventory display, role protection, bed status updates, freshness badges, organization boundaries. |
 | **Dispatch UI** | `scripts/verify-dispatch-ui.ts` | 41 | Route RBAC, request creation, server validations, ranking display, single-hold invariant, fallback progression. |
 | **Hospital UI** | `scripts/verify-hospital-ui.ts` | 38 | Response console, ownership isolation, accept/reject workflows, ACCEPTED != OCCUPIED invariant, fallback trigger, expired hold defense. |
-| **Total** | | **366** | **100% Passing** |
+| **Realtime** | `scripts/verify-realtime.ts` | 42 | Role-scoped channels, boundary filtering, reconnect resync, coalescing debounce, E2E PostgreSQL workflow. |
+| **Total** | | **408** | **100% Passing** |
 
 ---
 
@@ -223,7 +226,11 @@ Screenshots and demo video links will be recorded and published following comple
 | **Phase 7** | Nurse Interface (`/nurse`) & Inventory Management | ✅ Implemented |
 | **Phase 8** | Dispatch Interface (`/dispatch`), Emergency Requests, Ranking & Fallback | ✅ Implemented |
 | **Phase 9** | Hospital Interface (`/hospital`), Emergency Department Response Console | ✅ Implemented |
-| **Phase 10** | Supabase Realtime Live Subscriptions & Notifications | ⏳ Future |
+| **Phase 10** | Supabase Realtime Live Subscriptions & End-to-End Integration | ✅ Implemented |
+| **Phase 11** | QA / Demo Hardening | ⏳ Future |
+| **Phase 12** | Production Deployment | ⏳ Future |
+
+> *Note: Phase 10 implements live Supabase Realtime WebSocket synchronization. It is distinguished from Phase 12 (Production Deployment).*
 
 ---
 
