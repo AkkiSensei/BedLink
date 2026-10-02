@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useRef } from 'react'
 import {
   Siren,
   CheckCircle2,
@@ -42,6 +42,7 @@ export default function HospitalReservationCard({
   const [localStatus, setLocalStatus] = useState<string>(reservation.status)
   const [statusNote, setStatusNote] = useState<string | null>(null)
   const [isCountdownExpired, setIsCountdownExpired] = useState<boolean>(false)
+  const isSubmittingRef = useRef<boolean>(false)
 
   const isHeld = localStatus === 'held'
   const isAccepted = localStatus === 'accepted'
@@ -50,8 +51,8 @@ export default function HospitalReservationCard({
   const isStale = localStatus === 'stale'
 
   const handleAccept = async () => {
-    if (!isHeld || submittingAction || isCountdownExpired) return
-    
+    if (!isHeld || isSubmittingRef.current || submittingAction || isCountdownExpired) return
+
     // Authoritative clock check
     const authoritativeNow = Date.now() + serverClockOffsetMs
     if (new Date(reservation.hold_expires_at).getTime() <= authoritativeNow) {
@@ -61,6 +62,7 @@ export default function HospitalReservationCard({
       return
     }
 
+    isSubmittingRef.current = true
     setSubmittingAction('accept')
     setErrorMessage(null)
 
@@ -94,6 +96,7 @@ export default function HospitalReservationCard({
     } catch (err: any) {
       setErrorMessage(err.message || 'Unexpected network error during acceptance')
     } finally {
+      isSubmittingRef.current = false
       setSubmittingAction(null)
     }
   }
