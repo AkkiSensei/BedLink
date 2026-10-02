@@ -9,6 +9,7 @@
     "type": "git",
     "url": "https://github.com/AkkiSensei/BugDealers-BedLink.git"
   },
+  "homepage": "https://bug-dealers-bed-link-gamma.vercel.app",
   "scripts": {
     "dev": "vite",
     "dev:next": "next dev",

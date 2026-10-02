@@ -3,6 +3,7 @@
 > **TechForge 2026 Submission**  
 > **Team**: Bug Dealers  
 > **Domain**: HealthTech  
+> **Live Production Deployment**: [https://bug-dealers-bed-link-gamma.vercel.app](https://bug-dealers-bed-link-gamma.vercel.app)  
 
 ---
 
@@ -377,15 +378,15 @@ Visit `/demo` to test scenarios:
 
 ---
 
-## Zero-Configuration Vercel Deployment
+## Vercel Production Deployment
 
-BedLink is preconfigured for continuous deployment on Vercel:
-
-1. Import the repository into the Vercel Dashboard.
-2. Framework Preset will auto-detect as **Vite**.
-3. Build Command: `npm run build`
-4. Output Directory: `dist`
-5. The bundled `vercel.json` ensures client-side Single Page Application (SPA) route rewrites:
+- **Live URL**: [https://bug-dealers-bed-link-gamma.vercel.app](https://bug-dealers-bed-link-gamma.vercel.app)
+- **Deployment Status**: `READY` (Production)
+- **Project Name**: `bug-dealers-bed-link`
+- **Framework Preset**: **Vite**
+- **Build Command**: `npm run build` (`tsc && vite build`)
+- **Output Directory**: `dist`
+- **SPA Routing**: Preconfigured via `vercel.json` rewrite:
 ```json
 {
   "rewrites": [
