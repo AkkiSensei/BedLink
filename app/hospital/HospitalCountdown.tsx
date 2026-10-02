@@ -170,7 +170,9 @@ export default function HospitalCountdown({
                 gap: '4px',
               }}
             >
-              <span>{formatRemainingSeconds(remainingSeconds)}</span>
+              <span style={{ minWidth: '5ch', display: 'inline-block', textAlign: 'center' }}>
+                {formatRemainingSeconds(remainingSeconds)}
+              </span>
               <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#5C6B64' }}>
                 remaining
               </span>

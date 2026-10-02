@@ -179,6 +179,8 @@ export default function HospitalReservationCard({
         backgroundColor: '#FFFFFF',
         borderRadius: '12px',
         border: cardBorder,
+        maxWidth: '100%',
+        boxSizing: 'border-box',
         boxShadow: isHeld
           ? '0 4px 14px -2px rgba(45, 106, 79, 0.18)'
           : '0 1px 3px rgba(0,0,0,0.04)',
@@ -425,7 +427,7 @@ export default function HospitalReservationCard({
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))',
             gap: '1.25rem',
           }}
         >
