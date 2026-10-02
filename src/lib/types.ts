@@ -1,6 +1,21 @@
 export type BedType = 'icu' | 'ventilator' | 'oxygen' | 'cardiac' | 'burns' | 'general';
 export type LoadStatus = 'Low' | 'Normal' | 'Surge';
 
+/**
+ * Role Architecture Note:
+ * BedLink uses two complementary role representations:
+ * 1. Database/Backend Roles (src/lib/types/database.ts): 'nurse' | 'dispatch' | 'hospital' | 'admin'
+ *    - Enforced by PostgreSQL RLS policies, Supabase JWT claims, and backend verify scripts.
+ * 2. Client UI Roles (below): 'nurse' | 'coordinator' | 'dispatcher' | 'crew' | 'admin'
+ *    - Used by the interactive frontend Vite SPA console and demo navigation.
+ * 
+ * Mapping:
+ * - 'nurse'        <--> 'nurse'    (Bedside nurse / ward management)
+ * - 'coordinator'  <--> 'hospital' (Hospital transfer desk & reservation offers)
+ * - 'dispatcher'   <--> 'dispatch' (EMS dispatch center & routing)
+ * - 'crew'         <--> 'dispatch' (Field ambulance crew / en-route telemetry)
+ * - 'admin'        <--> 'admin'    (System administrator / governance)
+ */
 export type UserRole = 'nurse' | 'coordinator' | 'dispatcher' | 'crew' | 'admin';
 
 export interface User {
