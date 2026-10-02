@@ -75,7 +75,15 @@ export async function createEmergencyRequestAction(
  */
 export async function fetchDispatchRequestsAction(): Promise<ListRequestsActionResult> {
   try {
-    const requests = await listDispatchBedRequests()
+    const { createServerSupabaseClient } = await import('@/lib/supabase/server')
+    const client = await createServerSupabaseClient()
+    try {
+      const { ReservationService } = await import('@/lib/reservations/service')
+      const reservationService = new ReservationService(client)
+      await reservationService.processDueExpiries(new Date(), true)
+    } catch {}
+
+    const requests = await listDispatchBedRequests(client)
     return {
       success: true,
       requests,

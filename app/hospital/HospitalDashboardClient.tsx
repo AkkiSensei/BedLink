@@ -6,7 +6,8 @@ import HospitalReservationCard from './HospitalReservationCard'
 import { refreshHospitalReservationsAction } from './actions'
 import { subscribeHospitalOffers, type RealtimeConnectionStatus } from '@/lib/realtime'
 import { playAlertChime } from '@/lib/sound'
-import { logoutAction } from '../actions/auth'
+import { logoutAction, loginWithPinAction } from '../actions/auth'
+import { ALL_HOSPITALS } from '@/lib/auth/pins'
 import { requestScreenWakeLock, triggerHaptic } from '@/lib/device/phoneCraft'
 import {
   Building2,
@@ -363,8 +364,45 @@ export default function HospitalDashboardClient({
                 )}
               </div>
 
-              <div style={{ fontSize: '0.75rem', color: '#A3B0A9', marginTop: '1px' }}>
-                {hospitalName} • <span style={{ color: '#E1E7E1' }}>{hospitalCity}</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '3px', flexWrap: 'wrap' }}>
+                <span style={{ fontSize: '0.72rem', color: '#A3B0A9' }}>
+                  {hospitalName} • <span style={{ color: '#E1E7E1' }}>{hospitalCity}</span>
+                </span>
+
+                {/* Facility Switcher with Visible PINs */}
+                <select
+                  aria-label="Switch Hospital Facility (All 10 Facilities)"
+                  value={hospitalId}
+                  onChange={async (e) => {
+                    const newHospId = e.target.value
+                    if (newHospId && newHospId !== hospitalId) {
+                      const selected = ALL_HOSPITALS.find((h) => h.hospitalId === newHospId)
+                      if (selected) {
+                        try {
+                          await loginWithPinAction(selected.pin)
+                        } catch {}
+                        window.location.href = `/hospital?hospitalId=${newHospId}`
+                      }
+                    }
+                  }}
+                  style={{
+                    backgroundColor: '#2D3E37',
+                    color: '#A3D9C9',
+                    border: '1px solid #3F554B',
+                    borderRadius: '5px',
+                    padding: '2px 6px',
+                    fontSize: '0.72rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    outline: 'none',
+                  }}
+                >
+                  {ALL_HOSPITALS.map((hosp) => (
+                    <option key={hosp.hospitalId} value={hosp.hospitalId} style={{ backgroundColor: '#1A2421', color: '#FFFFFF' }}>
+                      {hosp.shortName} (PIN: {hosp.pin})
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
           </div>

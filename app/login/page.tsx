@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback, useRef, Suspense } from 'react
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { loginWithPinAction } from '../actions/auth'
-import { ROLE_PINS, getRoleByPin } from '@/lib/auth/pins'
+import { ROLE_PINS, getRoleByPin, ALL_HOSPITALS } from '@/lib/auth/pins'
 import { 
   Building2, 
   Ambulance, 
@@ -686,70 +686,142 @@ function LoginFormInner() {
             letterSpacing: '0.04em',
             marginBottom: '2px',
           }}>
-            1-Tap Demo Shortcuts
+            {activeTab === 'hospital' ? 'Facility PIN Directory (1-Tap to Login)' : '1-Tap Demo Shortcuts'}
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
-            <button
-              type="button"
-              disabled={isAuthenticating}
-              onClick={() => handleQuickFill('2468', 'nurse')}
-              style={{
-                padding: '6px 4px',
-                borderRadius: '8px',
-                backgroundColor: '#E8F5E9',
-                border: '1px solid #A3D9C9',
-                color: '#2D6A4F',
-                fontSize: '0.72rem',
-                fontWeight: 700,
-                cursor: isAuthenticating ? 'not-allowed' : 'pointer',
-                textAlign: 'center',
-                transition: 'opacity 150ms',
-              }}
-            >
-              Nurse (2468)
-            </button>
+          {activeTab === 'hospital' ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <div style={{
+                maxHeight: '140px',
+                overflowY: 'auto',
+                display: 'grid',
+                gridTemplateColumns: 'repeat(2, 1fr)',
+                gap: '5px',
+                paddingRight: '2px',
+              }}>
+                {ALL_HOSPITALS.map((hosp) => (
+                  <button
+                    key={hosp.hospitalId}
+                    type="button"
+                    disabled={isAuthenticating}
+                    onClick={() => handleQuickFill(hosp.pin, 'hospital')}
+                    style={{
+                      padding: '5px 8px',
+                      borderRadius: '6px',
+                      backgroundColor: '#F8FAFC',
+                      border: '1px solid #CBD5E1',
+                      color: '#0F172A',
+                      fontSize: '0.7rem',
+                      fontWeight: 600,
+                      cursor: isAuthenticating ? 'not-allowed' : 'pointer',
+                      textAlign: 'left',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      transition: 'all 100ms',
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#E2E8F0')}
+                    onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#F8FAFC')}
+                  >
+                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '105px' }}>
+                      {hosp.shortName}
+                    </span>
+                    <span style={{ fontFamily: 'monospace', fontWeight: 800, color: '#1E40AF', backgroundColor: '#DBEAFE', padding: '1px 5px', borderRadius: '4px', fontSize: '0.68rem' }}>
+                      {hosp.pin}
+                    </span>
+                  </button>
+                ))}
+              </div>
 
-            <button
-              type="button"
-              disabled={isAuthenticating}
-              onClick={() => handleQuickFill('9110', 'dispatch')}
-              style={{
-                padding: '6px 4px',
-                borderRadius: '8px',
-                backgroundColor: '#FEF3C7',
-                border: '1px solid #FCD34D',
-                color: '#B45309',
-                fontSize: '0.72rem',
-                fontWeight: 700,
-                cursor: isAuthenticating ? 'not-allowed' : 'pointer',
-                textAlign: 'center',
-                transition: 'opacity 150ms',
-              }}
-            >
-              Dispatch (9110)
-            </button>
+              {/* Super Admin Access Button */}
+              <button
+                type="button"
+                disabled={isAuthenticating}
+                onClick={() => handleQuickFill('0000', 'hospital')}
+                style={{
+                  width: '100%',
+                  padding: '5px 10px',
+                  borderRadius: '6px',
+                  backgroundColor: '#FEF3C7',
+                  border: '1px solid #FCD34D',
+                  color: '#92400E',
+                  fontSize: '0.72rem',
+                  fontWeight: 700,
+                  cursor: isAuthenticating ? 'not-allowed' : 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                }}
+              >
+                <span>Super Administrator (All Hospitals Access)</span>
+                <span style={{ fontFamily: 'monospace', fontWeight: 800, backgroundColor: '#FDE68A', padding: '1px 6px', borderRadius: '4px', fontSize: '0.7rem' }}>
+                  0000
+                </span>
+              </button>
+            </div>
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
+              <button
+                type="button"
+                disabled={isAuthenticating}
+                onClick={() => handleQuickFill('2468', 'nurse')}
+                style={{
+                  padding: '6px 4px',
+                  borderRadius: '8px',
+                  backgroundColor: '#E8F5E9',
+                  border: '1px solid #A3D9C9',
+                  color: '#2D6A4F',
+                  fontSize: '0.72rem',
+                  fontWeight: 700,
+                  cursor: isAuthenticating ? 'not-allowed' : 'pointer',
+                  textAlign: 'center',
+                  transition: 'opacity 150ms',
+                }}
+              >
+                Nurse (2468)
+              </button>
 
-            <button
-              type="button"
-              disabled={isAuthenticating}
-              onClick={() => handleQuickFill('1357', 'hospital')}
-              style={{
-                padding: '6px 4px',
-                borderRadius: '8px',
-                backgroundColor: '#E3F2FD',
-                border: '1px solid #90CAF9',
-                color: '#1565C0',
-                fontSize: '0.72rem',
-                fontWeight: 700,
-                cursor: isAuthenticating ? 'not-allowed' : 'pointer',
-                textAlign: 'center',
-                transition: 'opacity 150ms',
-              }}
-            >
-              Hospital (1357)
-            </button>
-          </div>
+              <button
+                type="button"
+                disabled={isAuthenticating}
+                onClick={() => handleQuickFill('9110', 'dispatch')}
+                style={{
+                  padding: '6px 4px',
+                  borderRadius: '8px',
+                  backgroundColor: '#FEF3C7',
+                  border: '1px solid #FCD34D',
+                  color: '#B45309',
+                  fontSize: '0.72rem',
+                  fontWeight: 700,
+                  cursor: isAuthenticating ? 'not-allowed' : 'pointer',
+                  textAlign: 'center',
+                  transition: 'opacity 150ms',
+                }}
+              >
+                Dispatch (9110)
+              </button>
+
+              <button
+                type="button"
+                disabled={isAuthenticating}
+                onClick={() => handleQuickFill('1001', 'hospital')}
+                style={{
+                  padding: '6px 4px',
+                  borderRadius: '8px',
+                  backgroundColor: '#E3F2FD',
+                  border: '1px solid #90CAF9',
+                  color: '#1565C0',
+                  fontSize: '0.72rem',
+                  fontWeight: 700,
+                  cursor: isAuthenticating ? 'not-allowed' : 'pointer',
+                  textAlign: 'center',
+                  transition: 'opacity 150ms',
+                }}
+              >
+                Apex (1001)
+              </button>
+            </div>
+          )}
         </div>
       </div>
 

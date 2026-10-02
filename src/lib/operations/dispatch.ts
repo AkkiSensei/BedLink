@@ -175,14 +175,6 @@ export async function getDispatchBedRequest(
 
     const validId = validateUUID(bedRequestId, 'bedRequestId')
 
-    // Opportunistically expire any overdue reservation holds and trigger fallback
-    try {
-      const reservationService = new ReservationService(client)
-      await reservationService.processExpired(new Date(), true)
-    } catch {
-      // Non-fatal
-    }
-
     let bedRequest: BedRequest | null = null
 
     if (typeof client?.query === 'function') {
@@ -363,14 +355,6 @@ export async function listDispatchBedRequests(
     }
     const authContext = await requireRole(['dispatch', 'admin'], client)
     const { user, profile } = authContext
-
-    // Opportunistically expire any overdue reservation holds and trigger fallback
-    try {
-      const reservationService = new ReservationService(client)
-      await reservationService.processExpired(new Date(), true)
-    } catch {
-      // Non-fatal
-    }
 
     let requests: BedRequest[] = []
 

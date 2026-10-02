@@ -8,7 +8,7 @@ import { redirect } from 'next/navigation'
 
 export interface PinAuthResult {
   success: boolean
-  role?: 'nurse' | 'dispatch' | 'hospital'
+  role?: 'nurse' | 'dispatch' | 'hospital' | 'admin'
   destination?: string
   roleTitle?: string
   error?: string
@@ -22,7 +22,7 @@ export async function loginWithPinAction(pin: string): Promise<PinAuthResult> {
     if (!mapping) {
       return {
         success: false,
-        error: 'Invalid PIN. Use 2468 (Nurse), 9110 (Dispatch), or 1357 (Hospital Staff).',
+        error: 'Invalid PIN. Use 2468 (Nurse), 9110 (Dispatch), or 1001–1010 for Hospitals.',
       }
     }
 

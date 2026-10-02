@@ -118,7 +118,15 @@ export async function refreshHospitalReservationsAction(options?: {
   targetHospitalId?: string
 }): Promise<RefreshReservationsActionResult> {
   try {
-    const reservations = await getHospitalReservations(undefined, options)
+    const { createServerSupabaseClient } = await import('@/lib/supabase/server')
+    const client = await createServerSupabaseClient()
+    try {
+      const { ReservationService } = await import('@/lib/reservations/service')
+      const reservationService = new ReservationService(client)
+      await reservationService.processDueExpiries(new Date(), true)
+    } catch {}
+
+    const reservations = await getHospitalReservations(client, options)
     return {
       success: true,
       reservations,
