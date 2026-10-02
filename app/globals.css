@@ -453,3 +453,188 @@ input:focus-visible {
 ::-webkit-scrollbar-thumb:hover {
   background: var(--text-muted);
 }
+
+/* =====================================================
+   Adaptive Layouts & Phone Craft (Cheap Android + Laptop)
+   ===================================================== */
+
+:root {
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --tab-bar-height: 56px;
+  --header-height-mobile: 48px;
+}
+
+html, body {
+  overscroll-behavior-y: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* One-Screen Law: Root application containers never scroll the document */
+.app-screen-root {
+  height: 100vh;
+  height: 100dvh;
+  max-height: 100dvh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Marked data-scroll-region panels scroll cleanly with contained momentum */
+[data-scroll-region] {
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Touch manipulation: removes 300ms tap delay and prevents double-tap zoom on steppers */
+button,
+a,
+input,
+select,
+textarea,
+[role="button"],
+[role="tab"] {
+  touch-action: manipulation;
+}
+
+/* Prevent accidental text selection on steppers, keypad, and navigation tabs */
+.no-select,
+.stepper-btn,
+.keypad-btn,
+.tab-item {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* Prevent iOS & Android Chrome automatic page zooming on input focus */
+@media (max-width: 639px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
+
+/* Coarse pointer (touch) target enforcement >= 44x44px */
+@media (pointer: coarse) {
+  button,
+  a[role="button"],
+  .touch-target {
+    min-height: 44px;
+  }
+
+  .primary-action-btn {
+    min-height: 56px !important;
+  }
+}
+
+/* Wrap hover styles so touch devices never get sticky hover */
+@media (hover: hover) and (pointer: fine) {
+  .hover-elevate:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  }
+  .hover-bg:hover {
+    background-color: var(--bg-hover) !important;
+  }
+}
+
+/* Responsive visibility utilities */
+@media (min-width: 1024px) {
+  .mobile-only {
+    display: none !important;
+  }
+}
+
+@media (max-width: 1023px) {
+  .desktop-only {
+    display: none !important;
+  }
+}
+
+/* Bottom Tab Bar for Compact & Medium Viewports */
+.mobile-bottom-tabs {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: calc(var(--tab-bar-height) + var(--safe-bottom));
+  padding-bottom: var(--safe-bottom);
+  background-color: #FFFFFF;
+  border-top: 1px solid #E1E7E1;
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  z-index: 50;
+  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.04);
+}
+
+.mobile-tab-btn {
+  flex: 1;
+  height: var(--tab-bar-height);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  background: none;
+  border: none;
+  color: #5C6B64;
+  font-size: 0.7rem;
+  font-weight: 600;
+  cursor: pointer;
+  position: relative;
+  touch-action: manipulation;
+}
+
+.mobile-tab-btn.active {
+  color: #2D6A4F;
+  font-weight: 700;
+}
+
+.mobile-tab-btn.active::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 20%;
+  right: 20%;
+  height: 3px;
+  background-color: #2D6A4F;
+  border-radius: 0 0 3px 3px;
+}
+
+/* Mobile Live Request Mini-Banner (Floats directly above bottom tabs) */
+.mobile-live-banner {
+  position: fixed;
+  bottom: calc(var(--tab-bar-height) + var(--safe-bottom));
+  left: 0;
+  right: 0;
+  height: 40px;
+  background-color: #1B4D39;
+  color: #FFFFFF;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 1rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  z-index: 49;
+  cursor: pointer;
+  box-shadow: 0 -2px 6px rgba(0, 0, 0, 0.1);
+}
+
+/* Lite Mode Styles (Automatic on 2GB RAM / slow 4G / data saver) */
+.lite-mode {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+.lite-mode * {
+  box-shadow: none !important;
+  text-shadow: none !important;
+}
+
