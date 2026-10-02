@@ -39,10 +39,16 @@ export async function executeReservationFallback(
   // 1. Fetch current BedRequest state
   let bedRequest: BedRequest | null = null
   if (typeof client.query === 'function') {
-    const res = await client.query(
-      `SELECT * FROM public.bed_requests WHERE id = $1;`,
-      [bedRequestId]
-    )
+    let res = await client
+      .query(`SELECT * FROM public.get_bed_request_for_fallback($1);`, [bedRequestId])
+      .catch(() => null)
+
+    if (!res || !res.rows || res.rows.length === 0) {
+      res = await client.query(
+        `SELECT * FROM public.bed_requests WHERE id = $1;`,
+        [bedRequestId]
+      )
+    }
     const raw = res.rows[0] ?? null
     if (raw) {
       bedRequest = {

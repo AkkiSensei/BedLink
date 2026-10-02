@@ -417,3 +417,18 @@ GRANT EXECUTE ON FUNCTION public.accept_reservation_atomic(UUID, TIMESTAMPTZ) TO
 GRANT EXECUTE ON FUNCTION public.reject_reservation_atomic(UUID, TIMESTAMPTZ) TO authenticated, service_role, postgres;
 GRANT EXECUTE ON FUNCTION public.expire_reservation_atomic(UUID, TIMESTAMPTZ) TO authenticated, service_role, postgres;
 GRANT EXECUTE ON FUNCTION public.get_due_expired_reservations(TIMESTAMPTZ) TO authenticated, service_role, postgres;
+
+-- 6. SECURITY DEFINER BED REQUEST LOOKUP FOR FALLBACK
+CREATE OR REPLACE FUNCTION public.get_bed_request_for_fallback(p_bed_request_id UUID)
+RETURNS SETOF public.bed_requests
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public, auth, pg_temp
+AS $$
+    SELECT *
+    FROM public.bed_requests
+    WHERE id = p_bed_request_id;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.get_bed_request_for_fallback(UUID) TO authenticated, service_role, postgres;
+

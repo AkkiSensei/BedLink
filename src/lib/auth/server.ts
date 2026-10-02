@@ -45,6 +45,16 @@ export async function getCurrentProfile(
     targetUserId = user.id
   }
 
+  if (typeof (supabase as any)?.query === 'function') {
+    const res = await (supabase as any).query(
+      `SELECT user_id, role, hospital_id, full_name, created_at, updated_at
+       FROM public.profiles
+       WHERE user_id = $1;`,
+      [targetUserId]
+    )
+    return (res.rows[0] as Profile) || null
+  }
+
   const { data, error } = await supabase
     .from('profiles')
     .select('user_id, role, hospital_id, full_name, created_at, updated_at')

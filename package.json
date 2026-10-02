@@ -10,6 +10,7 @@
     "test:auth": "tsx scripts/verify-auth.ts",
     "test:ranking": "tsx scripts/verify-ranking.ts",
     "test:reservations": "tsx scripts/verify-reservations.ts",
+    "test:operations": "tsx scripts/verify-operations.ts",
     "db:reset": "tsx scripts/reset-db.ts"
   },
   "dependencies": {
