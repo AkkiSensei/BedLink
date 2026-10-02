@@ -6,13 +6,36 @@ const EARTH_RADIUS_KM = 6371
 /**
  * Validates geographical coordinates according to WGS84 bounds.
  */
-export function validateCoordinates(lat: number, lon: number, label: string = 'Coordinate'): void {
-  if (typeof lat !== 'number' || isNaN(lat) || lat < -90 || lat > 90) {
+export function validateCoordinates(
+  lat: number | string,
+  lon: number | string,
+  label: string = 'Coordinate'
+): void {
+  const nLat = typeof lat === 'number' ? lat : Number(lat)
+  const nLon = typeof lon === 'number' ? lon : Number(lon)
+
+  if (
+    lat === null ||
+    lat === undefined ||
+    typeof lat === 'boolean' ||
+    typeof nLat !== 'number' ||
+    isNaN(nLat) ||
+    nLat < -90 ||
+    nLat > 90
+  ) {
     throw new RankingValidationError(
       `${label} latitude must be a valid number between -90 and 90. Received: ${lat}`
     )
   }
-  if (typeof lon !== 'number' || isNaN(lon) || lon < -180 || lon > 180) {
+  if (
+    lon === null ||
+    lon === undefined ||
+    typeof lon === 'boolean' ||
+    typeof nLon !== 'number' ||
+    isNaN(nLon) ||
+    nLon < -180 ||
+    nLon > 180
+  ) {
     throw new RankingValidationError(
       `${label} longitude must be a valid number between -180 and 180. Received: ${lon}`
     )
@@ -32,15 +55,20 @@ export function haversineDistanceKm(
   validateCoordinates(lat1, lon1, 'Source (ambulance)')
   validateCoordinates(lat2, lon2, 'Destination (hospital)')
 
+  const nLat1 = Number(lat1)
+  const nLon1 = Number(lon1)
+  const nLat2 = Number(lat2)
+  const nLon2 = Number(lon2)
+
   const toRad = (deg: number) => (deg * Math.PI) / 180
 
-  const dLat = toRad(lat2 - lat1)
-  const dLon = toRad(lon2 - lon1)
+  const dLat = toRad(nLat2 - nLat1)
+  const dLon = toRad(nLon2 - nLon1)
 
   const a =
     Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(toRad(lat1)) *
-      Math.cos(toRad(lat2)) *
+    Math.cos(toRad(nLat1)) *
+      Math.cos(toRad(nLat2)) *
       Math.sin(dLon / 2) *
       Math.sin(dLon / 2)
 

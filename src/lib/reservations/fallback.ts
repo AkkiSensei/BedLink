@@ -43,7 +43,14 @@ export async function executeReservationFallback(
       `SELECT * FROM public.bed_requests WHERE id = $1;`,
       [bedRequestId]
     )
-    bedRequest = res.rows[0] ?? null
+    const raw = res.rows[0] ?? null
+    if (raw) {
+      bedRequest = {
+        ...raw,
+        ambulance_latitude: Number(raw.ambulance_latitude),
+        ambulance_longitude: Number(raw.ambulance_longitude),
+      }
+    }
   } else if (typeof client.from === 'function') {
     const { data, error } = await client
       .from('bed_requests')
@@ -53,7 +60,11 @@ export async function executeReservationFallback(
     if (error) {
       throw new ReservationNotFoundError(bedRequestId)
     }
-    bedRequest = data
+    bedRequest = {
+      ...data,
+      ambulance_latitude: Number(data.ambulance_latitude),
+      ambulance_longitude: Number(data.ambulance_longitude),
+    }
   }
 
   if (!bedRequest) {
@@ -66,14 +77,24 @@ export async function executeReservationFallback(
 
   if (typeof client.query === 'function') {
     const hospRes = await client.query(`SELECT * FROM public.hospitals;`)
-    hospitals = hospRes.rows
+    hospitals = hospRes.rows.map((h: any) => ({
+      ...h,
+      latitude: Number(h.latitude),
+      longitude: Number(h.longitude),
+      current_load_percent: Number(h.current_load_percent),
+    }))
 
     const bedsRes = await client.query(`SELECT * FROM public.beds;`)
     beds = bedsRes.rows
   } else if (typeof client.from === 'function') {
     const hospRes = await client.from('hospitals').select('*')
     if (hospRes.error) throw new ReservationError(hospRes.error.message)
-    hospitals = hospRes.data
+    hospitals = hospRes.data.map((h: any) => ({
+      ...h,
+      latitude: Number(h.latitude),
+      longitude: Number(h.longitude),
+      current_load_percent: Number(h.current_load_percent),
+    }))
 
     const bedsRes = await client.from('beds').select('*')
     if (bedsRes.error) throw new ReservationError(bedsRes.error.message)
