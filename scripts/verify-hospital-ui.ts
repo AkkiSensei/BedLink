@@ -366,6 +366,28 @@ async function runHospitalWorkflowVerification() {
   )
   assert(dupAccept.success === true, 'TEST 4.4: Duplicate accept is safe and idempotent')
 
+  // 4.5 BedRequest status transitioned to 'confirmed' upon acceptance
+  const reqCheck = await db.query(`SELECT status FROM public.bed_requests WHERE id = $1;`, [activeOffer.bed_request_id])
+  assert(
+    (reqCheck.rows[0] as any).status === 'confirmed',
+    'TEST 4.5: BedRequest status transitioned to "confirmed" upon acceptance'
+  )
+
+  // 4.6 Rejecting an already accepted reservation is rejected with 409 CONFLICT
+  await expectOperationError(
+    () =>
+      rejectHospitalReservation(
+        {
+          reservationId: activeOffer.id,
+          evaluationTime,
+        },
+        testClient
+      ),
+    'TEST 4.6: Rejecting an accepted reservation rejected with 409 CONFLICT',
+    'CONFLICT',
+    409
+  )
+
   // --------------------------------------------------------------------------
   // TEST 5 — Reject Workflow & Dynamic Fallback Engine
   // --------------------------------------------------------------------------
@@ -436,6 +458,37 @@ async function runHospitalWorkflowVerification() {
     'TEST 5.6: Accepting a rejected reservation rejected with 409 CONFLICT',
     'CONFLICT',
     409
+  )
+
+  // 5.7 Duplicate reject is safe and idempotent
+  const dupReject = await rejectHospitalReservation(
+    {
+      reservationId: req2ResId,
+      evaluationTime,
+    },
+    testClient
+  )
+  assert(dupReject.success === true, 'TEST 5.7: Duplicate reject is safe and idempotent')
+
+  // 5.8 RLS Isolation: Rejecting hospital cannot see attempt #2 offered to another hospital
+  const rlsBlockedCheck = await db.query(
+    `SELECT count(*) as count FROM public.reservations WHERE bed_request_id = $1 AND attempt_number = 2;`,
+    [req2.id]
+  )
+  assert(
+    parseInt((rlsBlockedCheck.rows[0] as any).count, 10) === 0,
+    'TEST 5.8: RLS strictly hides next hospital fallback offer from rejecting hospital'
+  )
+
+  // 5.9 Duplicate reject does NOT create duplicate fallback attempts (Admin authoritative check)
+  await setUserContext(adminUser)
+  const fallbackCheck = await db.query(
+    `SELECT count(*) as count FROM public.reservations WHERE bed_request_id = $1 AND attempt_number = 2;`,
+    [req2.id]
+  )
+  assert(
+    parseInt((fallbackCheck.rows[0] as any).count, 10) === 1,
+    'TEST 5.9: Exactly one fallback reservation created in database; duplicate reject is idempotent'
   )
 
   // --------------------------------------------------------------------------
