@@ -7,6 +7,7 @@ import {
   getDispatchBedRequest,
   listDispatchBedRequests,
   getDispatchRankedCandidates,
+  selectDispatchHospital,
 } from '../src/lib/operations/dispatch'
 import { rejectHospitalReservation } from '../src/lib/operations/hospital'
 import { OperationError } from '../src/lib/operations/errors'
@@ -511,6 +512,96 @@ async function runDispatchWorkflowVerification() {
     'TEST 8.4: Anonymous caller calling getDispatchRankedCandidates rejected with 401',
     'UNAUTHENTICATED',
     401
+  )
+
+  // ==========================================================================
+  // SECTION 9: Hospital Selection & Active Hold Transition
+  // ==========================================================================
+  console.log('\n▶️ TEST 9 — Hospital Selection & Active Hold Transition')
+
+  await setUserContext(dispatch1)
+
+  // Create fresh request
+  const selectionReq = await createDispatchBedRequest(
+    {
+      required_capabilities: ['general'],
+      ambulance_latitude: 37.7749,
+      ambulance_longitude: -122.4194,
+      evaluationTime: fixedTime,
+    },
+    testClient
+  )
+
+  const originalActiveHold = selectionReq.active_reservation!
+  assert(Boolean(originalActiveHold), 'TEST 9.1: Original active hold created for selection test')
+
+  // Find candidate hospitals
+  const candidatesForSelection = await getDispatchRankedCandidates(selectionReq.id, testClient, fixedTime)
+  const alternativeCandidate = candidatesForSelection.find(
+    (c) => c.hospital_id !== originalActiveHold.hospital_id
+  )
+  assert(Boolean(alternativeCandidate), 'TEST 9.2: Alternative candidate identified for manual selection')
+
+  if (alternativeCandidate) {
+    // Select alternative hospital
+    const updatedWithSelection = await selectDispatchHospital(
+      {
+        bedRequestId: selectionReq.id,
+        hospitalId: alternativeCandidate.hospital_id,
+        evaluationTime: fixedTime,
+      },
+      testClient
+    )
+
+    assert(
+      updatedWithSelection.active_reservation?.hospital_id === alternativeCandidate.hospital_id,
+      'TEST 9.3: Active hold switched to manually selected alternative hospital'
+    )
+    assert(
+      updatedWithSelection.active_reservation?.attempt_number === originalActiveHold.attempt_number + 1,
+      'TEST 9.4: New attempt number incremented after manual selection'
+    )
+
+    // Verify only ONE active reservation is held
+    const singleHoldCheck = await db.query<{ count: string }>(
+      `SELECT count(*) as count FROM public.reservations WHERE bed_request_id = $1 AND status = 'held';`,
+      [selectionReq.id]
+    )
+    assert(
+      Number(singleHoldCheck.rows[0].count) === 1,
+      'TEST 9.5: Only ONE active reservation is held after manual selection'
+    )
+
+    // Idempotent re-selection of already-active hospital
+    const idempotentResult = await selectDispatchHospital(
+      {
+        bedRequestId: selectionReq.id,
+        hospitalId: alternativeCandidate.hospital_id,
+        evaluationTime: fixedTime,
+      },
+      testClient
+    )
+    assert(
+      idempotentResult.active_reservation?.id === updatedWithSelection.active_reservation?.id,
+      'TEST 9.6: Idempotent re-selection of already-active hospital returns unchanged offer'
+    )
+  }
+
+  // Non-owner dispatcher blocked from selecting hospital
+  await setUserContext(dispatch2)
+  await expectOperationError(
+    () =>
+      selectDispatchHospital(
+        {
+          bedRequestId: selectionReq.id,
+          hospitalId: originalActiveHold.hospital_id,
+          evaluationTime: fixedTime,
+        },
+        testClient
+      ),
+    'TEST 9.7: Dispatcher 2 blocked from modifying Dispatcher 1 request',
+    ['FORBIDDEN', 'NOT_FOUND'],
+    [403, 404]
   )
 
   // ==========================================================================
