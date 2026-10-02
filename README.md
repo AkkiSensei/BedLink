@@ -32,12 +32,14 @@ BedLink addresses this by providing an authoritative, automated hospital ranking
 - **Physical Bed Invariant (`ACCEPTED ≠ OCCUPIED`)**: Hospital acceptance confirms receipt of an incoming patient while keeping the bed in `held` status until clinical admission.
 - **Defense-in-Depth Authentication & RBAC**: Strict four-role authorization (`nurse`, `dispatch`, `hospital`, `admin`) enforced across Next.js Edge Middleware, Server Operations, and PostgreSQL Row-Level Security (RLS).
 - **Authenticated Server Operation Boundary**: Typed server operations exposing Nurse (inventory management), Dispatch (request creation and tracking), and Hospital (offer review, accept, reject) workflows.
+- **Nurse Inventory Interface (`/nurse`)**: Operational bed management UI allowing hospital nurses to view departmental beds, update statuses, and monitor telemetry freshness.
+- **Dispatch Operational Interface (`/dispatch`)**: End-to-end EMS dispatch console for emergency bed request creation, multi-factor ranked hospital visualization, single-hold offer monitoring, countdown timers, and fallback progression tracking.
 
 ### Planned / Future Scope
-- **Role-Specific Client UIs**: Dedicated web dashboards for Nurses, EMS Dispatchers, and Hospital Emergency Staff.
-- **Realtime State Push**: Instant status updates via Supabase Realtime WebSocket subscriptions.
-- **GPS Telemetry**: Live ambulance location tracking and dynamic ETA recalculation.
-- **Clinical Admission & Handoff**: Post-arrival workflows transitioning beds from `held` to `occupied`.
+- **Phase 9: Hospital Interface (`/hospital`)**: Interactive intake console for emergency department staff to review, accept, or decline incoming reservation offers.
+- **Phase 10: Supabase Realtime**: Instant status push notifications via WebSockets.
+- **GPS Telemetry**: Live ambulance GPS telemetry and dynamic ETA re-computation.
+- **Clinical Admission**: Post-arrival workflows transitioning beds from `held` to `occupied`.
 
 ---
 
@@ -150,7 +152,7 @@ BedLink addresses this by providing an authoritative, automated hospital ranking
 
 ## Running Tests
 
-BedLink features a comprehensive, 252-assertion automated test suite covering every layer of the architecture:
+BedLink features a comprehensive, 328-assertion automated test suite covering every layer of the architecture:
 
 ```bash
 # 1. Database Foundation & RLS Policies (31 tests)
@@ -168,10 +170,19 @@ npm run test:reservations
 # 5. Authenticated Server Operations Layer (51 tests)
 npm run test:operations
 
-# 6. Development State Reset Verification
+# 6. Database SECURITY DEFINER Audit & Hardening (10 tests)
+npm run test:security
+
+# 7. Nurse Operational Interface (25 tests)
+npm run test:nurse
+
+# 8. Dispatch Operational Interface (41 tests)
+npm run test:dispatch
+
+# 9. Development State Reset Verification
 npm run db:reset
 
-# 7. Production Build Check
+# 10. Production Build Check
 npm run build
 ```
 
@@ -184,13 +195,16 @@ npm run build
 | **Ranking** | `scripts/verify-ranking.ts` | 64 | Multi-factor arithmetic, binary bed matching gate, freshness tiers, load penalties, 5-tier deterministic tie-breaking. |
 | **Reservations** | `scripts/verify-reservations.ts` | 77 | Transactional holds, hold duration, accept/reject state transitions, dynamic fallback, race conditions, bed invariants. |
 | **Operations** | `scripts/verify-operations.ts` | 51 | Nurse bed updates, dispatch request creation, hospital accept/reject, input validation, role matrix enforcement. |
-| **Total** | | **252** | **100% Passing** |
+| **Security** | `scripts/verify-security.ts` | 10 | Explicit search_path hardening, SECURITY DEFINER privilege escalation defense, function security audit. |
+| **Nurse UI** | `scripts/verify-nurse-ui.ts` | 25 | Hospital inventory display, role protection, bed status updates, freshness badges, organization boundaries. |
+| **Dispatch UI** | `scripts/verify-dispatch-ui.ts` | 41 | Route RBAC, request creation, server validations, ranking display, single-hold invariant, fallback progression. |
+| **Total** | | **328** | **100% Passing** |
 
 ---
 
 ## Screenshots / Demo
 
-Screenshots and the final demo link will be added before submission.
+Screenshots and demo video links will be recorded and published following complete UI integration.
 
 ---
 
@@ -198,13 +212,15 @@ Screenshots and the final demo link will be added before submission.
 
 | Milestone | Scope | Status |
 | :--- | :--- | :---: |
-| **Phase 2** | Database Foundation, Domain Schema, RLS, Deterministic Seed | ✅ Verified |
-| **Phase 3** | Authentication & RBAC Foundation (Profiles, Organizational Boundaries) | ✅ Verified |
-| **Phase 4** | Deterministic Multi-Factor Ranking Engine & Explicit `evaluationTime` | ✅ Verified |
-| **Phase 5** | Transactional Reservation State Machine, 120s Hold, Fallback Engine | ✅ Verified |
-| **Phase 6** | Authenticated Server Operations / Backend API Layer | ✅ Verified |
-| **Phase 7** | Client UI (Nurse, Dispatch, Hospital Dashboards) | ⏳ Planned |
-| **Phase 8** | Supabase Realtime Live Subscriptions & Notifications | ⏳ Planned |
+| **Phase 2** | Database Foundation, Domain Schema, RLS, Deterministic Seed | ✅ Implemented |
+| **Phase 3** | Authentication & RBAC Foundation (Profiles, Organizational Boundaries) | ✅ Implemented |
+| **Phase 4** | Deterministic Multi-Factor Ranking Engine & Explicit `evaluationTime` | ✅ Implemented |
+| **Phase 5** | Transactional Reservation State Machine, 120s Hold, Fallback Engine | ✅ Implemented |
+| **Phase 6** | Authenticated Server Operations / Backend API Layer | ✅ Implemented |
+| **Phase 7** | Nurse Interface (`/nurse`) & Inventory Management | ✅ Implemented |
+| **Phase 8** | Dispatch Interface (`/dispatch`), Emergency Requests, Ranking & Fallback | ✅ Implemented |
+| **Phase 9** | Hospital Interface (`/hospital`), Emergency Department Intake | ⏳ Future |
+| **Phase 10** | Supabase Realtime Live Subscriptions & Notifications | ⏳ Future |
 
 ---
 
@@ -260,7 +276,7 @@ Bug-Dealers-BedLink/
 ## Limitations & Future Scope
 
 ### Current Limitations
-1. **No Frontend UI**: Phases 2–6 establish the complete verified backend, database, and operation layer; user interfaces for Nurse, Dispatch, and Hospital are deferred to upcoming phases.
+1. **Hospital & Realtime Scopes Pending**: Nurse inventory management (`/nurse`) and Dispatch operational management (`/dispatch`) interfaces are fully implemented; Hospital Intake (`/hospital`) and WebSocket Realtime are planned for Phases 9 and 10.
 2. **Local Evaluation Environment**: The verification suite runs against embedded PostgreSQL (`pglite`) for deterministic testing. Connecting to a remote Supabase project requires provisioning cloud credentials at deployment time.
 
 ### Future Scope
