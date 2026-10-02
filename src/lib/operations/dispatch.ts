@@ -390,7 +390,8 @@ export async function listDispatchBedRequests(
  */
 export async function getDispatchRankedCandidates(
   bedRequestId: string,
-  client?: any
+  client?: any,
+  explicitEvaluationTime?: Date | string
 ): Promise<DispatchRankedCandidateView[]> {
   try {
     const authContext = await requireRole(['dispatch', 'admin'], client)
@@ -446,12 +447,25 @@ export async function getDispatchRankedCandidates(
       beds = bedsRes.data
     }
 
-    // 3. Evaluate deterministic ranking engine using the request's created_at evaluation timestamp
-    const evaluationTime = new Date(bedRequestView.created_at || Date.now())
+    // 3. For ranking evaluation: the bed currently held by THIS request's active reservation
+    // is treated as available for this request's candidate evaluation.
+    const activeBedId = bedRequestView.active_reservation?.bed_id
+    const rankingBeds = beds.map((b) => {
+      if (activeBedId && b.id === activeBedId) {
+        return { ...b, status: 'available' as const }
+      }
+      return b
+    })
+
+    // 4. Evaluate deterministic ranking engine using authoritative evaluation timestamp
+    const evaluationTime = explicitEvaluationTime
+      ? (explicitEvaluationTime instanceof Date ? explicitEvaluationTime : new Date(explicitEvaluationTime))
+      : new Date(bedRequestView.active_reservation?.created_at || bedRequestView.created_at || Date.now())
+
     const rankingResult = rankHospitals(
       bedRequestView,
       hospitals,
-      beds,
+      rankingBeds,
       evaluationTime
     )
 
