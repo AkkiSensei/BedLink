@@ -35,19 +35,20 @@ const AVAILABLE_CAPABILITIES: {
 ]
 
 const QUICK_PRESETS = [
-  { label: 'Downtown SF', lat: 37.7749, lng: -122.4194 },
-  { label: 'Mission Bay', lat: 37.7699, lng: -122.3892 },
-  { label: 'Oakland Metro', lat: 37.8044, lng: -122.2712 },
+  { label: 'Colaba / Marine Dr', lat: 18.9220, lng: 72.8340 },
+  { label: 'Bandra Junction', lat: 19.0550, lng: 72.8400 },
+  { label: 'Andheri Hub', lat: 19.1190, lng: 72.8470 },
+  { label: 'Dadar Central', lat: 19.0180, lng: 72.8480 },
 ]
 
 export default function EmergencyRequestForm({ onRequestCreated, onSubmittingChange }: EmergencyRequestFormProps) {
   const [capabilities, setCapabilities] = useState<BedCapability[]>(['icu', 'ventilator'])
-  const [latitude, setLatitude] = useState<string>('37.7749')
-  const [longitude, setLongitude] = useState<string>('-122.4194')
+  const [latitude, setLatitude] = useState<string>('18.9220')
+  const [longitude, setLongitude] = useState<string>('72.8340')
   const [locationSource, setLocationSource] = useState<'live' | 'manual'>('manual')
   const [isLocating, setIsLocating] = useState<boolean>(false)
   const [locationNotice, setLocationNotice] = useState<string | null>(null)
-  const [ambulancePhone, setAmbulancePhone] = useState<string>('+1 (555) 019-2834')
+  const [ambulancePhone, setAmbulancePhone] = useState<string>('+91 98200 12345')
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false)
   const [formError, setFormError] = useState<string | null>(null)
 

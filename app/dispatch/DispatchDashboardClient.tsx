@@ -51,6 +51,7 @@ export default function DispatchDashboardClient({
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false)
   const [statusMessage, setStatusMessage] = useState<string | null>(null)
   const [realtimeStatus, setRealtimeStatus] = useState<RealtimeConnectionStatus>('CONNECTING')
+  const [rightPanelTab, setRightPanelTab] = useState<'details' | 'history' | 'fallback'>('details')
 
   const selectedRequestIdRef = useRef(selectedRequestId)
   const isSubmittingFormRef = useRef(false)
@@ -90,32 +91,6 @@ export default function DispatchDashboardClient({
       handle.unsubscribe()
     }
   }, [userId])
-
-  // Fallback polling when realtime drops or is degraded
-  useEffect(() => {
-    if (!userId || realtimeStatus === 'SUBSCRIBED') return
-
-    const interval = setInterval(async () => {
-      if (isSubmittingFormRef.current) return
-      try {
-        const res = await refreshRequestsAction()
-        if (res.success && res.requests) {
-          setRequests(res.requests)
-          const currentId = selectedRequestIdRef.current
-          if (currentId) {
-            const cRes = await fetchRankedCandidatesAction(currentId)
-            if (cRes.success && cRes.candidates) {
-              setRankedCandidates(cRes.candidates)
-            }
-          }
-        }
-      } catch {
-        // quiet fallback poll
-      }
-    }, 10000)
-
-    return () => clearInterval(interval)
-  }, [userId, realtimeStatus])
 
   const selectedRequest = requests.find((r) => r.id === selectedRequestId) ?? requests[0] ?? null
 
@@ -435,7 +410,7 @@ export default function DispatchDashboardClient({
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <AlertTriangle size={16} style={{ color: '#B45309', flexShrink: 0 }} />
             <span>
-              <strong>Dispatch Live Sync Offline ({realtimeStatus}).</strong> State converges automatically via 10s fallback polling.
+              <strong>Dispatch Live Sync Offline ({realtimeStatus}).</strong> Click to synchronize state with authoritative server.
             </span>
           </div>
           <button
@@ -461,82 +436,83 @@ export default function DispatchDashboardClient({
         </div>
       )}
 
-      {/* Main Console Container */}
+      {/* Main Operational Console — Viewport Aware (100dvh on Desktop) */}
       <main
+        className="dispatch-console-main"
         style={{
-          maxWidth: '1600px',
-          margin: '0 auto',
-          padding: '1.25rem',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '1.5rem',
+          flex: 1,
+          minHeight: 0,
+          padding: '0.75rem 1rem',
+          display: 'grid',
+          gridTemplateColumns: 'minmax(380px, 460px) minmax(500px, 1fr)',
+          gap: '1rem',
+          overflow: 'hidden',
         }}
       >
-        {/* Top Two-Column Grid: Form + Ranked Hospitals (Left) vs Map + Active Offer (Right) */}
+        {/* Left Column: Emergency Request Form & Multi-Factor Ranked Hospitals */}
         <div
           style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 460px), 1fr))',
-            gap: '1.5rem',
-            alignItems: 'start',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '0.875rem',
+            minHeight: 0,
+            overflowY: 'auto',
+            paddingRight: '4px',
           }}
         >
-          {/* Left Column: Request Form & Ranked Candidates */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-            <EmergencyRequestForm
-              onRequestCreated={handleRequestCreated}
-              onSubmittingChange={(submitting) => {
-                isSubmittingFormRef.current = submitting
-              }}
-            />
+          <EmergencyRequestForm
+            onRequestCreated={handleRequestCreated}
+            onSubmittingChange={(submitting) => {
+              isSubmittingFormRef.current = submitting
+            }}
+          />
 
-            {selectedRequest && (
-              <RankedCandidatesList
-                candidates={rankedCandidates}
-                isLoading={isLoadingCandidates}
-                onSelectHospital={handleSelectHospital}
-                selectingHospitalId={isSelectingHospital}
-                requiredCapabilities={selectedRequest.required_capabilities}
-              />
-            )}
+          {selectedRequest && (
+            <RankedCandidatesList
+              candidates={rankedCandidates}
+              isLoading={isLoadingCandidates}
+              onSelectHospital={handleSelectHospital}
+              selectingHospitalId={isSelectingHospital}
+              requiredCapabilities={selectedRequest.required_capabilities}
+            />
+          )}
+        </div>
+
+        {/* Right Column: Live Map (Fixed) + Active Offer & Unified Tabbed Operations */}
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '0.875rem',
+            minHeight: 0,
+            overflow: 'hidden',
+          }}
+        >
+          {/* Live Coordination Map — Always Rendered & Visible */}
+          <div style={{ flexShrink: 0 }}>
+            <DispatchCoordinationMap
+              ambulanceLatitude={selectedRequest?.ambulance_latitude ?? 18.9220}
+              ambulanceLongitude={selectedRequest?.ambulance_longitude ?? 72.8340}
+              candidates={rankedCandidates}
+              activeHospitalId={selectedRequest?.active_reservation?.hospital_id}
+              activeHospitalName={selectedRequest?.active_reservation?.hospital_name}
+              estimatedEtaMinutes={activeEta}
+            />
           </div>
 
-          {/* Right Column: Live Map & Active Offer */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-            {/* Live Coordination Map */}
-            {selectedRequest ? (
-              <DispatchCoordinationMap
-                ambulanceLatitude={selectedRequest.ambulance_latitude}
-                ambulanceLongitude={selectedRequest.ambulance_longitude}
-                candidates={rankedCandidates}
-                activeHospitalId={selectedRequest.active_reservation?.hospital_id}
-                activeHospitalName={selectedRequest.active_reservation?.hospital_name}
-                estimatedEtaMinutes={activeEta}
-              />
-            ) : (
-              <div
-                style={{
-                  backgroundColor: '#FFFFFF',
-                  borderRadius: '12px',
-                  border: '1px solid #E1E7E1',
-                  padding: '2.5rem 1.5rem',
-                  textAlign: 'center',
-                  color: '#5C6B64',
-                }}
-              >
-                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '0.75rem' }}>
-                  <Ambulance size={40} style={{ color: '#5C6B64' }} />
-                </div>
-                <h3 style={{ fontSize: '1.05rem', fontWeight: 800, color: '#1A2421', margin: '0 0 0.5rem 0' }}>
-                  Live Coordination Map Ready
-                </h3>
-                <p style={{ fontSize: '0.825rem', margin: 0, maxWidth: '380px', marginLeft: 'auto', marginRight: 'auto' }}>
-                  Submit an emergency request to visualize ambulance location, ranked facilities, and active transit route.
-                </p>
-              </div>
-            )}
-
-            {/* Active Offer Card */}
+          {/* Lower Control Section: Active Offer + Operations Switcher (Internally Scrollable) */}
+          <div
+            style={{
+              flex: 1,
+              minHeight: 0,
+              overflowY: 'auto',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '0.875rem',
+              paddingRight: '4px',
+            }}
+          >
+            {/* Active Emergency Offer Card (Prominently Pinned when active) */}
             {selectedRequest && selectedRequest.active_reservation && (
               <ActiveOfferCard
                 reservation={selectedRequest.active_reservation}
@@ -558,57 +534,176 @@ export default function DispatchDashboardClient({
                 />
               )}
 
-            {/* Active Request Details Panel */}
-            {selectedRequest && (
+            {/* Operational Navigation Tabs */}
+            <div
+              style={{
+                backgroundColor: '#FFFFFF',
+                borderRadius: '10px',
+                border: '1px solid #E1E7E1',
+                padding: '0.625rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                flexWrap: 'wrap',
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => setRightPanelTab('details')}
+                style={{
+                  minHeight: '34px',
+                  padding: '5px 12px',
+                  borderRadius: '6px',
+                  border: rightPanelTab === 'details' ? 'none' : '1px solid #E1E7E1',
+                  backgroundColor: rightPanelTab === 'details' ? '#2D6A4F' : '#EEF3EE',
+                  color: rightPanelTab === 'details' ? '#FFFFFF' : '#1A2421',
+                  fontSize: '0.775rem',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '5px',
+                  transition: 'background-color 0.15s ease',
+                }}
+              >
+                <Info size={13} />
+                <span>Request Details</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setRightPanelTab('fallback')}
+                style={{
+                  minHeight: '34px',
+                  padding: '5px 12px',
+                  borderRadius: '6px',
+                  border: rightPanelTab === 'fallback' ? 'none' : '1px solid #E1E7E1',
+                  backgroundColor: rightPanelTab === 'fallback' ? '#2D6A4F' : '#EEF3EE',
+                  color: rightPanelTab === 'fallback' ? '#FFFFFF' : '#1A2421',
+                  fontSize: '0.775rem',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '5px',
+                  transition: 'background-color 0.15s ease',
+                }}
+              >
+                <Radio size={13} />
+                <span>Fallback Timeline</span>
+                <span
+                  style={{
+                    backgroundColor: rightPanelTab === 'fallback' ? 'rgba(255,255,255,0.2)' : '#E1E7E1',
+                    padding: '1px 6px',
+                    borderRadius: '9999px',
+                    fontSize: '0.7rem',
+                  }}
+                >
+                  {selectedRequest?.reservation_history?.length ?? 0}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setRightPanelTab('history')}
+                style={{
+                  minHeight: '34px',
+                  padding: '5px 12px',
+                  borderRadius: '6px',
+                  border: rightPanelTab === 'history' ? 'none' : '1px solid #E1E7E1',
+                  backgroundColor: rightPanelTab === 'history' ? '#2D6A4F' : '#EEF3EE',
+                  color: rightPanelTab === 'history' ? '#FFFFFF' : '#1A2421',
+                  fontSize: '0.775rem',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '5px',
+                  transition: 'background-color 0.15s ease',
+                }}
+              >
+                <Building2 size={13} />
+                <span>Request History</span>
+                <span
+                  style={{
+                    backgroundColor: rightPanelTab === 'history' ? 'rgba(255,255,255,0.2)' : '#E1E7E1',
+                    padding: '1px 6px',
+                    borderRadius: '9999px',
+                    fontSize: '0.7rem',
+                  }}
+                >
+                  {requests.length}
+                </span>
+              </button>
+            </div>
+
+            {/* Active Tab Content Surface */}
+            {rightPanelTab === 'details' && selectedRequest && (
               <RequestDetailView request={selectedRequest} />
+            )}
+
+            {rightPanelTab === 'fallback' && (
+              selectedRequest?.reservation_history && selectedRequest.reservation_history.length > 0 ? (
+                <FallbackHistoryView
+                  history={selectedRequest.reservation_history}
+                  activeReservationId={selectedRequest.current_active_reservation_id}
+                />
+              ) : (
+                <div
+                  style={{
+                    backgroundColor: '#FFFFFF',
+                    borderRadius: '10px',
+                    border: '1px solid #E1E7E1',
+                    padding: '1.25rem',
+                    color: '#5C6B64',
+                    fontSize: '0.825rem',
+                    textAlign: 'center',
+                  }}
+                >
+                  <div style={{ fontWeight: 700, color: '#1A2421', marginBottom: '4px' }}>
+                    No Fallback Sequence for Current Request
+                  </div>
+                  <div>Fallback progression attempts will be documented here as offers transition through the state machine.</div>
+                </div>
+              )
+            )}
+
+            {rightPanelTab === 'history' && (
+              <RequestHistoryList
+                requests={requests}
+                selectedRequestId={selectedRequestId}
+                onSelectRequest={setSelectedRequestId}
+              />
             )}
           </div>
         </div>
-
-        {/* Bottom Section: Fallback Timeline & Request History */}
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 420px), 1fr))',
-            gap: '1.5rem',
-            alignItems: 'start',
-          }}
-        >
-          {/* Dynamic Fallback Timeline */}
-          {selectedRequest &&
-            selectedRequest.reservation_history &&
-            selectedRequest.reservation_history.length > 0 ? (
-              <FallbackHistoryView
-                history={selectedRequest.reservation_history}
-                activeReservationId={selectedRequest.current_active_reservation_id}
-              />
-            ) : (
-              <div
-                style={{
-                  backgroundColor: '#FFFFFF',
-                  borderRadius: '12px',
-                  border: '1px solid #E1E7E1',
-                  padding: '1.5rem',
-                  color: '#5C6B64',
-                  fontSize: '0.85rem',
-                  textAlign: 'center',
-                }}
-              >
-                <div style={{ fontWeight: 700, color: '#1A2421', marginBottom: '4px' }}>
-                  No Fallback History for Selected Request
-                </div>
-                <div>Attempt audit records will appear here as offers transition through the state machine.</div>
-              </div>
-            )}
-
-          {/* Request History List */}
-          <RequestHistoryList
-            requests={requests}
-            selectedRequestId={selectedRequestId}
-            onSelectRequest={setSelectedRequestId}
-          />
-        </div>
       </main>
+
+      <style>{`
+        @media (min-width: 1024px) {
+          .dispatch-console-root {
+            height: 100dvh !important;
+            max-height: 100dvh !important;
+            overflow: hidden !important;
+          }
+          .dispatch-console-main {
+            height: calc(100dvh - 58px) !important;
+            overflow: hidden !important;
+          }
+        }
+        @media (max-width: 1023px) {
+          .dispatch-console-root {
+            height: auto !important;
+            min-height: 100vh !important;
+            overflow-y: auto !important;
+          }
+          .dispatch-console-main {
+            height: auto !important;
+            overflow: visible !important;
+            grid-template-columns: 1fr !important;
+          }
+        }
+      `}</style>
     </div>
   )
 }
