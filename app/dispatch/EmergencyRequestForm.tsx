@@ -4,16 +4,23 @@ import React, { useState } from 'react'
 import type { BedCapability } from '@/lib/types/database'
 import type { CreateBedRequestInput, DispatchBedRequestView } from '@/lib/operations/types'
 import { createEmergencyRequestAction } from './actions'
+import { Siren, AlertTriangle, Bed, Wind, Stethoscope, Activity, Search, Loader2 } from 'lucide-react'
 
 interface EmergencyRequestFormProps {
   onRequestCreated: (newRequest: DispatchBedRequestView) => void
+  onSubmittingChange?: (isSubmitting: boolean) => void
 }
 
-const AVAILABLE_CAPABILITIES: { id: BedCapability; label: string; icon: string; description: string }[] = [
-  { id: 'general', label: 'General Ward', icon: '🛏️', description: 'Standard admission & telemetry' },
-  { id: 'oxygen', label: 'Medical Oxygen', icon: '💨', description: 'Supplemental high-flow O₂ support' },
-  { id: 'icu', label: 'Intensive Care Unit (ICU)', icon: '🩺', description: 'Continuous critical care monitoring' },
-  { id: 'ventilator', label: 'Mechanical Ventilator', icon: '🫁', description: 'Invasive mechanical respiratory support' },
+const AVAILABLE_CAPABILITIES: {
+  id: BedCapability
+  label: string
+  Icon: React.ComponentType<{ size?: number; className?: string; style?: React.CSSProperties }>
+  description: string
+}[] = [
+  { id: 'general', label: 'General Ward', Icon: Bed, description: 'Standard admission & telemetry' },
+  { id: 'oxygen', label: 'Medical Oxygen', Icon: Wind, description: 'Supplemental high-flow O₂ support' },
+  { id: 'icu', label: 'Intensive Care Unit (ICU)', Icon: Stethoscope, description: 'Continuous critical care monitoring' },
+  { id: 'ventilator', label: 'Mechanical Ventilator', Icon: Activity, description: 'Invasive mechanical respiratory support' },
 ]
 
 const QUICK_PRESETS = [
@@ -22,7 +29,7 @@ const QUICK_PRESETS = [
   { label: 'Oakland Metro', lat: 37.8044, lng: -122.2712 },
 ]
 
-export default function EmergencyRequestForm({ onRequestCreated }: EmergencyRequestFormProps) {
+export default function EmergencyRequestForm({ onRequestCreated, onSubmittingChange }: EmergencyRequestFormProps) {
   const [capabilities, setCapabilities] = useState<BedCapability[]>(['icu', 'ventilator'])
   const [latitude, setLatitude] = useState<string>('37.7749')
   const [longitude, setLongitude] = useState<string>('-122.4194')
@@ -65,6 +72,7 @@ export default function EmergencyRequestForm({ onRequestCreated }: EmergencyRequ
     }
 
     setIsSubmitting(true)
+    onSubmittingChange?.(true)
 
     try {
       const input: CreateBedRequestInput = {
@@ -88,6 +96,7 @@ export default function EmergencyRequestForm({ onRequestCreated }: EmergencyRequ
       setFormError(err?.message || 'Network failure communicating with dispatch operations.')
     } finally {
       setIsSubmitting(false)
+      onSubmittingChange?.(false)
     }
   }
 
@@ -114,7 +123,7 @@ export default function EmergencyRequestForm({ onRequestCreated }: EmergencyRequ
             gap: '0.5rem',
           }}
         >
-          <span style={{ color: '#ef4444' }}>🚨</span> New Emergency Bed Request
+          <Siren size={18} className="text-red-500 inline mr-1" /> New Emergency Bed Request
         </h2>
         <span
           style={{
@@ -152,7 +161,7 @@ export default function EmergencyRequestForm({ onRequestCreated }: EmergencyRequ
             gap: '0.5rem',
           }}
         >
-          <span style={{ fontSize: '1rem', lineHeight: 1 }}>⚠️</span>
+          <AlertTriangle size={16} className="text-red-600 shrink-0 mt-0.5" />
           <span style={{ flex: 1 }}>{formError}</span>
         </div>
       )}
@@ -195,14 +204,15 @@ export default function EmergencyRequestForm({ onRequestCreated }: EmergencyRequ
                   onChange={() => toggleCapability(cap.id)}
                   style={{ marginTop: '2px', accentColor: '#0284c7', width: '15px', height: '15px' }}
                 />
-                <div>
-                  <div style={{ fontSize: '0.825rem', fontWeight: 700, color: isSelected ? '#0369a1' : '#1e293b' }}>
-                    <span style={{ marginRight: '4px' }}>{cap.icon}</span> {cap.label}
+                  <div>
+                    <div style={{ fontSize: '0.825rem', fontWeight: 700, color: isSelected ? '#0369a1' : '#1e293b', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <cap.Icon size={14} className={isSelected ? 'text-sky-600' : 'text-slate-500'} />
+                      <span>{cap.label}</span>
+                    </div>
+                    <div style={{ fontSize: '0.725rem', color: '#64748b', marginTop: '2px' }}>
+                      {cap.description}
+                    </div>
                   </div>
-                  <div style={{ fontSize: '0.725rem', color: '#64748b', marginTop: '2px' }}>
-                    {cap.description}
-                  </div>
-                </div>
               </label>
             )
           })}
@@ -362,7 +372,19 @@ export default function EmergencyRequestForm({ onRequestCreated }: EmergencyRequ
           transition: 'background-color 0.15s ease-in-out',
         }}
       >
-        <span>{isSubmitting ? 'Evaluating Hospitals & Holding Bed...' : '🔍 Find Hospital & Lock Bed'}</span>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+          {isSubmitting ? (
+            <>
+              <Loader2 size={16} className="animate-spin" />
+              <span>Evaluating Hospitals & Holding Bed...</span>
+            </>
+          ) : (
+            <>
+              <Search size={16} />
+              <span>Find Hospital & Lock Bed</span>
+            </>
+          )}
+        </span>
       </button>
     </form>
   )

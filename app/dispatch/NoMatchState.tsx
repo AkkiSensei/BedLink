@@ -2,6 +2,7 @@
 
 import React from 'react'
 import type { BedCapability } from '@/lib/types/database'
+import { AlertTriangle, RotateCw } from 'lucide-react'
 
 interface NoMatchStateProps {
   attemptedCount: number
@@ -25,8 +26,8 @@ export default function NoMatchState({
       }}
     >
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.875rem' }}>
-        <div style={{ fontSize: '2rem', lineHeight: 1 }} aria-hidden="true">
-          ⚠️
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }} aria-hidden="true">
+          <AlertTriangle size={32} className="text-amber-600" />
         </div>
         <div style={{ flex: 1 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
@@ -87,7 +88,8 @@ export default function NoMatchState({
                 gap: '0.375rem',
               }}
             >
-              <span>🔄</span> Re-check Bed Availability
+              <RotateCw size={14} />
+              <span>Re-check Bed Availability</span>
             </button>
           )}
         </div>

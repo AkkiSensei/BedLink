@@ -17,7 +17,8 @@ import {
   ShieldCheck,
   CheckCircle2,
   AlertCircle,
-  Loader2
+  Loader2,
+  Link2,
 } from 'lucide-react'
 
 interface RoleTabConfig {
@@ -260,7 +261,7 @@ export default function LoginPage() {
           marginBottom: '0.75rem',
           boxShadow: '0 4px 12px rgba(45, 106, 79, 0.25)',
         }}>
-          <span style={{ fontSize: '22px' }}>🔗</span>
+          <Link2 size={24} className="text-white" />
         </div>
         <h1 style={{
           fontSize: '1.6rem',

@@ -4,6 +4,7 @@ import { getHospitalReservations } from '@/lib/operations/hospital'
 import { DEMO_IDENTITIES } from '@/lib/auth/demoIdentities'
 import HospitalDashboardClient from './HospitalDashboardClient'
 import type { HospitalReservationView } from '@/lib/operations/types'
+import { Lock } from 'lucide-react'
 
 export const dynamic = 'force-dynamic'
 
@@ -74,7 +75,9 @@ export default async function HospitalPage({
           boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
         }}
       >
-        <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>🔒</div>
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1rem' }}>
+          <Lock size={40} className="text-slate-500" />
+        </div>
         <h1 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#0f172a' }}>
           Access Restricted
         </h1>

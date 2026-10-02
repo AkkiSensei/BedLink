@@ -2,6 +2,7 @@
 
 import React from 'react'
 import type { DispatchReservationHistoryView } from '@/lib/operations/types'
+import { RotateCw, ArrowDown } from 'lucide-react'
 
 interface FallbackHistoryViewProps {
   history: DispatchReservationHistoryView[]
@@ -57,7 +58,7 @@ export default function FallbackHistoryView({
               gap: '0.5rem',
             }}
           >
-            <span>🔄</span> Dynamic Fallback & Attempt History
+            <RotateCw size={18} className="text-sky-600 inline mr-1" /> Dynamic Fallback & Attempt History
           </h3>
           <p style={{ fontSize: '0.775rem', color: '#64748b', margin: '2px 0 0 0' }}>
             Authoritative progression across candidate hospitals. Rejections & expiries trigger automatic re-ranking.
@@ -145,10 +146,11 @@ export default function FallbackHistoryView({
                     justifyContent: 'center',
                     padding: '2px 0',
                     color: '#94a3b8',
-                    fontSize: '0.85rem',
+                    gap: '4px',
                   }}
                 >
-                  ↓ Dynamic Fallback
+                  <ArrowDown size={14} />
+                  <span>Dynamic Fallback</span>
                 </div>
               )}
             </div>

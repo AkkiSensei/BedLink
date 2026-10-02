@@ -1,11 +1,13 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
+import { Clock, AlertCircle, RefreshCw } from 'lucide-react'
 
 interface HospitalCountdownProps {
   holdExpiresAt: string
   isHeld: boolean
   onRefresh?: () => void
+  onExpired?: () => void
 }
 
 function formatRemainingSeconds(secs: number): string {
@@ -19,6 +21,7 @@ export default function HospitalCountdown({
   holdExpiresAt,
   isHeld,
   onRefresh,
+  onExpired,
 }: HospitalCountdownProps) {
   const [remainingSeconds, setRemainingSeconds] = useState<number>(() => {
     if (!holdExpiresAt) return 0
@@ -26,20 +29,29 @@ export default function HospitalCountdown({
     return Math.max(0, Math.floor((expiresMs - Date.now()) / 1000))
   })
 
-  // PRESENTATIONAL ONLY: Never mutates DB or triggers server expiration
+  const hasNotifiedExpiryRef = useRef<boolean>(false)
+
+  // PRESENTATIONAL ONLY: Visual clock synchronized with onExpired callback
   useEffect(() => {
     if (!holdExpiresAt || !isHeld) return
+
+    hasNotifiedExpiryRef.current = false
 
     const updateTimer = () => {
       const expiresMs = new Date(holdExpiresAt).getTime()
       const diffSecs = Math.max(0, Math.floor((expiresMs - Date.now()) / 1000))
       setRemainingSeconds(diffSecs)
+
+      if (diffSecs <= 0 && !hasNotifiedExpiryRef.current) {
+        hasNotifiedExpiryRef.current = true
+        onExpired?.()
+      }
     }
 
     updateTimer()
     const interval = setInterval(updateTimer, 1000)
     return () => clearInterval(interval)
-  }, [holdExpiresAt, isHeld])
+  }, [holdExpiresAt, isHeld, onExpired])
 
   if (!isHeld) return null
 
@@ -71,7 +83,11 @@ export default function HospitalCountdown({
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <span style={{ fontSize: '1.1rem' }}>⏱️</span>
+          {isExpiredInBrowser ? (
+            <AlertCircle style={{ width: '16px', height: '16px', color: '#b45309' }} />
+          ) : (
+            <Clock style={{ width: '16px', height: '16px', color: '#166534' }} />
+          )}
           <span
             style={{
               fontSize: '0.85rem',
@@ -157,12 +173,15 @@ export default function HospitalCountdown({
           }}
         >
           <span>
-            The response window may have expired. Please refresh or wait for authoritative server state.
+            The response window has elapsed. Checking for authoritative server update...
           </span>
           {onRefresh && (
             <button
               onClick={onRefresh}
               style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px',
                 padding: '3px 8px',
                 backgroundColor: '#f59e0b',
                 color: '#ffffff',
@@ -173,6 +192,7 @@ export default function HospitalCountdown({
                 cursor: 'pointer',
               }}
             >
+              <RefreshCw style={{ width: '12px', height: '12px' }} />
               Check Server State
             </button>
           )}

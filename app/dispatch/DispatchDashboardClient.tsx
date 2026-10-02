@@ -12,6 +12,7 @@ import RequestDetailView from './RequestDetailView'
 import FallbackHistoryView from './FallbackHistoryView'
 import NoMatchState from './NoMatchState'
 import { logoutAction } from '../actions/auth'
+import { Loader2, RotateCw, Info, Ambulance } from 'lucide-react'
 
 interface DispatchDashboardClientProps {
   initialRequests: DispatchBedRequestView[]
@@ -37,6 +38,7 @@ export default function DispatchDashboardClient({
   const [realtimeStatus, setRealtimeStatus] = useState<RealtimeConnectionStatus>('CONNECTING')
 
   const selectedRequestIdRef = useRef(selectedRequestId)
+  const isSubmittingFormRef = useRef(false)
   useEffect(() => {
     selectedRequestIdRef.current = selectedRequestId
   }, [selectedRequestId])
@@ -49,6 +51,8 @@ export default function DispatchDashboardClient({
       userId,
       onStatusChange: (status) => setRealtimeStatus(status),
       onReconcile: async () => {
+        // Prevent background sync from wiping in-progress form submission
+        if (isSubmittingFormRef.current) return
         try {
           const res = await refreshRequestsAction()
           if (res.success && res.requests) {
@@ -71,6 +75,32 @@ export default function DispatchDashboardClient({
       handle.unsubscribe()
     }
   }, [userId])
+
+  // Fallback polling when realtime drops or is degraded
+  useEffect(() => {
+    if (!userId || realtimeStatus === 'SUBSCRIBED') return
+
+    const interval = setInterval(async () => {
+      if (isSubmittingFormRef.current) return
+      try {
+        const res = await refreshRequestsAction()
+        if (res.success && res.requests) {
+          setRequests(res.requests)
+          const currentId = selectedRequestIdRef.current
+          if (currentId) {
+            const cRes = await fetchRankedCandidatesAction(currentId)
+            if (cRes.success && cRes.candidates) {
+              setRankedCandidates(cRes.candidates)
+            }
+          }
+        }
+      } catch {
+        // quiet fallback poll
+      }
+    }, 10000)
+
+    return () => clearInterval(interval)
+  }, [userId, realtimeStatus])
 
   const selectedRequest = requests.find((r) => r.id === selectedRequestId) ?? requests[0] ?? null
 
@@ -278,7 +308,9 @@ export default function DispatchDashboardClient({
               opacity: isRefreshing ? 0.7 : 1,
             }}
           >
-            <span style={{ fontSize: '0.9rem' }}>{isRefreshing ? '⏳' : '🔄'}</span>
+            <span style={{ display: 'inline-flex', alignItems: 'center' }}>
+              {isRefreshing ? <Loader2 size={14} className="animate-spin" /> : <RotateCw size={14} />}
+            </span>
             <span>{isRefreshing ? 'Syncing...' : 'Refresh'}</span>
           </button>
           <form action={logoutAction}>
@@ -320,7 +352,10 @@ export default function DispatchDashboardClient({
             gap: '0.5rem',
           }}
         >
-          <span>ℹ️</span> {statusMessage}
+          <span>
+            <Info size={16} className="text-sky-600 shrink-0" />
+          </span>{' '}
+          {statusMessage}
         </div>
       )}
 
@@ -345,7 +380,12 @@ export default function DispatchDashboardClient({
             gap: '1.5rem',
           }}
         >
-          <EmergencyRequestForm onRequestCreated={handleRequestCreated} />
+          <EmergencyRequestForm
+            onRequestCreated={handleRequestCreated}
+            onSubmittingChange={(submitting) => {
+              isSubmittingFormRef.current = submitting
+            }}
+          />
           <RequestHistoryList
             requests={requests}
             selectedRequestId={selectedRequestId}
@@ -376,7 +416,9 @@ export default function DispatchDashboardClient({
                 color: '#64748b',
               }}
             >
-              <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>🚑</div>
+              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '0.5rem' }}>
+                <Ambulance size={36} className="text-slate-400" />
+              </div>
               <h2 style={{ fontSize: '1.1rem', fontWeight: 800, color: '#0f172a', margin: '0 0 0.5rem 0' }}>
                 No Bed Request Selected
               </h2>

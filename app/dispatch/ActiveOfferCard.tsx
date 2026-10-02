@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react'
 import type { DispatchReservationView } from '@/lib/operations/types'
 import type { BedCapability } from '@/lib/types/database'
+import { Lock, CheckCircle2, Info, Check, Clock, AlertTriangle, Ambulance } from 'lucide-react'
 
 interface ActiveOfferCardProps {
   reservation: DispatchReservationView | null
@@ -95,8 +96,8 @@ export default function ActiveOfferCard({
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <span style={{ fontSize: '1.1rem' }}>
-            {isHeld ? '🔒' : isAccepted ? '✅' : 'ℹ️'}
+          <span style={{ display: 'inline-flex', alignItems: 'center' }}>
+            {isHeld ? <Lock size={16} /> : isAccepted ? <CheckCircle2 size={16} /> : <Info size={16} />}
           </span>
           <span style={{ fontWeight: 800, fontSize: '0.9rem', letterSpacing: '0.02em', textTransform: 'uppercase' }}>
             {isHeld
@@ -198,7 +199,10 @@ export default function ActiveOfferCard({
                   border: '1px solid #bae6fd',
                 }}
               >
-                ✓ {cap.toUpperCase()}
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                  <Check size={11} className="stroke-[3]" />
+                  <span>{cap.toUpperCase()}</span>
+                </span>
               </span>
             ))}
           </div>
@@ -217,7 +221,7 @@ export default function ActiveOfferCard({
           >
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
-                <span style={{ fontSize: '1.1rem' }}>⏱️</span>
+                <Clock size={16} className="text-emerald-700" />
                 <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#166534' }}>
                   Authoritative 120s Hold Timer
                 </span>
@@ -262,23 +266,26 @@ export default function ActiveOfferCard({
                   Awaiting hospital emergency department acceptance. The physical bed is locked in PostgreSQL against all competing requests.
                 </span>
               ) : (
-                <span style={{ color: '#b45309', fontWeight: 600 }}>
-                  ⚠️ Local hold window has reached 00:00. Hold expiration and fallback are governed authoritatively by server clocks. Please{' '}
-                  <button
-                    onClick={onRefresh}
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      color: '#0284c7',
-                      fontWeight: 700,
-                      cursor: 'pointer',
-                      padding: 0,
-                      textDecoration: 'underline',
-                    }}
-                  >
-                    refresh
-                  </button>{' '}
-                  to view current server status.
+                <span style={{ color: '#b45309', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '4px', flexWrap: 'wrap' }}>
+                  <AlertTriangle size={14} className="text-amber-600 shrink-0" />
+                  <span>
+                    Local hold window has reached 00:00. Hold expiration and fallback are governed authoritatively by server clocks. Please{' '}
+                    <button
+                      onClick={onRefresh}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: '#0284c7',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        padding: 0,
+                        textDecoration: 'underline',
+                      }}
+                    >
+                      refresh
+                    </button>{' '}
+                    to view current server status.
+                  </span>
                 </span>
               )}
             </div>
@@ -298,8 +305,9 @@ export default function ActiveOfferCard({
               lineHeight: 1.4,
             }}
           >
-            <div style={{ fontWeight: 800, marginBottom: '0.25rem' }}>
-              🚑 Route Confirmed: Patient In Transit
+            <div style={{ fontWeight: 800, marginBottom: '0.25rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <Ambulance size={18} className="text-emerald-700" />
+              <span>Route Confirmed: Patient In Transit</span>
             </div>
             <div>
               Hospital staff has verified and accepted the patient. Architectural Invariant:{' '}

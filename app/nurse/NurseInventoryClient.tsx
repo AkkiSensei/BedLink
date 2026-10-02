@@ -7,6 +7,7 @@ import { updateBedStatusAction, refreshNurseBedsAction } from './actions'
 import BedCard from './BedCard'
 import { subscribeNurseBeds, type RealtimeConnectionStatus } from '@/lib/realtime'
 import { logoutAction } from '../actions/auth'
+import { Loader2, RotateCw, X, Bed } from 'lucide-react'
 
 interface NurseInventoryClientProps {
   initialBeds: NurseBedView[]
@@ -62,6 +63,25 @@ export default function NurseInventoryClient({
       handle.unsubscribe()
     }
   }, [hospitalId, updatingBedId])
+
+  // Fallback polling when realtime drops or is degraded
+  useEffect(() => {
+    if (!hospitalId || realtimeStatus === 'SUBSCRIBED') return
+
+    const interval = setInterval(async () => {
+      if (updatingBedId) return
+      try {
+        const result = await refreshNurseBedsAction()
+        if (result.success && result.beds) {
+          setBeds(result.beds)
+        }
+      } catch {
+        // quiet fallback poll
+      }
+    }, 10000)
+
+    return () => clearInterval(interval)
+  }, [hospitalId, realtimeStatus, updatingBedId])
 
   // Calculate summary metrics
   const totalCount = beds.length
@@ -252,8 +272,8 @@ export default function NurseInventoryClient({
             }}
             aria-label="Refresh bed inventory"
           >
-            <span style={{ fontSize: '0.95rem' }} aria-hidden="true">
-              {isPending ? '⏳' : '🔄'}
+            <span style={{ display: 'inline-flex', alignItems: 'center' }} aria-hidden="true">
+              {isPending ? <Loader2 size={14} className="animate-spin" /> : <RotateCw size={14} />}
             </span>
             <span>{isPending ? 'Syncing...' : 'Refresh'}</span>
           </button>
@@ -432,10 +452,12 @@ export default function NurseInventoryClient({
               cursor: 'pointer',
               fontWeight: 700,
               padding: '2px 6px',
+              display: 'flex',
+              alignItems: 'center',
             }}
             aria-label="Dismiss message"
           >
-            ✕
+            <X size={14} />
           </button>
         </aside>
       )}
@@ -509,7 +531,9 @@ export default function NurseInventoryClient({
               gap: '0.75rem',
             }}
           >
-            <div style={{ fontSize: '2rem' }}>🛏️</div>
+            <div style={{ display: 'flex', justifyContent: 'center' }}>
+              <Bed size={36} className="text-slate-400" />
+            </div>
             <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-main)' }}>
               {filter === 'all' ? 'No beds found' : `No ${filter} beds`}
             </h3>

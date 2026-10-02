@@ -7,6 +7,7 @@ import { refreshHospitalReservationsAction } from './actions'
 import { subscribeHospitalOffers, type RealtimeConnectionStatus } from '@/lib/realtime'
 import { playAlertChime } from '@/lib/sound'
 import { logoutAction } from '../actions/auth'
+import { Building2, RotateCw, AlertTriangle, Inbox, X } from 'lucide-react'
 
 interface HospitalDashboardClientProps {
   initialReservations: HospitalReservationView[]
@@ -65,6 +66,24 @@ export default function HospitalDashboardClient({
       handle.unsubscribe()
     }
   }, [hospitalId])
+
+  // Fallback polling when realtime is disconnected or degraded
+  useEffect(() => {
+    if (!hospitalId || realtimeStatus === 'SUBSCRIBED') return
+
+    const interval = setInterval(async () => {
+      try {
+        const result = await refreshHospitalReservationsAction({ targetHospitalId: hospitalId })
+        if (result.success && result.reservations) {
+          setReservations(result.reservations)
+        }
+      } catch {
+        // quiet fallback poll
+      }
+    }, 10000)
+
+    return () => clearInterval(interval)
+  }, [hospitalId, realtimeStatus])
 
   // Sort reservations deterministically: earliest hold expiry first
   const sortedReservations = [...reservations].sort((a, b) => {
@@ -148,7 +167,7 @@ export default function HospitalDashboardClient({
                 color: '#ffffff',
               }}
             >
-              🏥
+              <Building2 size={22} className="text-white" />
             </div>
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
@@ -275,8 +294,8 @@ export default function HospitalDashboardClient({
               title="Refresh active offers from server"
               aria-label="Refresh active bed offers"
             >
-              <span style={{ display: 'inline-block', transform: isRefreshing ? 'rotate(180deg)' : 'none', transition: 'transform 0.4s' }}>
-                🔄
+              <span style={{ display: 'inline-flex', alignItems: 'center' }}>
+                <RotateCw size={14} className={isRefreshing ? 'animate-spin' : ''} />
               </span>
               {isRefreshing ? 'Refreshing...' : 'Refresh'}
             </button>
@@ -321,12 +340,16 @@ export default function HospitalDashboardClient({
               justifyContent: 'space-between',
             }}
           >
-            <span>⚠️ {refreshError}</span>
+            <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <AlertTriangle size={16} className="text-red-600 shrink-0" />
+              {refreshError}
+            </span>
             <button
               onClick={() => setRefreshError(null)}
-              style={{ background: 'none', border: 'none', color: '#991b1b', cursor: 'pointer', fontWeight: 700 }}
+              style={{ background: 'none', border: 'none', color: '#991b1b', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+              aria-label="Dismiss error"
             >
-              ✕
+              <X size={16} />
             </button>
           </div>
         )}
@@ -376,7 +399,9 @@ export default function HospitalDashboardClient({
               boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
             }}
           >
-            <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>📭</div>
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1rem' }}>
+              <Inbox size={48} className="text-slate-400" />
+            </div>
             <h2 style={{ fontSize: '1.2rem', fontWeight: 700, color: '#1e293b' }}>
               No active bed offers.
             </h2>

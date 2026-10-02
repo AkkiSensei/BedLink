@@ -2,6 +2,7 @@
 
 import React from 'react'
 import type { DispatchBedRequestView } from '@/lib/operations/types'
+import { MapPin, Phone, Clock, RotateCw } from 'lucide-react'
 
 interface RequestDetailViewProps {
   request: DispatchBedRequestView
@@ -79,8 +80,9 @@ export default function RequestDetailView({ request }: RequestDetailViewProps) {
           <div style={{ color: '#64748b', fontSize: '0.7rem', textTransform: 'uppercase', fontWeight: 700 }}>
             Ambulance Origin GPS
           </div>
-          <div style={{ fontWeight: 700, color: '#0f172a', marginTop: '2px' }}>
-            📍 {request.ambulance_latitude.toFixed(4)}, {request.ambulance_longitude.toFixed(4)}
+          <div style={{ fontWeight: 700, color: '#0f172a', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <MapPin size={14} className="text-slate-600" />
+            <span>{request.ambulance_latitude.toFixed(4)}, {request.ambulance_longitude.toFixed(4)}</span>
           </div>
         </div>
 
@@ -88,8 +90,9 @@ export default function RequestDetailView({ request }: RequestDetailViewProps) {
           <div style={{ color: '#64748b', fontSize: '0.7rem', textTransform: 'uppercase', fontWeight: 700 }}>
             Comms Contact
           </div>
-          <div style={{ fontWeight: 700, color: '#0f172a', marginTop: '2px' }}>
-            📞 {request.ambulance_phone || 'Radio Dispatch Only'}
+          <div style={{ fontWeight: 700, color: '#0f172a', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <Phone size={14} className="text-slate-600" />
+            <span>{request.ambulance_phone || 'Radio Dispatch Only'}</span>
           </div>
         </div>
 
@@ -97,8 +100,9 @@ export default function RequestDetailView({ request }: RequestDetailViewProps) {
           <div style={{ color: '#64748b', fontSize: '0.7rem', textTransform: 'uppercase', fontWeight: 700 }}>
             Created Timestamp
           </div>
-          <div style={{ fontWeight: 600, color: '#334155', marginTop: '2px' }}>
-            🕒 {new Date(request.created_at).toLocaleString()}
+          <div style={{ fontWeight: 600, color: '#334155', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <Clock size={14} className="text-slate-600" />
+            <span>{new Date(request.created_at).toLocaleString()}</span>
           </div>
         </div>
 
@@ -106,8 +110,9 @@ export default function RequestDetailView({ request }: RequestDetailViewProps) {
           <div style={{ color: '#64748b', fontSize: '0.7rem', textTransform: 'uppercase', fontWeight: 700 }}>
             Total Attempted Facilities
           </div>
-          <div style={{ fontWeight: 700, color: '#0f172a', marginTop: '2px' }}>
-            🔄 {request.attempted_hospitals?.length ?? 0} {request.attempted_hospitals?.length === 1 ? 'hospital' : 'hospitals'}
+          <div style={{ fontWeight: 700, color: '#0f172a', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <RotateCw size={14} className="text-slate-600" />
+            <span>{request.attempted_hospitals?.length ?? 0} {request.attempted_hospitals?.length === 1 ? 'hospital' : 'hospitals'}</span>
           </div>
         </div>
       </div>

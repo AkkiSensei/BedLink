@@ -1,6 +1,18 @@
 'use client'
 
 import React, { useState } from 'react'
+import {
+  Siren,
+  CheckCircle2,
+  XCircle,
+  Clock,
+  Info,
+  Phone,
+  Loader2,
+  AlertCircle,
+  AlertTriangle,
+  X,
+} from 'lucide-react'
 import type { HospitalReservationView } from '@/lib/operations/types'
 import HospitalCountdown from './HospitalCountdown'
 import {
@@ -25,6 +37,7 @@ export default function HospitalReservationCard({
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [localStatus, setLocalStatus] = useState<string>(reservation.status)
   const [statusNote, setStatusNote] = useState<string | null>(null)
+  const [isCountdownExpired, setIsCountdownExpired] = useState<boolean>(false)
 
   const isHeld = localStatus === 'held'
   const isAccepted = localStatus === 'accepted'
@@ -159,8 +172,18 @@ export default function HospitalReservationCard({
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-          <span style={{ fontSize: '1.2rem' }}>
-            {isHeld ? '🚨' : isAccepted ? '✅' : isRejected ? '❌' : isExpired ? '⌛' : 'ℹ️'}
+          <span style={{ display: 'inline-flex', alignItems: 'center' }}>
+            {isHeld ? (
+              <Siren style={{ width: '20px', height: '20px' }} />
+            ) : isAccepted ? (
+              <CheckCircle2 style={{ width: '20px', height: '20px' }} />
+            ) : isRejected ? (
+              <XCircle style={{ width: '20px', height: '20px' }} />
+            ) : isExpired ? (
+              <Clock style={{ width: '20px', height: '20px' }} />
+            ) : (
+              <Info style={{ width: '20px', height: '20px' }} />
+            )}
           </span>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
@@ -241,13 +264,16 @@ export default function HospitalReservationCard({
             }}
             role="alert"
           >
-            <span>⚠️ {errorMessage}</span>
+            <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <AlertTriangle size={16} className="text-red-600 shrink-0" />
+              <span>{errorMessage}</span>
+            </span>
             <button
               onClick={() => setErrorMessage(null)}
-              style={{ background: 'none', border: 'none', color: '#991b1b', cursor: 'pointer', fontWeight: 700 }}
+              style={{ background: 'none', border: 'none', color: '#991b1b', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
               aria-label="Dismiss error"
             >
-              ✕
+              <X size={14} />
             </button>
           </div>
         )}
@@ -265,7 +291,7 @@ export default function HospitalReservationCard({
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 800, fontSize: '0.95rem' }}>
-              <span>✅</span>
+              <CheckCircle2 size={18} className="text-emerald-600" />
               <span>Accepted</span>
             </div>
             <div style={{ fontSize: '0.85rem', marginTop: '4px', fontWeight: 600 }}>
@@ -299,7 +325,7 @@ export default function HospitalReservationCard({
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 800, fontSize: '0.95rem' }}>
-              <span>ℹ️</span>
+              <Info size={18} className="text-slate-500" />
               <span>Offer rejected.</span>
             </div>
             <div style={{ fontSize: '0.85rem', marginTop: '4px' }}>
@@ -320,7 +346,7 @@ export default function HospitalReservationCard({
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 800, fontSize: '0.95rem' }}>
-              <span>⌛</span>
+              <Clock size={18} className="text-amber-600" />
               <span>Offer expired.</span>
             </div>
             <div style={{ fontSize: '0.85rem', marginTop: '4px' }}>
@@ -341,7 +367,7 @@ export default function HospitalReservationCard({
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 800, fontSize: '0.95rem' }}>
-              <span>⚠️</span>
+              <AlertTriangle size={18} className="text-amber-600" />
               <span>This offer is no longer active.</span>
             </div>
             <div style={{ fontSize: '0.85rem', marginTop: '4px' }}>
@@ -423,9 +449,10 @@ export default function HospitalReservationCard({
                   <span>Ambulance Comms:</span>
                   <a
                     href={`tel:${reservation.ambulance_phone}`}
-                    style={{ fontWeight: 600, color: '#0284c7', textDecoration: 'none' }}
+                    style={{ fontWeight: 600, color: '#0284c7', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
                   >
-                    📞 {reservation.ambulance_phone}
+                    <Phone style={{ width: '13px', height: '13px' }} />
+                    <span>{reservation.ambulance_phone}</span>
                   </a>
                 </div>
               )}
@@ -485,83 +512,113 @@ export default function HospitalReservationCard({
           </div>
         </div>
 
-        {/* 120-Second Countdown (Presentational Only) */}
+        {/* 120-Second Countdown (Synchronized with authoritative state) */}
         {isHeld && (
           <HospitalCountdown
             holdExpiresAt={reservation.hold_expires_at}
             isHeld={isHeld}
+            onExpired={() => setIsCountdownExpired(true)}
           />
         )}
 
         {/* Action Controls: ACCEPT / REJECT */}
         {isHeld && (
-          <div
-            style={{
-              marginTop: '1.25rem',
-              display: 'flex',
-              gap: '1rem',
-              flexWrap: 'wrap',
-            }}
-          >
-            {/* Accept Button */}
-            <button
-              onClick={handleAccept}
-              disabled={Boolean(submittingAction)}
+          isCountdownExpired ? (
+            <div
               style={{
-                flex: '1 1 200px',
-                minHeight: '48px',
-                padding: '12px 20px',
-                backgroundColor: submittingAction === 'accept' ? '#047857' : '#059669',
-                color: '#ffffff',
-                border: 'none',
+                marginTop: '1.25rem',
+                padding: '12px 16px',
+                backgroundColor: '#fffbeb',
+                border: '1px solid #fde68a',
                 borderRadius: '8px',
-                fontSize: '1rem',
-                fontWeight: 800,
-                letterSpacing: '0.025em',
-                cursor: submittingAction ? 'not-allowed' : 'pointer',
-                opacity: submittingAction && submittingAction !== 'accept' ? 0.5 : 1,
-                boxShadow: '0 2px 4px rgba(5, 150, 105, 0.3)',
-                display: 'inline-flex',
+                display: 'flex',
                 alignItems: 'center',
-                justifyContent: 'center',
-                gap: '0.5rem',
-                transition: 'background-color 0.2s',
+                gap: '0.75rem',
+                color: '#92400e',
+                fontSize: '0.9rem',
+                fontWeight: 600,
               }}
-              aria-label={`Accept bed reservation for request ${reservation.bed_request_id.slice(0, 8)}`}
             >
-              <span>{submittingAction === 'accept' ? '⏳' : '✅'}</span>
-              <span>{submittingAction === 'accept' ? 'Accepting...' : 'ACCEPT RESERVATION'}</span>
-            </button>
+              <AlertCircle style={{ width: '18px', height: '18px', flexShrink: 0, color: '#b45309' }} />
+              <span>Response window elapsed. Actions are disabled while awaiting server fallback.</span>
+            </div>
+          ) : (
+            <div
+              style={{
+                marginTop: '1.25rem',
+                display: 'flex',
+                gap: '1rem',
+                flexWrap: 'wrap',
+              }}
+            >
+              {/* Accept Button */}
+              <button
+                onClick={handleAccept}
+                disabled={Boolean(submittingAction) || isCountdownExpired}
+                style={{
+                  flex: '1 1 200px',
+                  minHeight: '48px',
+                  padding: '12px 20px',
+                  backgroundColor: submittingAction === 'accept' ? '#047857' : '#059669',
+                  color: '#ffffff',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontSize: '1rem',
+                  fontWeight: 800,
+                  letterSpacing: '0.025em',
+                  cursor: submittingAction || isCountdownExpired ? 'not-allowed' : 'pointer',
+                  opacity: submittingAction && submittingAction !== 'accept' ? 0.5 : 1,
+                  boxShadow: '0 2px 4px rgba(5, 150, 105, 0.3)',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '0.5rem',
+                  transition: 'background-color 0.2s',
+                }}
+                aria-label={`Accept bed reservation for request ${reservation.bed_request_id.slice(0, 8)}`}
+              >
+                {submittingAction === 'accept' ? (
+                  <Loader2 style={{ width: '18px', height: '18px', animation: 'spin 1s linear infinite' }} />
+                ) : (
+                  <CheckCircle2 style={{ width: '18px', height: '18px' }} />
+                )}
+                <span>{submittingAction === 'accept' ? 'Accepting...' : 'ACCEPT RESERVATION'}</span>
+              </button>
 
-            {/* Reject Button */}
-            <button
-              onClick={handleReject}
-              disabled={Boolean(submittingAction)}
-              style={{
-                flex: '1 1 200px',
-                minHeight: '48px',
-                padding: '12px 20px',
-                backgroundColor: submittingAction === 'reject' ? '#991b1b' : '#ffffff',
-                color: submittingAction === 'reject' ? '#ffffff' : '#dc2626',
-                border: '2px solid #dc2626',
-                borderRadius: '8px',
-                fontSize: '1rem',
-                fontWeight: 800,
-                letterSpacing: '0.025em',
-                cursor: submittingAction ? 'not-allowed' : 'pointer',
-                opacity: submittingAction && submittingAction !== 'reject' ? 0.5 : 1,
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '0.5rem',
-                transition: 'all 0.2s',
-              }}
-              aria-label={`Reject bed reservation and trigger fallback for request ${reservation.bed_request_id.slice(0, 8)}`}
-            >
-              <span>{submittingAction === 'reject' ? '⏳' : '❌'}</span>
-              <span>{submittingAction === 'reject' ? 'Rejecting...' : 'REJECT / PASS TO FALLBACK'}</span>
-            </button>
-          </div>
+              {/* Reject Button */}
+              <button
+                onClick={handleReject}
+                disabled={Boolean(submittingAction) || isCountdownExpired}
+                style={{
+                  flex: '1 1 200px',
+                  minHeight: '48px',
+                  padding: '12px 20px',
+                  backgroundColor: submittingAction === 'reject' ? '#991b1b' : '#ffffff',
+                  color: submittingAction === 'reject' ? '#ffffff' : '#dc2626',
+                  border: '2px solid #dc2626',
+                  borderRadius: '8px',
+                  fontSize: '1rem',
+                  fontWeight: 800,
+                  letterSpacing: '0.025em',
+                  cursor: submittingAction || isCountdownExpired ? 'not-allowed' : 'pointer',
+                  opacity: submittingAction && submittingAction !== 'reject' ? 0.5 : 1,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '0.5rem',
+                  transition: 'all 0.2s',
+                }}
+                aria-label={`Reject bed reservation and trigger fallback for request ${reservation.bed_request_id.slice(0, 8)}`}
+              >
+                {submittingAction === 'reject' ? (
+                  <Loader2 style={{ width: '18px', height: '18px', animation: 'spin 1s linear infinite' }} />
+                ) : (
+                  <XCircle style={{ width: '18px', height: '18px' }} />
+                )}
+                <span>{submittingAction === 'reject' ? 'Rejecting...' : 'REJECT / PASS TO FALLBACK'}</span>
+              </button>
+            </div>
+          )
         )}
       </div>
     </article>

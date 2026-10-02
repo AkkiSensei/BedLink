@@ -4,6 +4,7 @@ import React from 'react'
 import type { NurseBedView } from '@/lib/operations/types'
 import type { BedStatus, BedCapability } from '@/lib/types/database'
 import FreshnessBadge from './FreshnessBadge'
+import { Lock } from 'lucide-react'
 
 interface BedCardProps {
   bed: NurseBedView
@@ -108,7 +109,7 @@ export default function BedCard({ bed, isUpdating, onStatusChange }: BedCardProp
           }}
           role="status"
         >
-          {isHeld && <span aria-hidden="true">🔒</span>}
+          {isHeld && <Lock size={12} aria-hidden="true" />}
           {currentStatusConfig.label}
         </span>
       </div>
@@ -157,7 +158,8 @@ export default function BedCard({ bed, isUpdating, onStatusChange }: BedCardProp
           role="alert"
         >
           <div style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span>🔒 Reserved for Emergency Transit</span>
+            <Lock size={14} />
+            <span>Reserved for Emergency Transit</span>
           </div>
           <p style={{ margin: 0, opacity: 0.9 }}>
             This bed is held by an active ambulance reservation. Status cannot be modified manually.

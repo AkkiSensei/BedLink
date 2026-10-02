@@ -2,6 +2,7 @@
 
 import React from 'react'
 import type { DispatchBedRequestView } from '@/lib/operations/types'
+import { ClipboardList, Building2 } from 'lucide-react'
 
 interface RequestHistoryListProps {
   requests: DispatchBedRequestView[]
@@ -44,7 +45,9 @@ export default function RequestHistoryList({
           fontSize: '0.85rem',
         }}
       >
-        <div style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>📋</div>
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '0.5rem' }}>
+          <ClipboardList size={36} className="text-slate-400" />
+        </div>
         <div style={{ fontWeight: 600, color: '#334155' }}>No Bed Requests Created Yet</div>
         <p style={{ fontSize: '0.775rem', color: '#94a3b8', margin: '0.25rem 0 0 0' }}>
           When emergency bed requests are submitted, they will appear here in chronological order.
@@ -75,7 +78,7 @@ export default function RequestHistoryList({
             gap: '0.5rem',
           }}
         >
-          <span>📋</span> Active & Recent Requests
+          <ClipboardList size={18} className="text-slate-700 inline mr-1" /> Active & Recent Requests
         </h3>
         <span
           style={{
@@ -135,8 +138,9 @@ export default function RequestHistoryList({
                 </span>
               </div>
 
-              <div style={{ fontSize: '0.8rem', fontWeight: 600, color: '#334155', marginBottom: '4px' }}>
-                🏥 {targetHospital}
+              <div style={{ fontSize: '0.8rem', fontWeight: 600, color: '#334155', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <Building2 size={13} className="text-slate-500" />
+                <span>{targetHospital}</span>
               </div>
 
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.725rem', color: '#64748b' }}>

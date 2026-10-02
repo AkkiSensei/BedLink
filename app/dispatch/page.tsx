@@ -4,6 +4,7 @@ import { listDispatchBedRequests } from '@/lib/operations/dispatch'
 import { DEMO_IDENTITIES } from '@/lib/auth/demoIdentities'
 import DispatchDashboardClient from './DispatchDashboardClient'
 import type { DispatchBedRequestView } from '@/lib/operations/types'
+import { Lock } from 'lucide-react'
 
 export const dynamic = 'force-dynamic'
 
@@ -66,8 +67,8 @@ export default async function DispatchPage({
           fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
         }}
       >
-        <div style={{ fontSize: '2.75rem', marginBottom: '1rem' }} aria-hidden="true">
-          🔒
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1rem' }} aria-hidden="true">
+          <Lock size={44} className="text-slate-500" />
         </div>
         <h1 style={{ fontSize: '1.35rem', fontWeight: 800, color: '#0f172a', margin: '0 0 0.5rem 0' }}>
           Dispatch Access Restricted
