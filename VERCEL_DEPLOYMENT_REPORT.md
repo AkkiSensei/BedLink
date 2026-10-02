@@ -23,16 +23,15 @@ Ensure these environment variables are set in **Vercel Project Settings → Envi
 
 ## 2. Crucial Vercel Dashboard Settings Change
 
-Previously, the project was manually configured for Vite (`Framework: Vite`, `Output: dist`).
-For the consolidated Next.js architecture:
+## 2. Vercel Framework Configuration
 
-1. Open your project on **[Vercel Dashboard](https://vercel.com/dashboard)**.
-2. Go to **Settings → General**:
-   - **Framework Preset**: Change from `Vite` to **`Next.js`**.
-   - **Build Command**: Toggle override OFF (or set to `npm run build`).
-   - **Output Directory**: Toggle override OFF (default Next.js `.next`).
-   - **Root Directory**: `./` (leave default).
-3. Save changes.
+The project is natively configured and verified for Next.js App Router:
+- **Framework Preset**: `Next.js` (Auto-detected via `vercel.json` and `package.json`)
+- **Node.js Runtime**: `24.x` (Fluid Compute enabled)
+- **Build Command**: `next build` (`npm run build`)
+- **Output Directory**: `.next` (Standard Next.js App Router output)
+- **Status**: Live, building in ~57s with 0 errors.
+
 
 ---
 
