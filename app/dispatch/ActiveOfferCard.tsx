@@ -9,6 +9,7 @@ interface ActiveOfferCardProps {
   reservation: DispatchReservationView | null
   bedRequestStatus: string
   requiredCapabilities: BedCapability[]
+  estimatedEtaMinutes?: number | null
   onRefresh?: () => void
 }
 
@@ -25,6 +26,7 @@ export default function ActiveOfferCard({
   reservation,
   bedRequestStatus,
   requiredCapabilities,
+  estimatedEtaMinutes,
   onRefresh,
 }: ActiveOfferCardProps) {
   const [remainingSeconds, setRemainingSeconds] = useState<number>(() => {
@@ -57,7 +59,6 @@ export default function ActiveOfferCard({
 
   const isHeld = reservation.status === 'held'
   const isAccepted = reservation.status === 'accepted'
-  const isExpiredOrRejected = reservation.status === 'expired' || reservation.status === 'rejected'
 
   // Hold progress percent (based on standard 120-second hold duration)
   const holdPercent = isHeld ? Math.min(100, Math.max(0, (remainingSeconds / 120) * 100)) : 0
@@ -65,16 +66,16 @@ export default function ActiveOfferCard({
   return (
     <div
       style={{
-        backgroundColor: '#ffffff',
-        borderRadius: '10px',
+        backgroundColor: '#FFFFFF',
+        borderRadius: '12px',
         border: isHeld
-          ? '2px solid #0284c7'
+          ? '2px solid #2D6A4F'
           : isAccepted
-          ? '2px solid #10b981'
-          : '1px solid #cbd5e1',
+          ? '2px solid #2E7D32'
+          : '1px solid #E1E7E1',
         boxShadow: isHeld
-          ? '0 4px 12px -2px rgba(2, 132, 199, 0.15)'
-          : '0 2px 4px rgba(0,0,0,0.05)',
+          ? '0 4px 16px -2px rgba(45, 106, 79, 0.18)'
+          : '0 2px 4px rgba(0, 0, 0, 0.05)',
         overflow: 'hidden',
       }}
     >
@@ -82,12 +83,12 @@ export default function ActiveOfferCard({
       <div
         style={{
           backgroundColor: isHeld
-            ? '#0369a1'
+            ? '#2D6A4F'
             : isAccepted
-            ? '#065f46'
-            : '#475569',
-          color: '#ffffff',
-          padding: '0.75rem 1.25rem',
+            ? '#2E7D32'
+            : '#5C6B64',
+          color: '#FFFFFF',
+          padding: '0.875rem 1.25rem',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
@@ -99,9 +100,9 @@ export default function ActiveOfferCard({
           <span style={{ display: 'inline-flex', alignItems: 'center' }}>
             {isHeld ? <Lock size={16} /> : isAccepted ? <CheckCircle2 size={16} /> : <Info size={16} />}
           </span>
-          <span style={{ fontWeight: 800, fontSize: '0.9rem', letterSpacing: '0.02em', textTransform: 'uppercase' }}>
+          <span style={{ fontWeight: 800, fontSize: '0.9rem', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
             {isHeld
-              ? 'Current Hospital Offer'
+              ? 'Active Hospital Offer (Physical Hold)'
               : isAccepted
               ? 'Reservation Confirmed & Accepted'
               : 'Previous Reservation Offer'}
@@ -128,15 +129,15 @@ export default function ActiveOfferCard({
               letterSpacing: '0.04em',
               textTransform: 'uppercase',
               backgroundColor: isHeld
-                ? '#fef08a'
+                ? '#FEF3C7'
                 : isAccepted
-                ? '#a7f3d0'
-                : '#e2e8f0',
+                ? '#E8F5E9'
+                : '#EEF3EE',
               color: isHeld
-                ? '#854d0e'
+                ? '#B45309'
                 : isAccepted
-                ? '#064e3b'
-                : '#334155',
+                ? '#2E7D32'
+                : '#5C6B64',
               padding: '3px 10px',
               borderRadius: '9999px',
             }}
@@ -150,11 +151,11 @@ export default function ActiveOfferCard({
       <div style={{ padding: '1.25rem' }}>
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem', marginBottom: '1rem' }}>
           <div>
-            <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#0f172a', margin: '0 0 0.25rem 0' }}>
+            <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#1A2421', margin: '0 0 0.25rem 0' }}>
               {reservation.hospital_name || 'Authorized Emergency Facility'}
             </h3>
-            <div style={{ fontSize: '0.825rem', color: '#64748b' }}>
-              Facility ID: <span style={{ fontFamily: 'monospace', color: '#334155' }}>{reservation.hospital_id.slice(0, 18)}...</span>
+            <div style={{ fontSize: '0.8rem', color: '#5C6B64' }}>
+              Facility ID: <span style={{ fontFamily: 'monospace', color: '#1A2421' }}>{reservation.hospital_id.slice(0, 18)}...</span>
             </div>
           </div>
 
@@ -162,27 +163,72 @@ export default function ActiveOfferCard({
           <div
             style={{
               textAlign: 'right',
-              backgroundColor: '#f8fafc',
-              border: '1px solid #e2e8f0',
+              backgroundColor: '#EEF3EE',
+              border: '1px solid #E1E7E1',
               padding: '0.5rem 0.875rem',
               borderRadius: '8px',
             }}
           >
-            <div style={{ fontSize: '0.7rem', color: '#64748b', textTransform: 'uppercase', fontWeight: 700 }}>
+            <div style={{ fontSize: '0.7rem', color: '#5C6B64', textTransform: 'uppercase', fontWeight: 700 }}>
               Physical Bed Lock
             </div>
-            <div style={{ fontSize: '0.95rem', fontWeight: 800, color: '#0284c7' }}>
+            <div style={{ fontSize: '0.95rem', fontWeight: 800, color: '#2D6A4F' }}>
               {reservation.room_number ? `Room ${reservation.room_number}` : 'Designated Acute Bed'}
             </div>
-            <div style={{ fontSize: '0.7rem', color: '#94a3b8', fontFamily: 'monospace' }}>
+            <div style={{ fontSize: '0.7rem', color: '#5C6B64', fontFamily: 'monospace' }}>
               Bed #{reservation.bed_id.slice(0, 8)}
+            </div>
+          </div>
+        </div>
+
+        {/* Operational Telemetry Grid: ETA, Creation Time, Expiration Time */}
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
+            gap: '0.5rem',
+            backgroundColor: '#F4F6F4',
+            padding: '0.625rem 0.75rem',
+            borderRadius: '8px',
+            border: '1px solid #E1E7E1',
+            marginBottom: '1rem',
+            fontSize: '0.75rem',
+          }}
+        >
+          <div>
+            <div style={{ color: '#5C6B64', fontSize: '0.675rem', textTransform: 'uppercase', fontWeight: 700 }}>
+              Estimated Travel ETA
+            </div>
+            <div style={{ fontWeight: 800, color: '#1A2421', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px' }}>
+              <Ambulance size={14} style={{ color: '#2D6A4F' }} />
+              <span>{estimatedEtaMinutes ? `~${estimatedEtaMinutes} min` : 'In Transit'}</span>
+            </div>
+          </div>
+
+          <div>
+            <div style={{ color: '#5C6B64', fontSize: '0.675rem', textTransform: 'uppercase', fontWeight: 700 }}>
+              Offer Creation Time
+            </div>
+            <div style={{ fontWeight: 700, color: '#1A2421', fontSize: '0.825rem', marginTop: '2px' }}>
+              {new Date(reservation.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+            </div>
+          </div>
+
+          <div>
+            <div style={{ color: '#5C6B64', fontSize: '0.675rem', textTransform: 'uppercase', fontWeight: 700 }}>
+              Hold Expiration Time
+            </div>
+            <div style={{ fontWeight: 700, color: '#E11D48', fontSize: '0.825rem', marginTop: '2px' }}>
+              {reservation.hold_expires_at
+                ? new Date(reservation.hold_expires_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+                : '120s from offer'}
             </div>
           </div>
         </div>
 
         {/* Required Medical Capabilities Matched */}
         <div style={{ marginBottom: '1.25rem' }}>
-          <div style={{ fontSize: '0.725rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginBottom: '0.375rem' }}>
+          <div style={{ fontSize: '0.725rem', fontWeight: 700, color: '#5C6B64', textTransform: 'uppercase', marginBottom: '0.375rem' }}>
             Clinical Capabilities Committed
           </div>
           <div style={{ display: 'flex', gap: '0.375rem', flexWrap: 'wrap' }}>
@@ -192,11 +238,11 @@ export default function ActiveOfferCard({
                 style={{
                   fontSize: '0.75rem',
                   fontWeight: 700,
-                  backgroundColor: '#e0f2fe',
-                  color: '#0369a1',
+                  backgroundColor: '#EEF3EE',
+                  color: '#2D6A4F',
                   padding: '3px 8px',
                   borderRadius: '6px',
-                  border: '1px solid #bae6fd',
+                  border: '1px solid #E1E7E1',
                 }}
               >
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
@@ -212,8 +258,8 @@ export default function ActiveOfferCard({
         {isHeld && (
           <div
             style={{
-              backgroundColor: remainingSeconds === 0 ? '#fffbeb' : '#f0fdf4',
-              border: remainingSeconds === 0 ? '1px solid #fde68a' : '1px solid #bbf7d0',
+              backgroundColor: remainingSeconds === 0 ? '#FEF3C7' : '#E8F5E9',
+              border: remainingSeconds === 0 ? '1px solid #FDE68A' : '1px solid #C8E6C9',
               borderRadius: '8px',
               padding: '1rem',
               marginBottom: '1rem',
@@ -221,8 +267,8 @@ export default function ActiveOfferCard({
           >
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
-                <Clock size={16} className="text-emerald-700" />
-                <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#166534' }}>
+                <Clock size={16} style={{ color: '#2E7D32' }} />
+                <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#2E7D32' }}>
                   Authoritative 120s Hold Timer
                 </span>
               </div>
@@ -231,7 +277,7 @@ export default function ActiveOfferCard({
                   fontSize: '1.25rem',
                   fontWeight: 900,
                   fontFamily: 'monospace',
-                  color: remainingSeconds < 20 ? '#dc2626' : '#15803d',
+                  color: remainingSeconds < 20 ? '#E11D48' : '#2E7D32',
                 }}
               >
                 {formatRemainingSeconds(remainingSeconds)} remaining
@@ -243,7 +289,7 @@ export default function ActiveOfferCard({
               style={{
                 width: '100%',
                 height: '6px',
-                backgroundColor: '#e2e8f0',
+                backgroundColor: '#E1E7E1',
                 borderRadius: '9999px',
                 overflow: 'hidden',
                 marginBottom: '0.5rem',
@@ -253,21 +299,21 @@ export default function ActiveOfferCard({
                 style={{
                   width: `${holdPercent}%`,
                   height: '100%',
-                  backgroundColor: remainingSeconds < 20 ? '#ef4444' : '#22c55e',
+                  backgroundColor: remainingSeconds < 20 ? '#E11D48' : '#2E7D32',
                   transition: 'width 1s linear',
                 }}
               />
             </div>
 
             {/* Informational Timer Note */}
-            <div style={{ fontSize: '0.725rem', color: '#4b5563', lineHeight: 1.4 }}>
+            <div style={{ fontSize: '0.725rem', color: '#5C6B64', lineHeight: 1.4 }}>
               {remainingSeconds > 0 ? (
                 <span>
                   Awaiting hospital emergency department acceptance. The physical bed is locked in PostgreSQL against all competing requests.
                 </span>
               ) : (
-                <span style={{ color: '#b45309', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '4px', flexWrap: 'wrap' }}>
-                  <AlertTriangle size={14} className="text-amber-600 shrink-0" />
+                <span style={{ color: '#B45309', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '4px', flexWrap: 'wrap' }}>
+                  <AlertTriangle size={14} style={{ color: '#B45309', flexShrink: 0 }} />
                   <span>
                     Local hold window has reached 00:00. Hold expiration and fallback are governed authoritatively by server clocks. Please{' '}
                     <button
@@ -275,7 +321,7 @@ export default function ActiveOfferCard({
                       style={{
                         background: 'none',
                         border: 'none',
-                        color: '#0284c7',
+                        color: '#2D6A4F',
                         fontWeight: 700,
                         cursor: 'pointer',
                         padding: 0,
@@ -296,17 +342,17 @@ export default function ActiveOfferCard({
         {isAccepted && (
           <div
             style={{
-              backgroundColor: '#ecfdf5',
-              border: '1px solid #a7f3d0',
+              backgroundColor: '#E8F5E9',
+              border: '1px solid #C8E6C9',
               borderRadius: '8px',
               padding: '0.875rem 1rem',
-              color: '#065f46',
+              color: '#2E7D32',
               fontSize: '0.825rem',
               lineHeight: 1.4,
             }}
           >
             <div style={{ fontWeight: 800, marginBottom: '0.25rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <Ambulance size={18} className="text-emerald-700" />
+              <Ambulance size={18} style={{ color: '#2E7D32' }} />
               <span>Route Confirmed: Patient In Transit</span>
             </div>
             <div>
@@ -319,3 +365,4 @@ export default function ActiveOfferCard({
     </div>
   )
 }
+
