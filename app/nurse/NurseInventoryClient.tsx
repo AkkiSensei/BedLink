@@ -11,7 +11,7 @@ import {
 import BedCard from './BedCard'
 import { subscribeNurseBeds, type RealtimeConnectionStatus } from '@/lib/realtime'
 import { logoutAction } from '../actions/auth'
-import { Loader2, RotateCw, X, Bed, Check, ShieldCheck } from 'lucide-react'
+import { Loader2, RotateCw, X, Bed, Check, ShieldCheck, UserPlus, UserMinus } from 'lucide-react'
 
 interface NurseInventoryClientProps {
   initialBeds: NurseBedView[]
@@ -78,6 +78,22 @@ export default function NurseInventoryClient({
   const heldCount = beds.filter((b) => b.status === 'held').length
   const occupiedCount = beds.filter((b) => b.status === 'occupied').length
   const maintCount = beds.filter((b) => b.status === 'maintenance').length
+
+  // Next eligible beds for one-tap capacity adjustments
+  const nextAvailableBed = beds.find((b) => b.status === 'available')
+  const nextOccupiedBed = beds.find((b) => b.status === 'occupied')
+
+  const handleQuickAdmit = () => {
+    if (nextAvailableBed && !updatingBedId) {
+      handleStatusChange(nextAvailableBed.id, 'occupied')
+    }
+  }
+
+  const handleQuickDischarge = () => {
+    if (nextOccupiedBed && !updatingBedId) {
+      handleStatusChange(nextOccupiedBed.id, 'available')
+    }
+  }
 
   // Filtered beds
   const displayedBeds = beds.filter((b) => {
@@ -484,6 +500,108 @@ export default function NurseInventoryClient({
           <div style={{ fontSize: '0.7rem', color: '#1E293B', fontWeight: 600 }}>
             OCCUPIED
           </div>
+        </div>
+      </section>
+
+      {/* 2b. Quick One-Tap Physical Bed Capacity Controls */}
+      <section
+        style={{
+          backgroundColor: '#FFFFFF',
+          borderRadius: '8px',
+          border: '1px solid #E1E7E1',
+          padding: '0.875rem',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '0.625rem',
+          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)',
+        }}
+        aria-label="Quick bed capacity adjustment"
+      >
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <span
+            style={{
+              fontSize: '0.75rem',
+              fontWeight: 800,
+              color: '#1A2421',
+              textTransform: 'uppercase',
+              letterSpacing: '0.04em',
+            }}
+          >
+            Quick Capacity Adjustment
+          </span>
+          <span style={{ fontSize: '0.72rem', color: '#5C6B64' }}>
+            Authoritative Physical Bed (1 Tap)
+          </span>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+          {/* Quick Admit: Next Available -> Occupied */}
+          <button
+            type="button"
+            disabled={!nextAvailableBed || Boolean(updatingBedId) || isPending}
+            onClick={handleQuickAdmit}
+            style={{
+              minHeight: '48px',
+              padding: '8px 10px',
+              borderRadius: '6px',
+              border: !nextAvailableBed ? '1px solid #E1E7E1' : '1px solid #A7F3D0',
+              backgroundColor: !nextAvailableBed ? '#F1F5F9' : '#E8F5E9',
+              color: !nextAvailableBed ? '#94A3B8' : '#1B4332',
+              fontSize: '0.825rem',
+              fontWeight: 700,
+              cursor: !nextAvailableBed || Boolean(updatingBedId) || isPending ? 'not-allowed' : 'pointer',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '2px',
+              transition: 'all 0.15s ease',
+            }}
+            title={!nextAvailableBed ? 'No available physical beds to admit' : `Admit patient to ${nextAvailableBed.room_number || 'next bed'}`}
+            aria-label="Quick Admit Next Patient"
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+              <UserPlus size={15} />
+              <span>Quick Admit</span>
+            </div>
+            <span style={{ fontSize: '0.68rem', fontWeight: 500, color: !nextAvailableBed ? '#94A3B8' : '#2D6A4F' }}>
+              {nextAvailableBed ? `${nextAvailableBed.room_number || 'Bed'} → Occupied` : '0 Available'}
+            </span>
+          </button>
+
+          {/* Quick Discharge: Next Occupied -> Available */}
+          <button
+            type="button"
+            disabled={!nextOccupiedBed || Boolean(updatingBedId) || isPending}
+            onClick={handleQuickDischarge}
+            style={{
+              minHeight: '48px',
+              padding: '8px 10px',
+              borderRadius: '6px',
+              border: !nextOccupiedBed ? '1px solid #E1E7E1' : '1px solid #CBD5E1',
+              backgroundColor: !nextOccupiedBed ? '#F1F5F9' : '#FFFFFF',
+              color: !nextOccupiedBed ? '#94A3B8' : '#1A2421',
+              fontSize: '0.825rem',
+              fontWeight: 700,
+              cursor: !nextOccupiedBed || Boolean(updatingBedId) || isPending ? 'not-allowed' : 'pointer',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '2px',
+              transition: 'all 0.15s ease',
+            }}
+            title={!nextOccupiedBed ? 'No occupied physical beds to discharge' : `Discharge patient from ${nextOccupiedBed.room_number || 'next bed'}`}
+            aria-label="Quick Discharge Next Patient"
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+              <UserMinus size={15} />
+              <span>Quick Discharge</span>
+            </div>
+            <span style={{ fontSize: '0.68rem', fontWeight: 500, color: !nextOccupiedBed ? '#94A3B8' : '#5C6B64' }}>
+              {nextOccupiedBed ? `${nextOccupiedBed.room_number || 'Bed'} → Available` : '0 Occupied'}
+            </span>
+          </button>
         </div>
       </section>
 
