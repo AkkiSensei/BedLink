@@ -44,7 +44,7 @@ export default function DispatchDashboardClient({
   useEffect(() => {
     if (!userId) return
 
-    const unsubscribe = subscribeDispatchWorkflow({
+    const handle = subscribeDispatchWorkflow({
       userId,
       onStatusChange: (status) => setRealtimeStatus(status),
       onReconcile: async () => {
@@ -67,7 +67,7 @@ export default function DispatchDashboardClient({
     })
 
     return () => {
-      unsubscribe()
+      handle.unsubscribe()
     }
   }, [userId])
 

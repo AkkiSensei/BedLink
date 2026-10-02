@@ -128,7 +128,7 @@ async function runRealtimeVerification() {
 
   // 1.1 Nurse subscription scope
   let nurseReconcileCount = 0
-  let nurseStatus: RealtimeConnectionStatus = 'CONNECTING'
+  let nurseStatus: string = 'CONNECTING'
   const nurseHandle = subscribeNurseBeds(
     {
       hospitalId: DEMO_IDENTITIES.NURSE_APEX.hospitalId!,
@@ -156,7 +156,7 @@ async function runRealtimeVerification() {
 
   // 1.2 Dispatch subscription scope
   let dispatchReconcileCount = 0
-  let dispatchStatus: RealtimeConnectionStatus = 'CONNECTING'
+  let dispatchStatus: string = 'CONNECTING'
   const dispatchHandle = subscribeDispatchWorkflow(
     {
       userId: DEMO_IDENTITIES.DISPATCH_1.userId,
@@ -188,7 +188,7 @@ async function runRealtimeVerification() {
 
   // 1.3 Hospital subscription scope
   let hospitalReconcileCount = 0
-  let hospitalStatus: RealtimeConnectionStatus = 'CONNECTING'
+  let hospitalStatus: string = 'CONNECTING'
   const hospitalHandle = subscribeHospitalOffers(
     {
       hospitalId: DEMO_IDENTITIES.HOSPITAL_APEX.hospitalId!,
@@ -282,7 +282,7 @@ async function runRealtimeVerification() {
 
   // 3.2 Reconnect resync test
   let reconnectReconcileCount = 0
-  let reconnectStatus: RealtimeConnectionStatus = 'CONNECTING'
+  let reconnectStatus: string = 'CONNECTING'
   const reconnectClient = createMockRealtimeClient()
   const testHandle = subscribeNurseBeds(
     {
@@ -580,7 +580,6 @@ async function runRealtimeVerification() {
   const rejectResult = await rejectHospitalReservation(
     {
       reservationId: res2.id,
-      reason: 'diverting_icu_cases',
     },
     testClient
   )
@@ -595,7 +594,7 @@ async function runRealtimeVerification() {
   )
   assert(
     refreshedReq2.active_reservation?.attempt_number === 2 ||
-      refreshedReq2.reservation_history.length >= 2,
+      (refreshedReq2.reservation_history?.length ?? 0) >= 2,
     'TEST 5.13: Dynamic fallback engine initiated Attempt #2'
   )
 

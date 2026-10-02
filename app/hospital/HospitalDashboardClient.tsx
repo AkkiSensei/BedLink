@@ -32,7 +32,7 @@ export default function HospitalDashboardClient({
   useEffect(() => {
     if (!hospitalId) return
 
-    const unsubscribe = subscribeHospitalOffers({
+    const handle = subscribeHospitalOffers({
       hospitalId,
       onStatusChange: (status) => setRealtimeStatus(status),
       onReconcile: async () => {
@@ -48,7 +48,7 @@ export default function HospitalDashboardClient({
     })
 
     return () => {
-      unsubscribe()
+      handle.unsubscribe()
     }
   }, [hospitalId])
 
