@@ -85,57 +85,70 @@ export default async function HospitalPage({
     return (
       <div
         style={{
-          maxWidth: '520px',
-          margin: '3rem auto',
-          padding: '2rem',
-          backgroundColor: '#ffffff',
-          borderRadius: '12px',
-          border: '1px solid #e2e8f0',
-          textAlign: 'center',
-          boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
+          minHeight: '100vh',
+          backgroundColor: '#F4F6F4',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '1.5rem',
+          fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
         }}
       >
-        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1rem' }}>
-          <Lock size={40} className="text-slate-500" />
-        </div>
-        <h1 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#0f172a' }}>
-          Access Restricted
-        </h1>
-        <p style={{ fontSize: '0.9rem', color: '#64748b', marginTop: '0.5rem', lineHeight: 1.5 }}>
-          The Hospital Response Console is accessible only to authenticated operational staff with the <strong>hospital</strong> or <strong>admin</strong> role. Please sign in with authorized hospital staff credentials.
-        </p>
-        <div style={{ marginTop: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-          <a
-            href="/login?role=hospital"
-            style={{
-              display: 'inline-block',
-              padding: '10px 16px',
-              backgroundColor: '#0284c7',
-              color: '#ffffff',
-              borderRadius: '8px',
-              fontWeight: 600,
-              fontSize: '0.85rem',
-              textDecoration: 'none',
-            }}
-          >
-            Sign In with Hospital PIN
-          </a>
-          <a
-            href="/login"
-            style={{
-              display: 'inline-block',
-              padding: '8px 16px',
-              backgroundColor: '#f1f5f9',
-              color: '#334155',
-              borderRadius: '8px',
-              fontWeight: 500,
-              fontSize: '0.8rem',
-              textDecoration: 'none',
-              border: '1px solid #e2e8f0',
-            }}
-          >
-            Switch Role or Return to Login
-          </a>
+        <div
+          style={{
+            maxWidth: '480px',
+            width: '100%',
+            backgroundColor: '#FFFFFF',
+            borderRadius: '12px',
+            border: '1px solid #E1E7E1',
+            padding: '2.5rem 2rem',
+            textAlign: 'center',
+            boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)',
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1rem' }}>
+            <Lock size={40} style={{ color: '#5C6B64' }} />
+          </div>
+          <h1 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#1A2421', margin: '0 0 0.5rem 0' }}>
+            Hospital Access Restricted
+          </h1>
+          <p style={{ fontSize: '0.9rem', color: '#5C6B64', lineHeight: 1.5, margin: 0 }}>
+            The Emergency Hospital Response Console is accessible only to authenticated users with the{' '}
+            <strong>Hospital Staff</strong> role. Please sign in with authorized credentials.
+          </p>
+          <div style={{ marginTop: '1.75rem', display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
+            <a
+              href="/login?role=hospital"
+              style={{
+                display: 'inline-block',
+                padding: '11px 18px',
+                backgroundColor: '#2D6A4F',
+                color: '#FFFFFF',
+                borderRadius: '8px',
+                fontWeight: 600,
+                fontSize: '0.875rem',
+                textDecoration: 'none',
+              }}
+            >
+              Sign In as Hospital Staff
+            </a>
+            <a
+              href="/login"
+              style={{
+                display: 'inline-block',
+                padding: '9px 18px',
+                backgroundColor: '#EEF3EE',
+                color: '#1A2421',
+                borderRadius: '8px',
+                fontWeight: 500,
+                fontSize: '0.825rem',
+                textDecoration: 'none',
+                border: '1px solid #E1E7E1',
+              }}
+            >
+              Switch Role or Return to Login
+            </a>
+          </div>
         </div>
       </div>
     )
@@ -175,7 +188,7 @@ export default async function HospitalPage({
       hospitalId={targetHospitalId || ''}
       hospitalName={hospitalName}
       hospitalCity={hospitalCity}
-      staffName={profile.full_name || 'Hospital Operations'}
+      staffName={profile.full_name || 'Hospital Staff'}
       staffRole={profile.role}
     />
   )

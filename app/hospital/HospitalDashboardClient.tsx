@@ -42,14 +42,59 @@ export default function HospitalDashboardClient({
   // Calculate active held count
   const activeHeldCount = reservations.filter((r) => r.status === 'held').length
 
-  // Sound chime when a new offer arrives
-  const prevHeldCountRef = useRef(activeHeldCount)
+  // Sound chime ONLY when a new un-alerted active offer arrives
+  const alertedReservationIdsRef = useRef<Set<string>>(new Set(initialReservations.map((r) => r.id)))
   useEffect(() => {
-    if (activeHeldCount > prevHeldCountRef.current) {
+    const newlyArrivedHeld = reservations.filter(
+      (r) => r.status === 'held' && !alertedReservationIdsRef.current.has(r.id)
+    )
+
+    if (newlyArrivedHeld.length > 0) {
+      newlyArrivedHeld.forEach((r) => alertedReservationIdsRef.current.add(r.id))
       playAlertChime()
     }
-    prevHeldCountRef.current = activeHeldCount
-  }, [activeHeldCount])
+  }, [reservations])
+
+  // Re-sync on visibility change (when tab regains focus) and online events
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible' && hospitalId) {
+        refreshHospitalReservationsAction({ targetHospitalId: hospitalId })
+          .then((res) => {
+            if (res.success && res.reservations) {
+              setReservations(res.reservations)
+              if (res.serverTime) {
+                setServerClockOffsetMs(new Date(res.serverTime).getTime() - Date.now())
+              }
+            }
+          })
+          .catch(() => {})
+      }
+    }
+
+    const handleOnline = () => {
+      if (hospitalId) {
+        refreshHospitalReservationsAction({ targetHospitalId: hospitalId })
+          .then((res) => {
+            if (res.success && res.reservations) {
+              setReservations(res.reservations)
+              if (res.serverTime) {
+                setServerClockOffsetMs(new Date(res.serverTime).getTime() - Date.now())
+              }
+            }
+          })
+          .catch(() => {})
+      }
+    }
+
+    document.addEventListener('visibilitychange', handleVisibility)
+    window.addEventListener('online', handleOnline)
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibility)
+      window.removeEventListener('online', handleOnline)
+    }
+  }, [hospitalId])
 
   // Subscribe to real-time incoming and updated hospital offers
   useEffect(() => {
@@ -146,15 +191,23 @@ export default function HospitalDashboardClient({
   }
 
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: '#f8fafc', color: '#0f172a' }}>
+    <div
+      style={{
+        minHeight: '100vh',
+        width: '100%',
+        overflowX: 'hidden',
+        backgroundColor: '#F4F6F4',
+        color: '#1A2421',
+        fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+      }}
+    >
       {/* Top Operational Header */}
       <header
         style={{
-          backgroundColor: '#0f172a',
-          color: '#ffffff',
-          padding: '1rem 1.5rem',
-          borderBottom: '3px solid #0284c7',
-          boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+          backgroundColor: '#1A2421',
+          color: '#FFFFFF',
+          padding: '0.875rem 1.5rem',
+          borderBottom: '1px solid #2D3E37',
         }}
       >
         <div
@@ -169,39 +222,36 @@ export default function HospitalDashboardClient({
           }}
         >
           {/* Brand & Context */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.875rem' }}>
             <div
               style={{
                 width: '38px',
                 height: '38px',
                 borderRadius: '8px',
-                backgroundColor: '#0284c7',
+                backgroundColor: '#2D6A4F',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                fontSize: '1.25rem',
-                fontWeight: 900,
-                color: '#ffffff',
+                color: '#FFFFFF',
               }}
             >
-              <Building2 size={22} className="text-white" />
+              <Building2 size={20} />
             </div>
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-                <span style={{ fontSize: '1.25rem', fontWeight: 800, letterSpacing: '-0.025em' }}>
+                <span style={{ fontSize: '1.15rem', fontWeight: 800, letterSpacing: '-0.02em' }}>
                   BedLink
                 </span>
                 <span
                   style={{
-                    backgroundColor: '#1e293b',
-                    color: '#38bdf8',
+                    backgroundColor: '#2D6A4F',
+                    color: '#FFFFFF',
                     padding: '2px 8px',
-                    borderRadius: '4px',
-                    fontSize: '0.75rem',
-                    fontWeight: 700,
+                    borderRadius: '9999px',
+                    fontSize: '0.7rem',
+                    fontWeight: 800,
                     textTransform: 'uppercase',
                     letterSpacing: '0.05em',
-                    border: '1px solid #334155',
                   }}
                 >
                   Hospital Staff Console
@@ -214,9 +264,9 @@ export default function HospitalDashboardClient({
                       gap: '4px',
                       fontSize: '0.675rem',
                       fontWeight: 700,
-                      color: '#34d399',
-                      backgroundColor: 'rgba(16, 185, 129, 0.15)',
-                      border: '1px solid rgba(16, 185, 129, 0.3)',
+                      color: '#2E7D32',
+                      backgroundColor: '#E8F5E9',
+                      border: '1px solid #C8E6C9',
                       borderRadius: '9999px',
                       padding: '2px 7px',
                     }}
@@ -224,10 +274,10 @@ export default function HospitalDashboardClient({
                   >
                     <span
                       style={{
-                        width: '5px',
-                        height: '5px',
+                        width: '6px',
+                        height: '6px',
                         borderRadius: '50%',
-                        backgroundColor: '#34d399',
+                        backgroundColor: '#2E7D32',
                       }}
                     />
                     LIVE
@@ -237,8 +287,8 @@ export default function HospitalDashboardClient({
                     style={{
                       fontSize: '0.675rem',
                       fontWeight: 600,
-                      color: '#f59e0b',
-                      backgroundColor: 'rgba(245, 158, 11, 0.15)',
+                      color: '#B45309',
+                      backgroundColor: '#FEF3C7',
                       padding: '2px 7px',
                       borderRadius: '9999px',
                     }}
@@ -250,33 +300,33 @@ export default function HospitalDashboardClient({
                     style={{
                       fontSize: '0.675rem',
                       fontWeight: 600,
-                      color: '#94a3b8',
-                      backgroundColor: 'rgba(148, 163, 184, 0.15)',
+                      color: '#E11D48',
+                      backgroundColor: '#FFF1F2',
                       padding: '2px 7px',
                       borderRadius: '9999px',
                     }}
                   >
-                    Offline
+                    Offline Reconnecting
                   </span>
                 )}
                 {activeHeldCount > 0 && (
                   <span
                     style={{
-                      backgroundColor: '#dc2626',
-                      color: '#ffffff',
+                      backgroundColor: '#E11D48',
+                      color: '#FFFFFF',
                       padding: '2px 8px',
-                      borderRadius: '12px',
-                      fontSize: '0.75rem',
+                      borderRadius: '9999px',
+                      fontSize: '0.7rem',
                       fontWeight: 800,
-                      animation: 'pulse 2s infinite',
+                      letterSpacing: '0.03em',
                     }}
                   >
                     {activeHeldCount} Active Offer{activeHeldCount > 1 ? 's' : ''}
                   </span>
                 )}
               </div>
-              <div style={{ fontSize: '0.85rem', color: '#94a3b8', marginTop: '2px' }}>
-                {hospitalName} • <span style={{ color: '#cbd5e1' }}>{hospitalCity}</span>
+              <div style={{ fontSize: '0.8rem', color: '#A3B0A9', marginTop: '2px' }}>
+                {hospitalName} • <span style={{ color: '#E1E7E1' }}>{hospitalCity}</span>
               </div>
             </div>
           </div>
@@ -284,10 +334,10 @@ export default function HospitalDashboardClient({
           {/* User profile & Action */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.875rem' }}>
             <div style={{ textAlign: 'right' }}>
-              <div style={{ fontSize: '0.85rem', fontWeight: 600, color: '#f1f5f9' }}>
+              <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#FFFFFF' }}>
                 {staffName}
               </div>
-              <div style={{ fontSize: '0.75rem', color: '#93c5fd', fontWeight: 600 }}>
+              <div style={{ fontSize: '0.725rem', color: '#C8E6C9', fontWeight: 600 }}>
                 Hospital Staff
               </div>
             </div>
@@ -297,12 +347,12 @@ export default function HospitalDashboardClient({
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
-                gap: '0.5rem',
+                gap: '0.375rem',
                 padding: '7px 12px',
-                backgroundColor: '#1e293b',
-                color: '#f8fafc',
-                border: '1px solid #334155',
-                borderRadius: '8px',
+                backgroundColor: '#2D3E37',
+                color: '#FFFFFF',
+                border: '1px solid #3F554B',
+                borderRadius: '6px',
                 fontSize: '0.8rem',
                 fontWeight: 600,
                 cursor: isRefreshing ? 'not-allowed' : 'pointer',
@@ -314,7 +364,7 @@ export default function HospitalDashboardClient({
               <span style={{ display: 'inline-flex', alignItems: 'center' }}>
                 <RotateCw size={14} className={isRefreshing ? 'animate-spin' : ''} />
               </span>
-              {isRefreshing ? 'Refreshing...' : 'Refresh'}
+              {isRefreshing ? 'Syncing...' : 'Sync'}
             </button>
             <form action={logoutAction}>
               <button
@@ -322,15 +372,15 @@ export default function HospitalDashboardClient({
                 style={{
                   padding: '7px 12px',
                   backgroundColor: 'transparent',
-                  color: '#94a3b8',
-                  border: '1px solid #334155',
-                  borderRadius: '8px',
+                  color: '#A3B0A9',
+                  border: '1px solid #3F554B',
+                  borderRadius: '6px',
                   fontSize: '0.8rem',
                   fontWeight: 600,
                   cursor: 'pointer',
                   transition: 'color 0.2s, border-color 0.2s',
                 }}
-                title="Sign out of Hospital Console"
+                title="Sign out of Hospital Staff Console"
                 aria-label="Sign out"
               >
                 Sign Out
@@ -349,18 +399,19 @@ export default function HospitalDashboardClient({
             style={{
               marginBottom: '1rem',
               padding: '0.75rem 1rem',
-              backgroundColor: '#fffbeb',
-              border: '1px solid #fde68a',
+              backgroundColor: '#FEF3C7',
+              border: '1px solid #FDE68A',
               borderRadius: '8px',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
               flexWrap: 'wrap',
               gap: '0.75rem',
+              color: '#B45309',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', color: '#92400e' }}>
-              <AlertTriangle size={18} className="text-amber-600 shrink-0" />
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
+              <AlertTriangle size={18} style={{ color: '#B45309', flexShrink: 0 }} />
               <div>
                 <span style={{ fontWeight: 700 }}>Realtime Sync Offline ({realtimeStatus}).</span>{' '}
                 <span style={{ fontSize: '0.85rem' }}>
@@ -376,8 +427,8 @@ export default function HospitalDashboardClient({
                 alignItems: 'center',
                 gap: '4px',
                 padding: '5px 12px',
-                backgroundColor: '#b45309',
-                color: '#ffffff',
+                backgroundColor: '#B45309',
+                color: '#FFFFFF',
                 border: 'none',
                 borderRadius: '6px',
                 fontSize: '0.75rem',
@@ -396,10 +447,10 @@ export default function HospitalDashboardClient({
             style={{
               marginBottom: '1rem',
               padding: '0.75rem 1rem',
-              backgroundColor: '#fef2f2',
-              border: '1px solid #fecaca',
+              backgroundColor: '#FFF1F2',
+              border: '1px solid #FECDD3',
               borderRadius: '8px',
-              color: '#991b1b',
+              color: '#E11D48',
               fontSize: '0.85rem',
               display: 'flex',
               alignItems: 'center',
@@ -407,12 +458,12 @@ export default function HospitalDashboardClient({
             }}
           >
             <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <AlertTriangle size={16} className="text-red-600 shrink-0" />
+              <AlertTriangle size={16} style={{ color: '#E11D48', flexShrink: 0 }} />
               {refreshError}
             </span>
             <button
               onClick={() => setRefreshError(null)}
-              style={{ background: 'none', border: 'none', color: '#991b1b', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+              style={{ background: 'none', border: 'none', color: '#E11D48', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
               aria-label="Dismiss error"
             >
               <X size={16} />
@@ -428,25 +479,26 @@ export default function HospitalDashboardClient({
             justifyContent: 'space-between',
             marginBottom: '1.25rem',
             paddingBottom: '0.75rem',
-            borderBottom: '1px solid #e2e8f0',
+            borderBottom: '1px solid #E1E7E1',
           }}
         >
           <div>
-            <h1 style={{ fontSize: '1.35rem', fontWeight: 800, color: '#0f172a' }}>
-              Active Emergency Bed Offers
+            <h1 style={{ fontSize: '1.35rem', fontWeight: 800, color: '#1A2421', margin: 0 }}>
+              Incoming Emergency Bed Offers
             </h1>
-            <p style={{ fontSize: '0.85rem', color: '#64748b', marginTop: '2px' }}>
-              Authoritative reservation holds currently placed with {hospitalName}. Accept or reject within the 120s response window.
+            <p style={{ fontSize: '0.85rem', color: '#5C6B64', marginTop: '3px', margin: '3px 0 0 0' }}>
+              Authoritative reservation holds currently placed with {hospitalName}. Review and accept or reject within the 120s response window.
             </p>
           </div>
           <div
             style={{
               fontSize: '0.8rem',
-              color: '#475569',
-              backgroundColor: '#e2e8f0',
+              color: '#2D6A4F',
+              backgroundColor: '#EEF3EE',
+              border: '1px solid #E1E7E1',
               padding: '4px 10px',
               borderRadius: '6px',
-              fontWeight: 600,
+              fontWeight: 700,
             }}
           >
             Queue count: {sortedReservations.length}
@@ -459,28 +511,28 @@ export default function HospitalDashboardClient({
             style={{
               padding: '4rem 2rem',
               textAlign: 'center',
-              backgroundColor: '#ffffff',
+              backgroundColor: '#FFFFFF',
               borderRadius: '12px',
-              border: '1px dashed #cbd5e1',
-              boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+              border: '1px dashed #E1E7E1',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
             }}
           >
             <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1rem' }}>
-              <Inbox size={48} className="text-slate-400" />
+              <Inbox size={48} style={{ color: '#5C6B64' }} />
             </div>
-            <h2 style={{ fontSize: '1.2rem', fontWeight: 700, color: '#1e293b' }}>
-              No active bed offers.
+            <h2 style={{ fontSize: '1.2rem', fontWeight: 700, color: '#1A2421', margin: '0 0 0.5rem 0' }}>
+              No active emergency bed offers.
             </h2>
-            <p style={{ fontSize: '0.9rem', color: '#64748b', maxWidth: '420px', margin: '0.5rem auto 1.5rem' }}>
-              There are currently no emergency reservation holds placed at this facility. When EMS Dispatch matches a patient to your available beds, the offer will appear here.
+            <p style={{ fontSize: '0.9rem', color: '#5C6B64', maxWidth: '420px', margin: '0.5rem auto 1.5rem', lineHeight: 1.4 }}>
+              There are currently no emergency reservation holds placed at this facility. When an emergency bed request matches your available beds, the offer will appear here immediately.
             </p>
             <button
               onClick={handleRefresh}
               disabled={isRefreshing}
               style={{
-                padding: '8px 16px',
-                backgroundColor: '#0284c7',
-                color: '#ffffff',
+                padding: '9px 18px',
+                backgroundColor: '#2D6A4F',
+                color: '#FFFFFF',
                 border: 'none',
                 borderRadius: '8px',
                 fontWeight: 600,
