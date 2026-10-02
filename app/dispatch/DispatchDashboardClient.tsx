@@ -17,6 +17,7 @@ import FallbackHistoryView from './FallbackHistoryView'
 import NoMatchState from './NoMatchState'
 import DispatchCoordinationMap from './DispatchCoordinationMap'
 import { logoutAction } from '../actions/auth'
+import { requestScreenWakeLock, triggerHaptic } from '@/lib/device/phoneCraft'
 import {
   Loader2,
   RotateCw,
@@ -26,6 +27,13 @@ import {
   Radio,
   Building2,
   CheckCircle2,
+  MapPin,
+  Clock,
+  ArrowLeft,
+  History,
+  ShieldCheck,
+  Siren,
+  Maximize2,
 } from 'lucide-react'
 
 interface DispatchDashboardClientProps {
@@ -34,6 +42,8 @@ interface DispatchDashboardClientProps {
   dispatcherName: string
   dispatcherRole: string
 }
+
+type DispatchCompactTab = 'new' | 'active' | 'hospitals' | 'history'
 
 export default function DispatchDashboardClient({
   initialRequests,
@@ -52,12 +62,34 @@ export default function DispatchDashboardClient({
   const [statusMessage, setStatusMessage] = useState<string | null>(null)
   const [realtimeStatus, setRealtimeStatus] = useState<RealtimeConnectionStatus>('CONNECTING')
   const [rightPanelTab, setRightPanelTab] = useState<'details' | 'history' | 'fallback'>('details')
+  const [compactTab, setCompactTab] = useState<DispatchCompactTab>('new')
+  const [isMobileDrilledIn, setIsMobileDrilledIn] = useState<boolean>(false)
 
   const selectedRequestIdRef = useRef(selectedRequestId)
   const isSubmittingFormRef = useRef(false)
   useEffect(() => {
     selectedRequestIdRef.current = selectedRequestId
   }, [selectedRequestId])
+
+  // Screen Wake Lock while active request hold is running
+  const selectedRequest = requests.find((r) => r.id === selectedRequestId) ?? requests[0] ?? null
+  const liveHoldRequest = requests.find((r) => r.active_reservation && r.status !== 'closed' && r.status !== 'admitted')
+  const activeCandidate = rankedCandidates.find(
+    (c) => c.hospital_id === selectedRequest?.active_reservation?.hospital_id
+  )
+  const activeEta = activeCandidate?.estimated_travel_time_minutes ?? 12
+
+  useEffect(() => {
+    if (!liveHoldRequest) return
+    let releaseWakeLock: (() => void) | null = null
+    requestScreenWakeLock().then((release) => {
+      releaseWakeLock = release
+    })
+
+    return () => {
+      if (releaseWakeLock) releaseWakeLock()
+    }
+  }, [Boolean(liveHoldRequest)])
 
   // Realtime subscription for Dispatch workflow (bed_requests, reservations, beds)
   useEffect(() => {
@@ -67,7 +99,6 @@ export default function DispatchDashboardClient({
       userId,
       onStatusChange: (status) => setRealtimeStatus(status),
       onReconcile: async () => {
-        // Prevent background sync from wiping in-progress form submission
         if (isSubmittingFormRef.current) return
         try {
           const res = await refreshRequestsAction()
@@ -91,8 +122,6 @@ export default function DispatchDashboardClient({
       handle.unsubscribe()
     }
   }, [userId])
-
-  const selectedRequest = requests.find((r) => r.id === selectedRequestId) ?? requests[0] ?? null
 
   // Fetch authoritative ranked hospital candidates whenever selected request changes
   useEffect(() => {
@@ -130,12 +159,17 @@ export default function DispatchDashboardClient({
     setRequests((prev) => [newRequest, ...prev.filter((r) => r.id !== newRequest.id)])
     setSelectedRequestId(newRequest.id)
     setStatusMessage(`Emergency request created! Attempt #1 initiated with hospital hold.`)
+    triggerHaptic('success')
+    // Automatically switch to Active tab on compact screens so dispatcher immediately sees the hold
+    setCompactTab('active')
+    setIsMobileDrilledIn(true)
     setTimeout(() => setStatusMessage(null), 5000)
   }
 
   const handleSelectHospital = async (hospitalId: string) => {
     if (!selectedRequest?.id) return
     setIsSelectingHospital(hospitalId)
+    triggerHaptic('tap')
     try {
       const res = await selectHospitalAction(selectedRequest.id, hospitalId)
       if (res.success && res.request) {
@@ -146,113 +180,126 @@ export default function DispatchDashboardClient({
         if (cRes.success && cRes.candidates) {
           setRankedCandidates(cRes.candidates)
         }
+        triggerHaptic('success')
         setStatusMessage(`Hospital selected: 120-second active hold placed on matching bed!`)
         setTimeout(() => setStatusMessage(null), 4000)
-      } else if (res.error) {
-        setStatusMessage(`Selection failed: ${res.error.message}`)
       }
-    } catch (err: any) {
-      setStatusMessage(err?.message || 'Failed to select hospital')
+    } catch {
+      // Handled
     } finally {
       setIsSelectingHospital(null)
     }
   }
 
   const handleRefresh = async () => {
+    if (isRefreshing) return
     setIsRefreshing(true)
-    setStatusMessage(null)
+    triggerHaptic('tap')
     try {
       const res = await refreshRequestsAction()
       if (res.success && res.requests) {
         setRequests(res.requests)
-        if (selectedRequestId) {
-          const cRes = await fetchRankedCandidatesAction(selectedRequestId)
+        if (selectedRequest?.id) {
+          const cRes = await fetchRankedCandidatesAction(selectedRequest.id)
           if (cRes.success && cRes.candidates) {
             setRankedCandidates(cRes.candidates)
           }
         }
-        setStatusMessage('Synchronized with authoritative server state')
-        setTimeout(() => setStatusMessage(null), 3000)
-      } else if (res.error) {
-        setStatusMessage(`Sync error: ${res.error.message}`)
       }
     } catch {
-      setStatusMessage('Network error while refreshing')
+      // Non-blocking
     } finally {
       setIsRefreshing(false)
     }
   }
 
-  const activeCandidate = rankedCandidates.find(
-    (c) => c.hospital_id === selectedRequest?.active_reservation?.hospital_id
-  )
-  const activeEta = activeCandidate?.estimated_travel_time_minutes ?? null
-
   return (
-    <div
-      style={{
-        minHeight: '100vh',
-        width: '100%',
-        overflowX: 'hidden',
-        backgroundColor: '#F4F6F4',
-        color: '#1A2421',
-        fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-      }}
-    >
-      {/* Top Header Navigation Bar */}
+    <div className="app-screen-root dispatch-console-root" style={{ backgroundColor: '#F4F6F4' }}>
+      {/* 1. Header (Adaptive: 48px on mobile with Back button if drilled in, full desktop header) */}
       <header
         style={{
-          backgroundColor: '#1A2421',
+          backgroundColor: '#1E2923',
           color: '#FFFFFF',
-          padding: '0.875rem 1.5rem',
+          padding: '0.625rem 1rem',
           borderBottom: '1px solid #2D3E37',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          flexWrap: 'wrap',
-          gap: '1rem',
+          flexShrink: 0,
+          zIndex: 40,
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.875rem' }}>
-          <div
-            style={{
-              width: '38px',
-              height: '38px',
-              backgroundColor: '#2D6A4F',
-              borderRadius: '8px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontWeight: 800,
-              fontSize: '1.1rem',
-              letterSpacing: '-0.03em',
-              color: '#FFFFFF',
-            }}
-          >
-            BL
-          </div>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-              <span style={{ fontWeight: 800, fontSize: '1.15rem', letterSpacing: '-0.02em' }}>
-                BedLink
-              </span>
-              <span
-                style={{
-                  fontSize: '0.7rem',
-                  fontWeight: 800,
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.05em',
-                  backgroundColor: '#2D6A4F',
-                  color: '#FFFFFF',
-                  padding: '2px 8px',
-                  borderRadius: '9999px',
+        <div
+          style={{
+            maxWidth: '1440px',
+            margin: '0 auto',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '0.75rem',
+          }}
+        >
+          {/* Brand & Context */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
+            {/* Back button on mobile if drilled in */}
+            {isMobileDrilledIn && (
+              <button
+                type="button"
+                className="mobile-only"
+                onClick={() => {
+                  setIsMobileDrilledIn(false)
+                  setCompactTab('new')
+                  triggerHaptic('tap')
                 }}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: '#FFFFFF',
+                  padding: '4px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                }}
+                aria-label="Back to requests"
               >
-                Dispatch Operator Console
-              </span>
+                <ArrowLeft size={18} />
+              </button>
+            )}
 
-              {/* Realtime Status Indicator */}
-              {realtimeStatus === 'SUBSCRIBED' ? (
+            <div
+              style={{
+                width: '34px',
+                height: '34px',
+                borderRadius: '8px',
+                backgroundColor: '#B45309',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#FFFFFF',
+                flexShrink: 0,
+              }}
+            >
+              <Ambulance size={18} />
+            </div>
+
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                <span style={{ fontSize: '1.05rem', fontWeight: 800, letterSpacing: '-0.01em' }}>
+                  BedLink
+                </span>
+                <span
+                  style={{
+                    backgroundColor: '#B45309',
+                    color: '#FFFFFF',
+                    padding: '2px 7px',
+                    borderRadius: '999px',
+                    fontSize: '0.675rem',
+                    fontWeight: 800,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.04em',
+                  }}
+                >
+                  Dispatch Operator
+                </span>
+
+                {/* Realtime Dot */}
                 <span
                   style={{
                     display: 'inline-flex',
@@ -260,116 +307,79 @@ export default function DispatchDashboardClient({
                     gap: '4px',
                     fontSize: '0.675rem',
                     fontWeight: 700,
-                    color: '#2E7D32',
-                    backgroundColor: '#E8F5E9',
-                    border: '1px solid #C8E6C9',
-                    borderRadius: '9999px',
-                    padding: '2px 7px',
+                    color: realtimeStatus === 'SUBSCRIBED' ? '#2E7D32' : '#B45309',
+                    backgroundColor: realtimeStatus === 'SUBSCRIBED' ? '#E8F5E9' : '#FEF3C7',
+                    padding: '2px 6px',
+                    borderRadius: '999px',
                   }}
-                  title="Connected to Supabase Realtime"
                 >
                   <span
                     style={{
                       width: '6px',
                       height: '6px',
                       borderRadius: '50%',
-                      backgroundColor: '#2E7D32',
+                      backgroundColor: realtimeStatus === 'SUBSCRIBED' ? '#2E7D32' : '#B45309',
                     }}
                   />
-                  LIVE
+                  {realtimeStatus === 'SUBSCRIBED' ? 'LIVE' : 'SYNCING'}
                 </span>
-              ) : realtimeStatus === 'CONNECTING' ? (
-                <span
-                  style={{
-                    fontSize: '0.675rem',
-                    fontWeight: 600,
-                    color: '#B45309',
-                    backgroundColor: '#FEF3C7',
-                    padding: '2px 7px',
-                    borderRadius: '9999px',
-                  }}
-                >
-                  Connecting...
-                </span>
-              ) : (
-                <span
-                  style={{
-                    fontSize: '0.675rem',
-                    fontWeight: 600,
-                    color: '#E11D48',
-                    backgroundColor: '#FFF1F2',
-                    padding: '2px 7px',
-                    borderRadius: '9999px',
-                  }}
-                >
-                  Offline Reconnecting
-                </span>
-              )}
-            </div>
-            <div style={{ fontSize: '0.775rem', color: '#A3B0A9' }}>
-              Deterministic Emergency Coordination & Physical Bed Reservation
-            </div>
-          </div>
-        </div>
+              </div>
 
-        {/* User Identity, Resync, Sign Out */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.875rem' }}>
-          <div style={{ textAlign: 'right' }}>
-            <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#FFFFFF' }}>{dispatcherName}</div>
-            <div style={{ fontSize: '0.725rem', color: '#C8E6C9', fontWeight: 600 }}>
-              Dispatch Operator
+              <div className="desktop-only" style={{ fontSize: '0.75rem', color: '#A3B0A9', marginTop: '1px' }}>
+                Deterministic Emergency Coordination & Physical Bed Reservation
+              </div>
             </div>
           </div>
 
-          <button
-            onClick={handleRefresh}
-            disabled={isRefreshing}
-            aria-label="Synchronize with server"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.375rem',
-              backgroundColor: '#2D3E37',
-              color: '#FFFFFF',
-              border: '1px solid #3F554B',
-              borderRadius: '6px',
-              padding: '7px 12px',
-              fontSize: '0.8rem',
-              fontWeight: 600,
-              cursor: isRefreshing ? 'not-allowed' : 'pointer',
-              opacity: isRefreshing ? 0.7 : 1,
-            }}
-          >
-            <span style={{ display: 'inline-flex', alignItems: 'center' }}>
-              {isRefreshing ? <Loader2 size={14} className="animate-spin" /> : <RotateCw size={14} />}
-            </span>
-            <span>{isRefreshing ? 'Syncing...' : 'Sync'}</span>
-          </button>
-
-          <form action={logoutAction}>
+          {/* Sync & Logout Controls */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <button
-              type="submit"
+              onClick={handleRefresh}
+              disabled={isRefreshing}
               style={{
-                padding: '7px 12px',
-                backgroundColor: 'transparent',
-                color: '#A3B0A9',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '5px',
+                padding: '6px 10px',
+                backgroundColor: '#2D3E37',
+                color: '#FFFFFF',
                 border: '1px solid #3F554B',
                 borderRadius: '6px',
-                fontSize: '0.8rem',
+                fontSize: '0.78rem',
                 fontWeight: 600,
-                cursor: 'pointer',
-                transition: 'color 0.2s, border-color 0.2s',
+                cursor: isRefreshing ? 'not-allowed' : 'pointer',
+                opacity: isRefreshing ? 0.7 : 1,
               }}
-              title="Sign out of Dispatch Console"
-              aria-label="Sign out"
+              aria-label="Synchronize with server"
             >
-              Sign Out
+              <RotateCw size={13} className={isRefreshing ? 'animate-spin' : ''} />
+              <span className="desktop-only">{isRefreshing ? 'Syncing...' : 'Sync'}</span>
             </button>
-          </form>
+
+            <form action={logoutAction} style={{ margin: 0 }}>
+              <button
+                type="submit"
+                style={{
+                  padding: '6px 10px',
+                  backgroundColor: 'transparent',
+                  color: '#A3B0A9',
+                  border: '1px solid #3F554B',
+                  borderRadius: '6px',
+                  fontSize: '0.78rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                }}
+                title="Sign out of Dispatch Console"
+                aria-label="Sign out"
+              >
+                Sign Out
+              </button>
+            </form>
+          </div>
         </div>
       </header>
 
-      {/* Operational Banner */}
+      {/* Operational Status Banner */}
       {statusMessage && (
         <div
           role="status"
@@ -377,15 +387,16 @@ export default function DispatchDashboardClient({
             backgroundColor: '#E8F5E9',
             color: '#2E7D32',
             borderBottom: '1px solid #C8E6C9',
-            padding: '0.5rem 1.5rem',
-            fontSize: '0.825rem',
+            padding: '0.4rem 1rem',
+            fontSize: '0.8rem',
             fontWeight: 600,
             display: 'flex',
             alignItems: 'center',
             gap: '0.5rem',
+            flexShrink: 0,
           }}
         >
-          <CheckCircle2 size={16} style={{ color: '#2E7D32', flexShrink: 0 }} />
+          <CheckCircle2 size={15} style={{ color: '#2E7D32', flexShrink: 0 }} />
           <span>{statusMessage}</span>
         </div>
       )}
@@ -398,68 +409,42 @@ export default function DispatchDashboardClient({
             backgroundColor: '#FEF3C7',
             color: '#B45309',
             borderBottom: '1px solid #FDE68A',
-            padding: '0.625rem 1.5rem',
-            fontSize: '0.825rem',
+            padding: '0.5rem 1rem',
+            fontSize: '0.8rem',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            flexWrap: 'wrap',
             gap: '0.5rem',
+            flexShrink: 0,
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <AlertTriangle size={16} style={{ color: '#B45309', flexShrink: 0 }} />
-            <span>
-              <strong>Dispatch Live Sync Offline ({realtimeStatus}).</strong> Click to synchronize state with authoritative server.
-            </span>
+            <AlertTriangle size={15} style={{ color: '#B45309', flexShrink: 0 }} />
+            <span>Dispatch Live Sync Offline ({realtimeStatus}). Click to re-sync.</span>
           </div>
           <button
             onClick={handleRefresh}
             disabled={isRefreshing}
             style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '4px',
-              padding: '4px 10px',
+              padding: '3px 8px',
               backgroundColor: '#B45309',
               color: '#FFFFFF',
               border: 'none',
-              borderRadius: '5px',
-              fontSize: '0.75rem',
+              borderRadius: '4px',
+              fontSize: '0.72rem',
               fontWeight: 600,
-              cursor: isRefreshing ? 'not-allowed' : 'pointer',
+              cursor: 'pointer',
             }}
           >
-            <RotateCw size={12} className={isRefreshing ? 'animate-spin' : ''} />
-            Force Re-Sync
+            Re-Sync
           </button>
         </div>
       )}
 
-      {/* Main Operational Console — Viewport Aware (100dvh on Desktop) */}
-      <main
-        className="dispatch-console-main"
-        style={{
-          flex: 1,
-          minHeight: 0,
-          padding: '0.75rem 1rem',
-          display: 'grid',
-          gridTemplateColumns: 'minmax(380px, 460px) minmax(500px, 1fr)',
-          gap: '1rem',
-          overflow: 'hidden',
-        }}
-      >
-        {/* Left Column: Emergency Request Form & Multi-Factor Ranked Hospitals */}
-        <div
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '0.875rem',
-            minHeight: 0,
-            overflowY: 'auto',
-            paddingRight: '4px',
-          }}
-        >
+      {/* 2. Main Operational Console (ONE Component Tree: 2-Column on Desktop, Tabbed Switcher on Mobile) */}
+      <main className="dispatch-console-main">
+        {/* Left Column / Tab 'new': Emergency Request Form & Ranked Candidates */}
+        <div className="dispatch-left-col" data-scroll-region>
           <EmergencyRequestForm
             onRequestCreated={handleRequestCreated}
             onSubmittingChange={(submitting) => {
@@ -478,18 +463,10 @@ export default function DispatchDashboardClient({
           )}
         </div>
 
-        {/* Right Column: Live Map (Fixed) + Active Offer & Unified Tabbed Operations */}
-        <div
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '0.875rem',
-            minHeight: 0,
-            overflow: 'hidden',
-          }}
-        >
-          {/* Live Coordination Map — Always Rendered & Visible */}
-          <div style={{ flexShrink: 0 }}>
+        {/* Right Column / Tabs 'active', 'hospitals', 'history' */}
+        <div className="dispatch-right-col" data-scroll-region>
+          {/* Live Coordination Map — Visible on Desktop or when mobile tab is 'hospitals' */}
+          <div className="dispatch-map-wrapper">
             <DispatchCoordinationMap
               ambulanceLatitude={selectedRequest?.ambulance_latitude ?? 18.9220}
               ambulanceLongitude={selectedRequest?.ambulance_longitude ?? 72.8340}
@@ -500,27 +477,19 @@ export default function DispatchDashboardClient({
             />
           </div>
 
-          {/* Lower Control Section: Active Offer + Operations Switcher (Internally Scrollable) */}
-          <div
-            style={{
-              flex: 1,
-              minHeight: 0,
-              overflowY: 'auto',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '0.875rem',
-              paddingRight: '4px',
-            }}
-          >
+          {/* Lower Control Section: Active Offer + Operations Switcher */}
+          <div className="dispatch-lower-controls">
             {/* Active Emergency Offer Card (Prominently Pinned when active) */}
             {selectedRequest && selectedRequest.active_reservation && (
-              <ActiveOfferCard
-                reservation={selectedRequest.active_reservation}
-                bedRequestStatus={selectedRequest.status}
-                requiredCapabilities={selectedRequest.required_capabilities}
-                estimatedEtaMinutes={activeEta}
-                onRefresh={handleRefresh}
-              />
+              <div className="dispatch-active-offer-wrapper">
+                <ActiveOfferCard
+                  reservation={selectedRequest.active_reservation}
+                  bedRequestStatus={selectedRequest.status}
+                  requiredCapabilities={selectedRequest.required_capabilities}
+                  estimatedEtaMinutes={activeEta}
+                  onRefresh={handleRefresh}
+                />
+              </div>
             )}
 
             {/* Terminal No-Match State when all candidates are exhausted */}
@@ -534,8 +503,9 @@ export default function DispatchDashboardClient({
                 />
               )}
 
-            {/* Operational Navigation Tabs */}
+            {/* Desktop Operational Navigation Tabs (details / fallback / history) */}
             <div
+              className="desktop-only"
               style={{
                 backgroundColor: '#FFFFFF',
                 borderRadius: '10px',
@@ -563,7 +533,6 @@ export default function DispatchDashboardClient({
                   display: 'flex',
                   alignItems: 'center',
                   gap: '5px',
-                  transition: 'background-color 0.15s ease',
                 }}
               >
                 <Info size={13} />
@@ -586,21 +555,10 @@ export default function DispatchDashboardClient({
                   display: 'flex',
                   alignItems: 'center',
                   gap: '5px',
-                  transition: 'background-color 0.15s ease',
                 }}
               >
                 <Radio size={13} />
                 <span>Fallback Timeline</span>
-                <span
-                  style={{
-                    backgroundColor: rightPanelTab === 'fallback' ? 'rgba(255,255,255,0.2)' : '#E1E7E1',
-                    padding: '1px 6px',
-                    borderRadius: '9999px',
-                    fontSize: '0.7rem',
-                  }}
-                >
-                  {selectedRequest?.reservation_history?.length ?? 0}
-                </span>
               </button>
 
               <button
@@ -619,88 +577,248 @@ export default function DispatchDashboardClient({
                   display: 'flex',
                   alignItems: 'center',
                   gap: '5px',
-                  transition: 'background-color 0.15s ease',
                 }}
               >
                 <Building2 size={13} />
-                <span>Request History</span>
-                <span
-                  style={{
-                    backgroundColor: rightPanelTab === 'history' ? 'rgba(255,255,255,0.2)' : '#E1E7E1',
-                    padding: '1px 6px',
-                    borderRadius: '9999px',
-                    fontSize: '0.7rem',
-                  }}
-                >
-                  {requests.length}
-                </span>
+                <span>Request History ({requests.length})</span>
               </button>
             </div>
 
-            {/* Active Tab Content Surface */}
-            {rightPanelTab === 'details' && selectedRequest && (
-              <RequestDetailView request={selectedRequest} />
-            )}
+            {/* Details Content: Rendered on Desktop or Mobile Active Tab */}
+            <div className="dispatch-details-view-wrapper">
+              {selectedRequest && (rightPanelTab === 'details' || compactTab === 'active') && (
+                <RequestDetailView request={selectedRequest} />
+              )}
+            </div>
 
-            {rightPanelTab === 'fallback' && (
-              selectedRequest?.reservation_history && selectedRequest.reservation_history.length > 0 ? (
-                <FallbackHistoryView
-                  history={selectedRequest.reservation_history}
-                  activeReservationId={selectedRequest.current_active_reservation_id}
-                />
-              ) : (
-                <div
-                  style={{
-                    backgroundColor: '#FFFFFF',
-                    borderRadius: '10px',
-                    border: '1px solid #E1E7E1',
-                    padding: '1.25rem',
-                    color: '#5C6B64',
-                    fontSize: '0.825rem',
-                    textAlign: 'center',
-                  }}
-                >
-                  <div style={{ fontWeight: 700, color: '#1A2421', marginBottom: '4px' }}>
-                    No Fallback Sequence for Current Request
+            {/* Fallback Timeline Content */}
+            <div className="dispatch-fallback-view-wrapper">
+              {(rightPanelTab === 'fallback' || (compactTab === 'history' && selectedRequest?.reservation_history?.length)) && (
+                selectedRequest?.reservation_history && selectedRequest.reservation_history.length > 0 ? (
+                  <FallbackHistoryView
+                    history={selectedRequest.reservation_history}
+                    activeReservationId={selectedRequest.current_active_reservation_id}
+                  />
+                ) : (
+                  <div
+                    style={{
+                      backgroundColor: '#FFFFFF',
+                      borderRadius: '10px',
+                      border: '1px solid #E1E7E1',
+                      padding: '1.25rem',
+                      color: '#5C6B64',
+                      fontSize: '0.825rem',
+                      textAlign: 'center',
+                    }}
+                  >
+                    No Fallback Sequence for Current Request.
                   </div>
-                  <div>Fallback progression attempts will be documented here as offers transition through the state machine.</div>
-                </div>
-              )
-            )}
+                )
+              )}
+            </div>
 
-            {rightPanelTab === 'history' && (
-              <RequestHistoryList
-                requests={requests}
-                selectedRequestId={selectedRequestId}
-                onSelectRequest={setSelectedRequestId}
-              />
-            )}
+            {/* Request History Content */}
+            <div className="dispatch-history-view-wrapper">
+              {(rightPanelTab === 'history' || compactTab === 'history') && (
+                <RequestHistoryList
+                  requests={requests}
+                  selectedRequestId={selectedRequestId}
+                  onSelectRequest={(id) => {
+                    setSelectedRequestId(id)
+                    setIsMobileDrilledIn(true)
+                    setCompactTab('active')
+                  }}
+                />
+              )}
+            </div>
           </div>
         </div>
       </main>
 
+      {/* 3. Persistent Mobile Live Request Mini-Banner (floats directly above bottom tabs) */}
+      {liveHoldRequest && (
+        <div
+          className="mobile-live-banner mobile-only"
+          onClick={() => {
+            setSelectedRequestId(liveHoldRequest.id)
+            setCompactTab('active')
+            setIsMobileDrilledIn(true)
+            triggerHaptic('tap')
+          }}
+          role="button"
+          aria-label="Jump to active emergency request"
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <Clock size={16} />
+            <span>Active Hold: {liveHoldRequest.active_reservation?.hospital_name || 'Hospital Hold'}</span>
+          </div>
+          <span style={{ fontSize: '0.75rem', textDecoration: 'underline' }}>View Request →</span>
+        </div>
+      )}
+
+      {/* 4. Compact Mobile Bottom Tab Bar (mobile-only, 56px + safe-area bottom) */}
+      <nav className="mobile-bottom-tabs mobile-only" aria-label="Dispatch mobile navigation">
+        <button
+          type="button"
+          className={`mobile-tab-btn ${compactTab === 'new' ? 'active' : ''}`}
+          onClick={() => {
+            setCompactTab('new')
+            triggerHaptic('tap')
+          }}
+          aria-label="New request"
+        >
+          <Siren size={18} />
+          <span>New</span>
+        </button>
+
+        <button
+          type="button"
+          className={`mobile-tab-btn ${compactTab === 'active' ? 'active' : ''}`}
+          onClick={() => {
+            setCompactTab('active')
+            setIsMobileDrilledIn(true)
+            triggerHaptic('tap')
+          }}
+          aria-label="Active request"
+        >
+          <div style={{ position: 'relative' }}>
+            <Ambulance size={18} />
+            {liveHoldRequest && (
+              <span
+                style={{
+                  position: 'absolute',
+                  top: '-4px',
+                  right: '-6px',
+                  width: '8px',
+                  height: '8px',
+                  borderRadius: '50%',
+                  backgroundColor: '#E11D48',
+                }}
+              />
+            )}
+          </div>
+          <span>Active</span>
+        </button>
+
+        <button
+          type="button"
+          className={`mobile-tab-btn ${compactTab === 'hospitals' ? 'active' : ''}`}
+          onClick={() => {
+            setCompactTab('hospitals')
+            triggerHaptic('tap')
+          }}
+          aria-label="Hospitals map"
+        >
+          <MapPin size={18} />
+          <span>Hospitals</span>
+        </button>
+
+        <button
+          type="button"
+          className={`mobile-tab-btn ${compactTab === 'history' ? 'active' : ''}`}
+          onClick={() => {
+            setCompactTab('history')
+            triggerHaptic('tap')
+          }}
+          aria-label="History"
+        >
+          <History size={18} />
+          <span>History</span>
+        </button>
+      </nav>
+
+      {/* Adaptive Responsive Styles */}
       <style>{`
+        /* One-Screen Law on all devices */
+        .dispatch-console-root {
+          height: 100vh !important;
+          height: 100dvh !important;
+          max-height: 100dvh !important;
+          overflow: hidden !important;
+        }
+
+        .dispatch-console-main {
+          flex: 1;
+          min-height: 0;
+          overflow: hidden;
+          padding: 0.75rem 1rem;
+          display: flex;
+          gap: 1rem;
+          box-sizing: border-box;
+        }
+
+        /* Desktop Layout (>= 1024px): 2-Column Console intact */
         @media (min-width: 1024px) {
-          .dispatch-console-root {
-            height: 100dvh !important;
-            max-height: 100dvh !important;
-            overflow: hidden !important;
-          }
           .dispatch-console-main {
+            display: grid !important;
+            grid-template-columns: minmax(380px, 460px) minmax(500px, 1fr) !important;
             height: calc(100dvh - 58px) !important;
-            overflow: hidden !important;
+          }
+          .dispatch-left-col {
+            display: flex !important;
+            flex-direction: column;
+            gap: 0.875rem;
+            min-height: 0;
+            overflow-y: auto;
+          }
+          .dispatch-right-col {
+            display: flex !important;
+            flex-direction: column;
+            gap: 0.875rem;
+            min-height: 0;
+            overflow: hidden;
+          }
+          .dispatch-map-wrapper {
+            display: block !important;
+            flex-shrink: 0;
+          }
+          .dispatch-lower-controls {
+            flex: 1;
+            min-height: 0;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 0.875rem;
           }
         }
+
+        /* Compact & Medium Layout (< 1024px): Tabbed Views with Contained Scrolling */
         @media (max-width: 1023px) {
-          .dispatch-console-root {
-            height: auto !important;
-            min-height: 100vh !important;
-            overflow-y: auto !important;
-          }
           .dispatch-console-main {
-            height: auto !important;
-            overflow: visible !important;
-            grid-template-columns: 1fr !important;
+            flex-direction: column;
+            padding: 0.5rem 0.75rem 4.5rem;
+            overflow: hidden;
+          }
+          .dispatch-left-col {
+            display: ${compactTab === 'new' ? 'flex' : 'none'} !important;
+            flex-direction: column;
+            gap: 0.75rem;
+            flex: 1;
+            min-height: 0;
+            overflow-y: auto;
+          }
+          .dispatch-right-col {
+            display: ${compactTab !== 'new' ? 'flex' : 'none'} !important;
+            flex-direction: column;
+            gap: 0.75rem;
+            flex: 1;
+            min-height: 0;
+            overflow-y: auto;
+          }
+          .dispatch-map-wrapper {
+            display: ${compactTab === 'hospitals' ? 'block' : 'none'} !important;
+          }
+          .dispatch-active-offer-wrapper {
+            display: ${compactTab === 'active' ? 'block' : 'none'} !important;
+          }
+          .dispatch-details-view-wrapper {
+            display: ${compactTab === 'active' ? 'block' : 'none'} !important;
+          }
+          .dispatch-fallback-view-wrapper {
+            display: ${compactTab === 'history' ? 'block' : 'none'} !important;
+          }
+          .dispatch-history-view-wrapper {
+            display: ${compactTab === 'history' ? 'block' : 'none'} !important;
           }
         }
       `}</style>

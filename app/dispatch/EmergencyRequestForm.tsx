@@ -16,6 +16,7 @@ import {
   Navigation,
   Check,
 } from 'lucide-react'
+import { triggerHaptic } from '@/lib/device/phoneCraft'
 
 interface EmergencyRequestFormProps {
   onRequestCreated: (newRequest: DispatchBedRequestView) => void
@@ -53,12 +54,14 @@ export default function EmergencyRequestForm({ onRequestCreated, onSubmittingCha
   const [formError, setFormError] = useState<string | null>(null)
 
   const toggleCapability = (cap: BedCapability) => {
+    triggerHaptic('tap')
     setCapabilities((prev) =>
       prev.includes(cap) ? prev.filter((c) => c !== cap) : [...prev, cap]
     )
   }
 
   const applyPreset = (lat: number, lng: number) => {
+    triggerHaptic('tap')
     setLatitude(lat.toString())
     setLongitude(lng.toString())
     setLocationSource('manual')
@@ -73,34 +76,47 @@ export default function EmergencyRequestForm({ onRequestCreated, onSubmittingCha
 
     setIsLocating(true)
     setLocationNotice(null)
+    triggerHaptic('tap')
 
+    // Stage 1: Quick location acquisition (8s timeout, low accuracy)
     navigator.geolocation.getCurrentPosition(
       (position) => {
         const lat = position.coords.latitude
         const lng = position.coords.longitude
+        const acc = Math.round(position.coords.accuracy)
         setLatitude(lat.toFixed(6))
         setLongitude(lng.toFixed(6))
         setLocationSource('live')
         setIsLocating(false)
-        setLocationNotice(`GPS lock acquired (accuracy ±${Math.round(position.coords.accuracy)}m)`)
+        setLocationNotice(`GPS lock acquired (accuracy ±${acc}m)`)
         setTimeout(() => setLocationNotice(null), 4000)
+
+        // Stage 2: Refine in background if supported
+        navigator.geolocation.getCurrentPosition(
+          (refinedPos) => {
+            setLatitude(refinedPos.coords.latitude.toFixed(6))
+            setLongitude(refinedPos.coords.longitude.toFixed(6))
+          },
+          () => {},
+          { enableHighAccuracy: true, timeout: 6000 }
+        )
       },
       (error) => {
         setIsLocating(false)
         let msg = 'Unable to retrieve device location.'
         if (error.code === error.PERMISSION_DENIED) {
-          msg = 'Geolocation access was denied. Please enter coordinates manually.'
+          msg = 'Geolocation access was denied. Use quick-pick presets below or enter coordinates manually.'
         } else if (error.code === error.POSITION_UNAVAILABLE) {
-          msg = 'Location telemetry unavailable. Please enter coordinates manually.'
+          msg = 'Location telemetry unavailable. Use quick-pick presets below.'
         } else if (error.code === error.TIMEOUT) {
-          msg = 'Geolocation timed out. Please enter coordinates manually.'
+          msg = 'Geolocation timed out. Use quick-pick presets below.'
         }
         setLocationNotice(msg)
       },
       {
-        enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 0,
+        enableHighAccuracy: false,
+        timeout: 8000,
+        maximumAge: 30000,
       }
     )
   }
@@ -162,6 +178,7 @@ export default function EmergencyRequestForm({ onRequestCreated, onSubmittingCha
       const result = await createEmergencyRequestAction(input)
 
       if (result.success && result.request) {
+        triggerHaptic('success')
         onRequestCreated(result.request)
       } else if (result.error) {
         setFormError(`Request failed: ${result.error.message}`)
