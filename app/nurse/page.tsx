@@ -151,6 +151,7 @@ export default async function NursePage({
   return (
     <NurseInventoryClient
       initialBeds={initialBeds}
+      hospitalId={profile.hospital_id || ''}
       hospitalName={hospitalName}
       hospitalCity={hospitalCity}
       nurseName={profile.full_name || 'Staff Nurse'}

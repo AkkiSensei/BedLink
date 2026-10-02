@@ -1,13 +1,15 @@
 'use client'
 
-import React, { useState, useTransition } from 'react'
+import React, { useState, useEffect, useTransition } from 'react'
 import type { NurseBedView } from '@/lib/operations/types'
 import type { BedStatus } from '@/lib/types/database'
 import { updateBedStatusAction, refreshNurseBedsAction } from './actions'
 import BedCard from './BedCard'
+import { subscribeNurseBeds, type RealtimeConnectionStatus } from '@/lib/realtime'
 
 interface NurseInventoryClientProps {
   initialBeds: NurseBedView[]
+  hospitalId?: string
   hospitalName: string
   hospitalCity?: string
   nurseName?: string
@@ -18,6 +20,7 @@ type FilterType = 'all' | 'available' | 'held' | 'occupied' | 'maintenance'
 
 export default function NurseInventoryClient({
   initialBeds,
+  hospitalId,
   hospitalName,
   hospitalCity,
   nurseName = 'Staff Nurse',
@@ -30,7 +33,34 @@ export default function NurseInventoryClient({
     type: 'success' | 'error' | 'info'
     message: string
   } | null>(null)
+  const [realtimeStatus, setRealtimeStatus] = useState<RealtimeConnectionStatus>('CONNECTING')
   const [isPending, startTransition] = useTransition()
+
+  // Realtime subscription: role-scoped to nurse's hospital beds
+  useEffect(() => {
+    if (!hospitalId) return
+
+    const handle = subscribeNurseBeds({
+      hospitalId,
+      onStatusChange: (status) => setRealtimeStatus(status),
+      onReconcile: async () => {
+        // Avoid overwriting local state while the nurse is mid-mutation
+        if (updatingBedId) return
+        try {
+          const result = await refreshNurseBedsAction()
+          if (result.success && result.beds) {
+            setBeds(result.beds)
+          }
+        } catch (err) {
+          console.error('Realtime nurse reconciliation error:', err)
+        }
+      },
+    })
+
+    return () => {
+      handle.unsubscribe()
+    }
+  }, [hospitalId, updatingBedId])
 
   // Calculate summary metrics
   const totalCount = beds.length
@@ -158,6 +188,28 @@ export default function NurseInventoryClient({
                 }}
               />
               BedLink Nurse Interface
+              {realtimeStatus === 'SUBSCRIBED' && (
+                <span
+                  style={{
+                    fontSize: '0.65rem',
+                    fontWeight: 700,
+                    color: '#059669',
+                    backgroundColor: '#ecfdf5',
+                    border: '1px solid #a7f3d0',
+                    padding: '1px 6px',
+                    borderRadius: '4px',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    marginLeft: '6px',
+                  }}
+                  title="Live synchronization connected"
+                  aria-label="Live updates connected"
+                >
+                  <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#10b981' }} />
+                  LIVE
+                </span>
+              )}
             </div>
             <h1
               style={{
