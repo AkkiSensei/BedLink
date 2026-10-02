@@ -2,6 +2,12 @@
   "name": "bedlink",
   "version": "0.1.0",
   "private": true,
+  "description": "BedLink — Emergency hospital-bed coordination platform with deterministic ranking and atomic reservations",
+  "author": "Bug Dealers",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/AkkiSensei/Bug-Dealers-BedLink.git"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",

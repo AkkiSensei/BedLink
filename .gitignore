@@ -23,8 +23,19 @@ yarn-debug.log*
 yarn-error.log*
 
 # local env files
-.env*.local
-.env
+.env*
+
+# OS & editor artifacts
+Thumbs.db
+Desktop.ini
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# build & deployment caches
+.vercel
+.turbo
 
 # typescript
 *.tsbuildinfo
