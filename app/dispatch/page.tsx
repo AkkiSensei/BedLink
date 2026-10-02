@@ -35,8 +35,8 @@ export default async function DispatchPage({
     profile = profileData ?? null
   }
 
-  // Demo fallback mode for local development/preview without live session cookies
-  if (!profile && process.env.NODE_ENV !== 'production') {
+  // Demo fallback mode for local development/preview or direct demo parameter
+  if (!profile && (params?.demo || process.env.NODE_ENV !== 'production')) {
     let demoTarget: (typeof DEMO_IDENTITIES)[keyof typeof DEMO_IDENTITIES] = DEMO_IDENTITIES.DISPATCH_1
     if (params?.demo === 'dispatch2') {
       demoTarget = DEMO_IDENTITIES.DISPATCH_2

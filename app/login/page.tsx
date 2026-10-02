@@ -1,72 +1,224 @@
 'use client'
 
-import React, { useState, useTransition } from 'react'
+import React, { useState, useEffect, useCallback, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { loginWithPinAction, ROLE_PINS } from '../actions/auth'
+import { 
+  Building2, 
+  Ambulance, 
+  ClipboardList, 
+  Lock, 
+  Delete, 
+  X, 
+  ChevronDown, 
+  ChevronUp, 
+  ArrowRight,
+  ShieldCheck,
+  CheckCircle2,
+  AlertCircle,
+  Loader2
+} from 'lucide-react'
 
-const DEMO_ACCOUNTS = [
+interface RoleTabConfig {
+  id: 'nurse' | 'dispatch' | 'hospital'
+  label: string
+  sublabel: string
+  pin: string
+  icon: React.ReactNode
+  color: string
+  softBg: string
+  borderColor: string
+  destination: string
+}
+
+const ROLE_TABS: RoleTabConfig[] = [
   {
-    label: 'Nurse (Apex Hospital)',
-    email: 'nurse.apex@bedlink.internal',
-    password: 'DemoPassword123!',
-    roleColor: '#2D6A4F',
-    roleBg: '#E8F5E9',
-    icon: '🏥',
-    description: 'Update bed availability',
+    id: 'nurse',
+    label: 'Nurse',
+    sublabel: 'Apex Hospital Ward',
+    pin: '2468',
+    icon: <Building2 className="w-4 h-4" />,
+    color: '#2D6A4F',
+    softBg: '#E8F5E9',
+    borderColor: '#A3D9C9',
+    destination: '/nurse',
   },
   {
+    id: 'dispatch',
     label: 'Dispatch Operator',
-    email: 'dispatch1@bedlink.internal',
-    password: 'DemoPassword123!',
-    roleColor: '#B45309',
-    roleBg: '#FEF3C7',
-    icon: '🚑',
-    description: 'Emergency coordination console',
+    sublabel: 'Metro EMS Console',
+    pin: '9110',
+    icon: <Ambulance className="w-4 h-4" />,
+    color: '#B45309',
+    softBg: '#FEF3C7',
+    borderColor: '#FCD34D',
+    destination: '/dispatch',
   },
   {
-    label: 'Hospital Staff (Apex)',
-    email: 'hospital.apex@bedlink.internal',
-    password: 'DemoPassword123!',
-    roleColor: '#1565C0',
-    roleBg: '#E3F2FD',
-    icon: '📋',
-    description: 'Review and respond to offers',
+    id: 'hospital',
+    label: 'Hospital Staff',
+    sublabel: 'Apex Emergency Desk',
+    pin: '1357',
+    icon: <ClipboardList className="w-4 h-4" />,
+    color: '#1565C0',
+    softBg: '#E3F2FD',
+    borderColor: '#90CAF9',
+    destination: '/hospital',
   },
 ]
-
-const ROLE_REDIRECTS: Record<string, string> = {
-  nurse: '/nurse',
-  dispatch: '/dispatch',
-  hospital: '/hospital',
-  admin: '/nurse',
-}
 
 export default function LoginPage() {
   const router = useRouter()
   const supabase = createClient()
 
+  // PIN state
+  const [pin, setPin] = useState('')
+  const [activeTab, setActiveTab] = useState<'nurse' | 'dispatch' | 'hospital'>('nurse')
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [statusMessage, setStatusMessage] = useState<string | null>(null)
+  const [isAuthenticating, setIsAuthenticating] = useState(false)
+  const [shake, setShake] = useState(false)
+
+  // Traditional Email/Password Form toggle
+  const [showEmailForm, setShowEmailForm] = useState(false)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [error, setError] = useState<string | null>(null)
-  const [isPending, startTransition] = useTransition()
-  const [loadingDemo, setLoadingDemo] = useState<string | null>(null)
+  const [emailError, setEmailError] = useState<string | null>(null)
+  const [isPendingEmail, startEmailTransition] = useTransition()
 
-  const handleLogin = async (e: React.FormEvent) => {
+  // Execute PIN submission
+  const executePinSubmit = useCallback(async (pinToSubmit: string) => {
+    if (isAuthenticating) return
+    const clean = pinToSubmit.trim()
+    setErrorMessage(null)
+
+    const match = ROLE_PINS[clean]
+    if (!match) {
+      setErrorMessage('Invalid PIN. Use 2468 (Nurse), 9110 (Dispatch), or 1357 (Hospital Staff).')
+      setShake(true)
+      setTimeout(() => setShake(false), 600)
+      setTimeout(() => setPin(''), 1000)
+      return
+    }
+
+    setIsAuthenticating(true)
+    setStatusMessage(`Authenticating ${match.roleTitle}...`)
+
+    try {
+      // 1. Call server action to securely set SSR cookies
+      const serverResult = await loginWithPinAction(clean)
+      if (!serverResult.success) {
+        setErrorMessage(serverResult.error || 'Server authentication failed.')
+        setIsAuthenticating(false)
+        setStatusMessage(null)
+        setPin('')
+        return
+      }
+
+      // 2. Also authenticate client-side Supabase instance for synchronous browser cache
+      await supabase.auth.signInWithPassword({
+        email: match.email,
+        password: 'DemoPassword123!',
+      })
+
+      setStatusMessage(`Access granted! Opening ${match.role.toUpperCase()} dashboard...`)
+
+      // 3. Navigate to destination
+      setTimeout(() => {
+        router.push(match.destination)
+        router.refresh()
+      }, 250)
+    } catch (err: any) {
+      console.error('PIN authentication error:', err)
+      setErrorMessage(err?.message || 'Login failed. Please try again.')
+      setIsAuthenticating(false)
+      setStatusMessage(null)
+      setPin('')
+    }
+  }, [isAuthenticating, router, supabase])
+
+  // Handle digit addition
+  const handleDigit = useCallback((digit: string) => {
+    if (isAuthenticating) return
+    setErrorMessage(null)
+    setPin((prev) => {
+      if (prev.length >= 4) return prev
+      const next = prev + digit
+      if (typeof window !== 'undefined' && 'vibrate' in navigator) {
+        navigator.vibrate(20)
+      }
+      if (next.length === 4) {
+        setTimeout(() => executePinSubmit(next), 50)
+      }
+      return next
+    })
+  }, [isAuthenticating, executePinSubmit])
+
+  // Backspace
+  const handleBackspace = useCallback(() => {
+    if (isAuthenticating) return
+    setErrorMessage(null)
+    setPin((prev) => prev.slice(0, -1))
+  }, [isAuthenticating])
+
+  // Clear
+  const handleClear = useCallback(() => {
+    if (isAuthenticating) return
+    setErrorMessage(null)
+    setPin('')
+  }, [isAuthenticating])
+
+  // Physical keyboard support
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null
+      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) {
+        return
+      }
+
+      if (e.key >= '0' && e.key <= '9') {
+        e.preventDefault()
+        handleDigit(e.key)
+      } else if (e.key === 'Backspace') {
+        e.preventDefault()
+        handleBackspace()
+      } else if (e.key === 'Escape') {
+        e.preventDefault()
+        handleClear()
+      } else if (e.key === 'Enter' && pin.length === 4) {
+        e.preventDefault()
+        executePinSubmit(pin)
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [handleDigit, handleBackspace, handleClear, pin, executePinSubmit])
+
+  // Quick 1-tap fill
+  const handleQuickFill = (targetPin: string, tabId: 'nurse' | 'dispatch' | 'hospital') => {
+    setActiveTab(tabId)
+    setPin(targetPin)
+    executePinSubmit(targetPin)
+  }
+
+  // Handle traditional email/password submission
+  const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault()
-    setError(null)
+    setEmailError(null)
 
-    startTransition(async () => {
-      const { data, error: authError } = await supabase.auth.signInWithPassword({
+    startEmailTransition(async () => {
+      const { data, error } = await supabase.auth.signInWithPassword({
         email: email.trim(),
         password,
       })
 
-      if (authError || !data.user) {
-        setError(authError?.message || 'Invalid credentials. Please try again.')
+      if (error || !data.user) {
+        setEmailError(error?.message || 'Invalid email or password.')
         return
       }
 
-      // Resolve role from profile
       const { data: profile } = await supabase
         .from('profiles')
         .select('role')
@@ -74,34 +226,14 @@ export default function LoginPage() {
         .maybeSingle()
 
       const role = profile?.role as string | null
-      const destination = (role && ROLE_REDIRECTS[role]) || '/nurse'
+      const destination = 
+        role === 'nurse' ? '/nurse' : 
+        role === 'dispatch' ? '/dispatch' : 
+        role === 'hospital' ? '/hospital' : '/nurse'
+
       router.push(destination)
       router.refresh()
     })
-  }
-
-  const handleDemoLogin = async (email: string, password: string) => {
-    setError(null)
-    setLoadingDemo(email)
-
-    const { data, error: authError } = await supabase.auth.signInWithPassword({ email, password })
-
-    if (authError || !data.user) {
-      setError(authError?.message || 'Demo login failed.')
-      setLoadingDemo(null)
-      return
-    }
-
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('user_id', data.user.id)
-      .maybeSingle()
-
-    const role = profile?.role as string | null
-    const destination = (role && ROLE_REDIRECTS[role]) || '/nurse'
-    router.push(destination)
-    router.refresh()
   }
 
   return (
@@ -112,26 +244,26 @@ export default function LoginPage() {
       flexDirection: 'column',
       alignItems: 'center',
       justifyContent: 'center',
-      padding: '1.5rem',
+      padding: '1.25rem',
       fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
     }}>
       {/* Brand Header */}
-      <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+      <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
         <div style={{
           display: 'inline-flex',
           alignItems: 'center',
           justifyContent: 'center',
-          width: '52px',
-          height: '52px',
+          width: '48px',
+          height: '48px',
           backgroundColor: '#2D6A4F',
-          borderRadius: '14px',
-          marginBottom: '1rem',
+          borderRadius: '12px',
+          marginBottom: '0.75rem',
           boxShadow: '0 4px 12px rgba(45, 106, 79, 0.25)',
         }}>
-          <span style={{ fontSize: '24px' }}>🔗</span>
+          <span style={{ fontSize: '22px' }}>🔗</span>
         </div>
         <h1 style={{
-          fontSize: '1.75rem',
+          fontSize: '1.6rem',
           fontWeight: 800,
           color: '#1A2421',
           letterSpacing: '-0.02em',
@@ -139,226 +271,522 @@ export default function LoginPage() {
         }}>
           BedLink
         </h1>
-        <p style={{ fontSize: '0.875rem', color: '#5C6B64', margin: 0 }}>
-          Emergency Hospital-Bed Coordination
+        <p style={{ fontSize: '0.85rem', color: '#5C6B64', margin: 0, fontWeight: 500 }}>
+          Emergency Hospital-Bed Coordination Platform
         </p>
       </div>
 
-      {/* Login Card */}
+      {/* Main Authentication Card */}
       <div style={{
         width: '100%',
-        maxWidth: '420px',
+        maxWidth: '430px',
         backgroundColor: '#FFFFFF',
         borderRadius: '16px',
         border: '1px solid #E1E7E1',
-        boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
-        padding: '2rem',
+        boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
+        padding: '1.75rem',
+        boxSizing: 'border-box',
       }}>
-        <h2 style={{
-          fontSize: '1.1rem',
-          fontWeight: 700,
-          color: '#1A2421',
-          margin: '0 0 1.5rem',
+        {/* Role Selector Tabs */}
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(3, 1fr)',
+          gap: '6px',
+          backgroundColor: '#F4F6F4',
+          padding: '4px',
+          borderRadius: '12px',
+          marginBottom: '1.5rem',
+          border: '1px solid #E1E7E1',
         }}>
-          Sign in to your account
-        </h2>
-
-        <form onSubmit={handleLogin}>
-          <div style={{ marginBottom: '1rem' }}>
-            <label style={{
-              display: 'block',
-              fontSize: '0.8rem',
-              fontWeight: 600,
-              color: '#1A2421',
-              marginBottom: '0.375rem',
-              textTransform: 'uppercase',
-              letterSpacing: '0.05em',
-            }}>
-              Email address
-            </label>
-            <input
-              type="email"
-              autoComplete="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@example.com"
-              style={{
-                width: '100%',
-                padding: '0.75rem 1rem',
-                borderRadius: '10px',
-                border: '1.5px solid #E1E7E1',
-                fontSize: '0.9rem',
-                color: '#1A2421',
-                backgroundColor: '#FFFFFF',
-                outline: 'none',
-                transition: 'border-color 150ms',
-                boxSizing: 'border-box',
-              }}
-              onFocus={e => e.currentTarget.style.borderColor = '#2D6A4F'}
-              onBlur={e => e.currentTarget.style.borderColor = '#E1E7E1'}
-            />
-          </div>
-
-          <div style={{ marginBottom: '1.25rem' }}>
-            <label style={{
-              display: 'block',
-              fontSize: '0.8rem',
-              fontWeight: 600,
-              color: '#1A2421',
-              marginBottom: '0.375rem',
-              textTransform: 'uppercase',
-              letterSpacing: '0.05em',
-            }}>
-              Password
-            </label>
-            <input
-              type="password"
-              autoComplete="current-password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-              style={{
-                width: '100%',
-                padding: '0.75rem 1rem',
-                borderRadius: '10px',
-                border: '1.5px solid #E1E7E1',
-                fontSize: '0.9rem',
-                color: '#1A2421',
-                backgroundColor: '#FFFFFF',
-                outline: 'none',
-                transition: 'border-color 150ms',
-                boxSizing: 'border-box',
-              }}
-              onFocus={e => e.currentTarget.style.borderColor = '#2D6A4F'}
-              onBlur={e => e.currentTarget.style.borderColor = '#E1E7E1'}
-            />
-          </div>
-
-          {error && (
-            <div style={{
-              backgroundColor: '#FFF1F2',
-              border: '1px solid #FECDD3',
-              borderRadius: '8px',
-              padding: '0.75rem 1rem',
-              marginBottom: '1rem',
-              fontSize: '0.85rem',
-              color: '#E11D48',
-            }}>
-              {error}
-            </div>
-          )}
-
-          <button
-            type="submit"
-            disabled={isPending}
-            style={{
-              width: '100%',
-              padding: '0.875rem',
-              backgroundColor: isPending ? '#5C6B64' : '#2D6A4F',
-              color: '#FFFFFF',
-              border: 'none',
-              borderRadius: '10px',
-              fontSize: '0.95rem',
-              fontWeight: 700,
-              cursor: isPending ? 'not-allowed' : 'pointer',
-              transition: 'background-color 150ms',
-              letterSpacing: '0.01em',
-            }}
-          >
-            {isPending ? 'Signing in…' : 'Sign In'}
-          </button>
-        </form>
-
-        {/* Demo Accounts Section */}
-        <div style={{ marginTop: '2rem' }}>
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.75rem',
-            marginBottom: '1rem',
-          }}>
-            <div style={{ flex: 1, height: '1px', backgroundColor: '#E1E7E1' }} />
-            <span style={{ fontSize: '0.75rem', color: '#5C6B64', fontWeight: 500 }}>
-              DEMO ACCOUNTS
-            </span>
-            <div style={{ flex: 1, height: '1px', backgroundColor: '#E1E7E1' }} />
-          </div>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
-            {DEMO_ACCOUNTS.map((account) => (
+          {ROLE_TABS.map((tab) => {
+            const isActive = activeTab === tab.id
+            return (
               <button
-                key={account.email}
-                onClick={() => handleDemoLogin(account.email, account.password)}
-                disabled={loadingDemo !== null}
+                key={tab.id}
+                type="button"
+                onClick={() => {
+                  setActiveTab(tab.id)
+                  setErrorMessage(null)
+                }}
                 style={{
                   display: 'flex',
+                  flexDirection: 'column',
                   alignItems: 'center',
-                  gap: '0.875rem',
-                  padding: '0.75rem 1rem',
-                  backgroundColor: loadingDemo === account.email ? '#F4F6F4' : '#FFFFFF',
-                  border: '1.5px solid #E1E7E1',
-                  borderRadius: '10px',
-                  cursor: loadingDemo !== null ? 'not-allowed' : 'pointer',
-                  textAlign: 'left',
-                  transition: 'border-color 150ms, background-color 150ms',
-                  width: '100%',
-                  opacity: loadingDemo !== null && loadingDemo !== account.email ? 0.6 : 1,
-                }}
-                onMouseEnter={e => {
-                  if (!loadingDemo) {
-                    e.currentTarget.style.borderColor = account.roleColor
-                    e.currentTarget.style.backgroundColor = account.roleBg
-                  }
-                }}
-                onMouseLeave={e => {
-                  e.currentTarget.style.borderColor = '#E1E7E1'
-                  e.currentTarget.style.backgroundColor = '#FFFFFF'
+                  justifyContent: 'center',
+                  padding: '8px 4px',
+                  borderRadius: '8px',
+                  border: isActive ? `1.5px solid ${tab.borderColor}` : '1.5px solid transparent',
+                  backgroundColor: isActive ? '#FFFFFF' : 'transparent',
+                  color: isActive ? tab.color : '#5C6B64',
+                  boxShadow: isActive ? '0 2px 6px rgba(0,0,0,0.05)' : 'none',
+                  cursor: 'pointer',
+                  transition: 'all 150ms ease',
                 }}
               >
-                <span style={{
-                  fontSize: '1.25rem',
-                  width: '2rem',
-                  textAlign: 'center',
-                  flexShrink: 0,
-                }}>
-                  {loadingDemo === account.email ? '⏳' : account.icon}
-                </span>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{
-                    fontSize: '0.85rem',
-                    fontWeight: 700,
-                    color: '#1A2421',
-                    lineHeight: 1.2,
-                  }}>
-                    {account.label}
-                  </div>
-                  <div style={{
-                    fontSize: '0.75rem',
-                    color: '#5C6B64',
-                    marginTop: '0.125rem',
-                  }}>
-                    {loadingDemo === account.email ? 'Signing in…' : account.description}
-                  </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 700, fontSize: '0.8rem' }}>
+                  {tab.icon}
+                  <span>{tab.label}</span>
                 </div>
+                <span style={{ 
+                  fontSize: '0.7rem', 
+                  fontFamily: 'monospace', 
+                  fontWeight: 600,
+                  marginTop: '2px',
+                  color: isActive ? tab.color : '#8A9991',
+                  letterSpacing: '0.04em'
+                }}>
+                  PIN: {tab.pin}
+                </span>
               </button>
-            ))}
+            )
+          })}
+        </div>
+
+        {/* PIN Entry Prompt */}
+        <div style={{ textAlign: 'center', marginBottom: '1.25rem' }}>
+          <div style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '6px',
+            fontSize: '0.75rem',
+            fontWeight: 700,
+            textTransform: 'uppercase',
+            letterSpacing: '0.06em',
+            color: ROLE_TABS.find(t => t.id === activeTab)?.color || '#2D6A4F',
+            backgroundColor: ROLE_TABS.find(t => t.id === activeTab)?.softBg || '#E8F5E9',
+            padding: '4px 10px',
+            borderRadius: '20px',
+            marginBottom: '0.5rem',
+          }}>
+            <Lock className="w-3.5 h-3.5" />
+            <span>Enter 4-Digit Role PIN</span>
           </div>
+
+          <p style={{ fontSize: '0.8rem', color: '#5C6B64', margin: 0 }}>
+            {activeTab === 'nurse' && 'Type 2468 to launch Nurse Inventory Console'}
+            {activeTab === 'dispatch' && 'Type 9110 to launch Dispatch Operator Console'}
+            {activeTab === 'hospital' && 'Type 1357 to launch Hospital Staff Desk'}
+          </p>
+        </div>
+
+        {/* 4-Digit PIN Boxes */}
+        <div 
+          style={{
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            gap: '12px',
+            marginBottom: '0.75rem',
+            transform: shake ? 'translateX(6px)' : 'none',
+            transition: 'transform 100ms ease-in-out',
+          }}
+        >
+          {[0, 1, 2, 3].map((index) => {
+            const hasDigit = index < pin.length
+            const isCurrent = index === pin.length && !isAuthenticating
+            return (
+              <div
+                key={index}
+                style={{
+                  width: '48px',
+                  height: '52px',
+                  borderRadius: '12px',
+                  border: errorMessage
+                    ? '2px solid #E11D48'
+                    : isCurrent
+                    ? '2px solid #2D6A4F'
+                    : hasDigit
+                    ? '2px solid #2D6A4F'
+                    : '2px solid #E1E7E1',
+                  backgroundColor: errorMessage
+                    ? '#FFF1F2'
+                    : hasDigit
+                    ? '#E8F5E9'
+                    : '#FFFFFF',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  boxShadow: isCurrent ? '0 0 0 3px rgba(45, 106, 79, 0.12)' : 'none',
+                  transition: 'all 150ms ease',
+                }}
+              >
+                {hasDigit ? (
+                  <span style={{
+                    width: '12px',
+                    height: '12px',
+                    borderRadius: '50%',
+                    backgroundColor: '#2D6A4F',
+                    display: 'block',
+                    animation: 'scaleIn 150ms ease',
+                  }} />
+                ) : (
+                  <span style={{
+                    width: '6px',
+                    height: '6px',
+                    borderRadius: '50%',
+                    backgroundColor: '#CBD5E1',
+                    display: 'block',
+                  }} />
+                )}
+              </div>
+            )
+          })}
+        </div>
+
+        {/* Status / Error feedback (fixed height to prevent layout jump) */}
+        <div style={{
+          minHeight: '22px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          marginBottom: '1rem',
+          textAlign: 'center',
+          padding: '0 8px',
+        }}>
+          {isAuthenticating && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#2D6A4F', fontSize: '0.8rem', fontWeight: 600 }}>
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              <span>{statusMessage || 'Verifying credentials…'}</span>
+            </div>
+          )}
+          {!isAuthenticating && errorMessage && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#E11D48', fontSize: '0.78rem', fontWeight: 600 }}>
+              <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
+              <span>{errorMessage}</span>
+            </div>
+          )}
+          {!isAuthenticating && !errorMessage && (
+            <span style={{ fontSize: '0.75rem', color: '#8A9991' }}>
+              Physical keyboard supported (type 0–9 or tap keys)
+            </span>
+          )}
+        </div>
+
+        {/* Clinical On-Screen Keypad */}
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(3, 1fr)',
+          gap: '8px',
+          marginBottom: '1.25rem',
+        }}>
+          {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
+            <button
+              key={num}
+              type="button"
+              disabled={isAuthenticating}
+              onClick={() => handleDigit(String(num))}
+              style={{
+                height: '48px',
+                borderRadius: '10px',
+                border: '1.5px solid #E1E7E1',
+                backgroundColor: '#FFFFFF',
+                color: '#1A2421',
+                fontSize: '1.15rem',
+                fontWeight: 700,
+                fontFamily: 'monospace',
+                cursor: isAuthenticating ? 'not-allowed' : 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+                transition: 'background-color 100ms, transform 100ms, border-color 100ms',
+              }}
+              onMouseEnter={(e) => {
+                if (!isAuthenticating) {
+                  e.currentTarget.style.backgroundColor = '#F4F6F4'
+                  e.currentTarget.style.borderColor = '#A3D9C9'
+                }
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = '#FFFFFF'
+                e.currentTarget.style.borderColor = '#E1E7E1'
+              }}
+              onMouseDown={(e) => !isAuthenticating && (e.currentTarget.style.transform = 'scale(0.96)')}
+              onMouseUp={(e) => !isAuthenticating && (e.currentTarget.style.transform = 'scale(1)')}
+            >
+              {num}
+            </button>
+          ))}
+
+          {/* Clear Key */}
+          <button
+            type="button"
+            disabled={isAuthenticating}
+            onClick={handleClear}
+            title="Clear PIN"
+            style={{
+              height: '48px',
+              borderRadius: '10px',
+              border: '1.5px solid #E1E7E1',
+              backgroundColor: '#F8FAF9',
+              color: '#5C6B64',
+              fontSize: '0.8rem',
+              fontWeight: 600,
+              cursor: isAuthenticating ? 'not-allowed' : 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+              transition: 'background-color 100ms, transform 100ms',
+            }}
+            onMouseEnter={(e) => !isAuthenticating && (e.currentTarget.style.backgroundColor = '#EAEFEA')}
+            onMouseLeave={(e) => !isAuthenticating && (e.currentTarget.style.backgroundColor = '#F8FAF9')}
+            onMouseDown={(e) => !isAuthenticating && (e.currentTarget.style.transform = 'scale(0.96)')}
+            onMouseUp={(e) => !isAuthenticating && (e.currentTarget.style.transform = 'scale(1)')}
+          >
+            <X className="w-5 h-5" />
+          </button>
+
+          {/* Zero Key */}
+          <button
+            type="button"
+            disabled={isAuthenticating}
+            onClick={() => handleDigit('0')}
+            style={{
+              height: '48px',
+              borderRadius: '10px',
+              border: '1.5px solid #E1E7E1',
+              backgroundColor: '#FFFFFF',
+              color: '#1A2421',
+              fontSize: '1.15rem',
+              fontWeight: 700,
+              fontFamily: 'monospace',
+              cursor: isAuthenticating ? 'not-allowed' : 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+              transition: 'background-color 100ms, transform 100ms, border-color 100ms',
+            }}
+            onMouseEnter={(e) => {
+              if (!isAuthenticating) {
+                e.currentTarget.style.backgroundColor = '#F4F6F4'
+                e.currentTarget.style.borderColor = '#A3D9C9'
+              }
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = '#FFFFFF'
+              e.currentTarget.style.borderColor = '#E1E7E1'
+            }}
+            onMouseDown={(e) => !isAuthenticating && (e.currentTarget.style.transform = 'scale(0.96)')}
+            onMouseUp={(e) => !isAuthenticating && (e.currentTarget.style.transform = 'scale(1)')}
+          >
+            0
+          </button>
+
+          {/* Backspace Key */}
+          <button
+            type="button"
+            disabled={isAuthenticating}
+            onClick={handleBackspace}
+            title="Backspace"
+            style={{
+              height: '48px',
+              borderRadius: '10px',
+              border: '1.5px solid #E1E7E1',
+              backgroundColor: '#F8FAF9',
+              color: '#5C6B64',
+              cursor: isAuthenticating ? 'not-allowed' : 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+              transition: 'background-color 100ms, transform 100ms',
+            }}
+            onMouseEnter={(e) => !isAuthenticating && (e.currentTarget.style.backgroundColor = '#EAEFEA')}
+            onMouseLeave={(e) => !isAuthenticating && (e.currentTarget.style.backgroundColor = '#F8FAF9')}
+            onMouseDown={(e) => !isAuthenticating && (e.currentTarget.style.transform = 'scale(0.96)')}
+            onMouseUp={(e) => !isAuthenticating && (e.currentTarget.style.transform = 'scale(1)')}
+          >
+            <Delete className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* 1-Tap Quick Action Row */}
+        <div style={{
+          borderTop: '1px solid #E1E7E1',
+          paddingTop: '1rem',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '8px',
+        }}>
+          <div style={{
+            fontSize: '0.72rem',
+            color: '#5C6B64',
+            fontWeight: 600,
+            textTransform: 'uppercase',
+            letterSpacing: '0.04em',
+            marginBottom: '2px',
+          }}>
+            1-Tap Demo Shortcuts
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
+            <button
+              type="button"
+              disabled={isAuthenticating}
+              onClick={() => handleQuickFill('2468', 'nurse')}
+              style={{
+                padding: '6px 4px',
+                borderRadius: '8px',
+                backgroundColor: '#E8F5E9',
+                border: '1px solid #A3D9C9',
+                color: '#2D6A4F',
+                fontSize: '0.72rem',
+                fontWeight: 700,
+                cursor: isAuthenticating ? 'not-allowed' : 'pointer',
+                textAlign: 'center',
+                transition: 'opacity 150ms',
+              }}
+            >
+              Nurse (2468)
+            </button>
+
+            <button
+              type="button"
+              disabled={isAuthenticating}
+              onClick={() => handleQuickFill('9110', 'dispatch')}
+              style={{
+                padding: '6px 4px',
+                borderRadius: '8px',
+                backgroundColor: '#FEF3C7',
+                border: '1px solid #FCD34D',
+                color: '#B45309',
+                fontSize: '0.72rem',
+                fontWeight: 700,
+                cursor: isAuthenticating ? 'not-allowed' : 'pointer',
+                textAlign: 'center',
+                transition: 'opacity 150ms',
+              }}
+            >
+              Dispatch (9110)
+            </button>
+
+            <button
+              type="button"
+              disabled={isAuthenticating}
+              onClick={() => handleQuickFill('1357', 'hospital')}
+              style={{
+                padding: '6px 4px',
+                borderRadius: '8px',
+                backgroundColor: '#E3F2FD',
+                border: '1px solid #90CAF9',
+                color: '#1565C0',
+                fontSize: '0.72rem',
+                fontWeight: 700,
+                cursor: isAuthenticating ? 'not-allowed' : 'pointer',
+                textAlign: 'center',
+                transition: 'opacity 150ms',
+              }}
+            >
+              Hospital (1357)
+            </button>
+          </div>
+        </div>
+
+        {/* Collapsible Email / Password option */}
+        <div style={{ marginTop: '1.25rem', borderTop: '1px dashed #E1E7E1', paddingTop: '0.75rem' }}>
+          <button
+            type="button"
+            onClick={() => setShowEmailForm(!showEmailForm)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '4px',
+              width: '100%',
+              background: 'none',
+              border: 'none',
+              color: '#5C6B64',
+              fontSize: '0.75rem',
+              fontWeight: 500,
+              cursor: 'pointer',
+              padding: '4px 0',
+            }}
+          >
+            <span>{showEmailForm ? 'Hide email sign-in' : 'Or sign in with email and password'}</span>
+            {showEmailForm ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+          </button>
+
+          {showEmailForm && (
+            <form onSubmit={handleEmailLogin} style={{ marginTop: '0.75rem' }}>
+              <div style={{ marginBottom: '0.75rem' }}>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="name@bedlink.internal"
+                  required
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    borderRadius: '8px',
+                    border: '1px solid #E1E7E1',
+                    fontSize: '0.82rem',
+                    boxSizing: 'border-box',
+                  }}
+                />
+              </div>
+
+              <div style={{ marginBottom: '0.75rem' }}>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Password"
+                  required
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    borderRadius: '8px',
+                    border: '1px solid #E1E7E1',
+                    fontSize: '0.82rem',
+                    boxSizing: 'border-box',
+                  }}
+                />
+              </div>
+
+              {emailError && (
+                <div style={{ color: '#E11D48', fontSize: '0.75rem', marginBottom: '0.5rem' }}>
+                  {emailError}
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={isPendingEmail}
+                style={{
+                  width: '100%',
+                  padding: '8px',
+                  borderRadius: '8px',
+                  backgroundColor: '#2D6A4F',
+                  color: '#FFFFFF',
+                  fontWeight: 600,
+                  fontSize: '0.8rem',
+                  border: 'none',
+                  cursor: isPendingEmail ? 'not-allowed' : 'pointer',
+                }}
+              >
+                {isPendingEmail ? 'Signing in…' : 'Sign in with Credentials'}
+              </button>
+            </form>
+          )}
         </div>
       </div>
 
-      {/* Footer note */}
-      <p style={{
-        marginTop: '1.5rem',
+      {/* Footer Info */}
+      <div style={{
+        marginTop: '1.25rem',
+        textAlign: 'center',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '6px',
         fontSize: '0.75rem',
         color: '#5C6B64',
-        textAlign: 'center',
-        maxWidth: '360px',
       }}>
-        BedLink — Emergency hospital-bed coordination platform.
-        Demo data uses a shared hosted database.
-      </p>
+        <ShieldCheck className="w-4 h-4 text-[#2D6A4F]" />
+        <span>Authoritative Supabase PostgreSQL & Realtime Protected</span>
+      </div>
     </div>
   )
 }

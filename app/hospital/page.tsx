@@ -35,8 +35,8 @@ export default async function HospitalPage({
     profile = profileData ?? null
   }
 
-  // Demo fallback mode for local development/preview without live session cookies
-  if (!profile && process.env.NODE_ENV !== 'production') {
+  // Demo fallback mode for local development/preview or direct demo parameter
+  if (!profile && (params?.demo || process.env.NODE_ENV !== 'production')) {
     if (params?.demo === 'stjude') {
       profile = {
         role: DEMO_IDENTITIES.HOSPITAL_STJUDE.role,

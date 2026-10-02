@@ -35,8 +35,8 @@ export default async function NursePage({
     profile = profileData ?? null
   }
 
-  // Demo fallback mode for local development/preview without live session cookies
-  if (!profile && process.env.NODE_ENV !== 'production') {
+  // Demo fallback mode for local development/preview or direct demo parameter
+  if (!profile && (params?.demo || process.env.NODE_ENV !== 'production')) {
     const demoTarget = params?.demo === 'stjude' ? DEMO_IDENTITIES.NURSE_STJUDE : DEMO_IDENTITIES.NURSE_APEX
     profile = {
       role: demoTarget.role,
