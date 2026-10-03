@@ -64,18 +64,25 @@ export default function DispatchCoordinationMap({
       return
     }
 
-    if (typeof window !== 'undefined' && (window as any).google?.maps) {
+    if (typeof window !== 'undefined' && (window as any).google?.maps?.Map) {
       setMapsLoaded(true)
       return
     }
 
     const scriptId = 'google-maps-script'
-    let script = document.getElementById(scriptId) as HTMLScriptElement | null
+    const callbackName = '__bedlinkGoogleMapsInit'
 
-    const handleSuccess = () => setMapsLoaded(true)
+    const handleSuccess = () => {
+      if ((window as any).google?.maps?.Map) {
+        setMapsLoaded(true)
+      }
+    }
     const handleError = () => setMapsError(true)
 
     if (typeof window !== 'undefined') {
+      ;(window as any)[callbackName] = () => {
+        setMapsLoaded(true)
+      }
       ;(window as any).gm_authFailure = () => {
         setMapsError(true)
         const existingDialogs = document.querySelectorAll('.dismissButton, [id^="gm-err"]')
@@ -83,18 +90,23 @@ export default function DispatchCoordinationMap({
       }
     }
 
+    let script = document.getElementById(scriptId) as HTMLScriptElement | null
+
     if (!script) {
       script = document.createElement('script')
       script.id = scriptId
-      script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=geometry&loading=async`
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=geometry&callback=${callbackName}`
       script.async = true
       script.defer = true
-      script.onload = handleSuccess
       script.onerror = handleError
       document.head.appendChild(script)
     } else {
-      script.addEventListener('load', handleSuccess)
-      script.addEventListener('error', handleError)
+      if ((window as any).google?.maps?.Map) {
+        setMapsLoaded(true)
+      } else {
+        script.addEventListener('load', handleSuccess)
+        script.addEventListener('error', handleError)
+      }
     }
 
     return () => {
@@ -711,38 +723,37 @@ export default function DispatchCoordinationMap({
       {/* Map Viewport Area */}
       <div style={{ position: 'relative', width: '100%', height: '340px', backgroundColor: '#EEF3EE', overflow: 'hidden' }}>
         {/* Real Google Maps Container (Active when Google Maps key works) */}
-        {viewMode === 'street' && mapsLoaded && !mapsError && (
-          <div
-            ref={mapContainerRef}
-            style={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              width: '100%',
-              height: '100%',
-              zIndex: 2,
-            }}
-          />
-        )}
+        <div
+          ref={mapContainerRef}
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            minHeight: '340px',
+            zIndex: viewMode === 'street' && mapsLoaded && !mapsError ? 2 : 0,
+            opacity: viewMode === 'street' && mapsLoaded && !mapsError ? 1 : 0,
+            pointerEvents: viewMode === 'street' && mapsLoaded && !mapsError ? 'auto' : 'none',
+          }}
+        />
 
         {/* Real Leaflet Street Map Container (Active when Google Maps key is missing or errored) */}
-        {(!mapsLoaded || mapsError) && (
-          <div
-            ref={leafletContainerRef}
-            style={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              width: '100%',
-              height: '100%',
-              minHeight: '340px',
-              zIndex: viewMode === 'street' ? 2 : 0,
-              opacity: viewMode === 'street' ? 1 : 0,
-              pointerEvents: viewMode === 'street' ? 'auto' : 'none',
-              transition: 'opacity 0.2s ease',
-            }}
-          />
-        )}
+        <div
+          ref={leafletContainerRef}
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            minHeight: '340px',
+            zIndex: viewMode === 'street' && (!mapsLoaded || mapsError) ? 2 : 0,
+            opacity: viewMode === 'street' && (!mapsLoaded || mapsError) ? 1 : 0,
+            pointerEvents: viewMode === 'street' && (!mapsLoaded || mapsError) ? 'auto' : 'none',
+            transition: 'opacity 0.2s ease',
+          }}
+        />
 
         {/* Tactical SVG Radar Fallback / Mode */}
         {viewMode === 'radar' && (
