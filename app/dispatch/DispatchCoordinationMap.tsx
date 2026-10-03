@@ -484,17 +484,69 @@ export default function DispatchCoordinationMap({
               </>
             )}
 
-            {/* Active Route Line */}
+            {/* Active Route Tactical Transit Corridor & Telemetry Vector */}
             {radarView.ambPoint && radarView.activePoint && (
-              <line
-                x1={radarView.ambPoint.x}
-                y1={radarView.ambPoint.y}
-                x2={radarView.activePoint.x}
-                y2={radarView.activePoint.y}
-                stroke="#2D6A4F"
-                strokeWidth="3.5"
-                strokeDasharray="6 4"
-              />
+              <g>
+                {/* Outer Transit Corridor Glow */}
+                <line
+                  x1={radarView.ambPoint.x}
+                  y1={radarView.ambPoint.y}
+                  x2={radarView.activePoint.x}
+                  y2={radarView.activePoint.y}
+                  stroke="#2D6A4F"
+                  strokeWidth="8"
+                  strokeOpacity="0.18"
+                  strokeLinecap="round"
+                />
+
+                {/* Animated Marching Transit Dash Vector */}
+                <line
+                  x1={radarView.ambPoint.x}
+                  y1={radarView.ambPoint.y}
+                  x2={radarView.activePoint.x}
+                  y2={radarView.activePoint.y}
+                  stroke="#2D6A4F"
+                  strokeWidth="3.5"
+                  strokeDasharray="8 6"
+                  strokeLinecap="round"
+                >
+                  <animate attributeName="stroke-dashoffset" from="28" to="0" dur="1.2s" repeatCount="indefinite" />
+                </line>
+
+                {/* Mid-Route Transit Waypoint Beacon */}
+                <circle
+                  cx={(radarView.ambPoint.x + radarView.activePoint.x) / 2}
+                  cy={(radarView.ambPoint.y + radarView.activePoint.y) / 2}
+                  r="7"
+                  fill="#2D6A4F"
+                  opacity="0.25"
+                >
+                  <animate attributeName="r" values="4;10;4" dur="2s" repeatCount="indefinite" />
+                  <animate attributeName="opacity" values="0.4;0.1;0.4" dur="2s" repeatCount="indefinite" />
+                </circle>
+                <circle
+                  cx={(radarView.ambPoint.x + radarView.activePoint.x) / 2}
+                  cy={(radarView.ambPoint.y + radarView.activePoint.y) / 2}
+                  r="3"
+                  fill="#2D6A4F"
+                />
+
+                {/* Active Transit Telemetry Pulse traveling from Ambulance to Destination */}
+                <circle r="4.5" fill="#1B4332" stroke="#FFFFFF" strokeWidth="1.5">
+                  <animate
+                    attributeName="cx"
+                    values={`${radarView.ambPoint.x};${radarView.activePoint.x}`}
+                    dur="2.5s"
+                    repeatCount="indefinite"
+                  />
+                  <animate
+                    attributeName="cy"
+                    values={`${radarView.ambPoint.y};${radarView.activePoint.y}`}
+                    dur="2.5s"
+                    repeatCount="indefinite"
+                  />
+                </circle>
+              </g>
             )}
 
             {/* Projected Hospital Candidate Nodes */}

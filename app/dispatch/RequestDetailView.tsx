@@ -102,7 +102,7 @@ export default function RequestDetailView({ request }: RequestDetailViewProps) {
           </div>
           <div style={{ fontWeight: 600, color: '#1A2421', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '4px' }}>
             <Clock size={14} style={{ color: '#5C6B64' }} />
-            <span>{new Date(request.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
+            <span suppressHydrationWarning>{new Date(request.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
           </div>
         </div>
 

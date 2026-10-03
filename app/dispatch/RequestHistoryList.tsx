@@ -164,7 +164,7 @@ export default function RequestHistoryList({
               </div>
 
               <div style={{ fontSize: '0.675rem', color: '#5C6B64', marginTop: '4px' }}>
-                Created: {new Date(req.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })} • GPS ({req.ambulance_latitude.toFixed(4)}, {req.ambulance_longitude.toFixed(4)})
+                Created: <span suppressHydrationWarning>{new Date(req.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span> • GPS ({req.ambulance_latitude.toFixed(4)}, {req.ambulance_longitude.toFixed(4)})
               </div>
             </button>
           )

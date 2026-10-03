@@ -1008,7 +1008,7 @@ export default function NurseInventoryClient({
                   {confirmedAt ? (
                     <span>
                       Confirmed at{' '}
-                      <strong>
+                      <strong suppressHydrationWarning>
                         {new Date(confirmedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </strong>
                     </span>

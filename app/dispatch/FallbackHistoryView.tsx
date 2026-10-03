@@ -172,7 +172,7 @@ export default function FallbackHistoryView({
                     </div>
                     <div style={{ fontSize: '0.7rem', color: '#5C6B64', marginTop: '2px' }}>
                       Bed #{item.bed_id.slice(0, 8)} • Initiated:{' '}
-                      {new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                      <span suppressHydrationWarning>{new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
                     </div>
                   </div>
                 </div>

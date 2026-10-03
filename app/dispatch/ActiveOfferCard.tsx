@@ -209,7 +209,7 @@ export default function ActiveOfferCard({
             <div style={{ color: '#5C6B64', fontSize: '0.675rem', textTransform: 'uppercase', fontWeight: 700 }}>
               Offer Creation Time
             </div>
-            <div style={{ fontWeight: 700, color: '#1A2421', fontSize: '0.825rem', marginTop: '2px' }}>
+            <div style={{ fontWeight: 700, color: '#1A2421', fontSize: '0.825rem', marginTop: '2px' }} suppressHydrationWarning>
               {new Date(reservation.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
             </div>
           </div>
@@ -218,7 +218,7 @@ export default function ActiveOfferCard({
             <div style={{ color: '#5C6B64', fontSize: '0.675rem', textTransform: 'uppercase', fontWeight: 700 }}>
               Hold Expiration Time
             </div>
-            <div style={{ fontWeight: 700, color: '#E11D48', fontSize: '0.825rem', marginTop: '2px' }}>
+            <div style={{ fontWeight: 700, color: '#E11D48', fontSize: '0.825rem', marginTop: '2px' }} suppressHydrationWarning>
               {reservation.hold_expires_at
                 ? new Date(reservation.hold_expires_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
                 : '120s from offer'}
