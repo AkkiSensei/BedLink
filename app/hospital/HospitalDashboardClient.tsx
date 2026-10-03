@@ -633,30 +633,152 @@ export default function HospitalDashboardClient({
         >
           <div>
             <h1 style={{ fontSize: '1.35rem', fontWeight: 800, color: '#1A2421', margin: 0 }}>
-              Incoming Emergency Bed Offers
+              {compactTab === 'inbox' && 'Incoming Emergency Bed Offers'}
+              {compactTab === 'beds' && `${hospitalName} Capacity Overview`}
+              {compactTab === 'history' && 'Offer History & Attendance'}
             </h1>
             <p style={{ fontSize: '0.85rem', color: '#5C6B64', margin: '3px 0 0 0' }}>
-              Authoritative reservation holds currently placed with {hospitalName}. Review and accept or reject within the 120s response window.
+              {compactTab === 'inbox' && `Authoritative reservation holds currently placed with ${hospitalName}. Review and accept or reject within the 120s response window.`}
+              {compactTab === 'beds' && `Authoritative clinical bed readiness and real-time emergency capacity tracking for ${hospitalName}.`}
+              {compactTab === 'history' && `Audited past emergency offers, admissions, and rejections for ${hospitalName}.`}
             </p>
           </div>
-          <div
-            style={{
-              fontSize: '0.8rem',
-              color: '#2D6A4F',
-              backgroundColor: '#EEF3EE',
-              border: '1px solid #E1E7E1',
-              padding: '4px 10px',
-              borderRadius: '6px',
-              fontWeight: 700,
-            }}
-          >
-            Queue count: {sortedReservations.length}
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            {/* Desktop Tabs Segmented Control */}
+            <nav
+              aria-label="Desktop view navigation"
+              style={{
+                display: 'inline-flex',
+                backgroundColor: '#EAEFEA',
+                padding: '3px',
+                borderRadius: '9999px',
+                border: '1px solid #D5DDD5',
+                gap: '2px',
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => {
+                  setCompactTab('inbox')
+                  triggerHaptic('tap')
+                }}
+                style={{
+                  padding: '6px 14px',
+                  borderRadius: '9999px',
+                  border: 'none',
+                  fontSize: '0.8rem',
+                  fontWeight: compactTab === 'inbox' ? 700 : 500,
+                  backgroundColor: compactTab === 'inbox' ? '#1A2421' : 'transparent',
+                  color: compactTab === 'inbox' ? '#FFFFFF' : '#495850',
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  transition: 'all 150ms',
+                }}
+              >
+                <Inbox size={15} />
+                <span>Inbox</span>
+                {activeHeldCount > 0 && (
+                  <span
+                    style={{
+                      backgroundColor: '#E11D48',
+                      color: '#FFFFFF',
+                      padding: '1px 6px',
+                      borderRadius: '999px',
+                      fontSize: '0.65rem',
+                      fontWeight: 800,
+                    }}
+                  >
+                    {activeHeldCount}
+                  </span>
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setCompactTab('beds')
+                  triggerHaptic('tap')
+                }}
+                style={{
+                  padding: '6px 14px',
+                  borderRadius: '9999px',
+                  border: 'none',
+                  fontSize: '0.8rem',
+                  fontWeight: compactTab === 'beds' ? 700 : 500,
+                  backgroundColor: compactTab === 'beds' ? '#1A2421' : 'transparent',
+                  color: compactTab === 'beds' ? '#FFFFFF' : '#495850',
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  transition: 'all 150ms',
+                }}
+              >
+                <Bed size={15} />
+                <span>Beds & Capacity</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setCompactTab('history')
+                  triggerHaptic('tap')
+                }}
+                style={{
+                  padding: '6px 14px',
+                  borderRadius: '9999px',
+                  border: 'none',
+                  fontSize: '0.8rem',
+                  fontWeight: compactTab === 'history' ? 700 : 500,
+                  backgroundColor: compactTab === 'history' ? '#1A2421' : 'transparent',
+                  color: compactTab === 'history' ? '#FFFFFF' : '#495850',
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  transition: 'all 150ms',
+                }}
+              >
+                <History size={15} />
+                <span>History</span>
+                <span
+                  style={{
+                    backgroundColor: compactTab === 'history' ? 'rgba(255, 255, 255, 0.2)' : '#DCE3DC',
+                    color: compactTab === 'history' ? '#FFFFFF' : '#1A2421',
+                    padding: '1px 6px',
+                    borderRadius: '999px',
+                    fontSize: '0.65rem',
+                    fontWeight: 700,
+                  }}
+                >
+                  {historyReservations.length}
+                </span>
+              </button>
+            </nav>
+
+            <div
+              style={{
+                fontSize: '0.8rem',
+                color: '#2D6A4F',
+                backgroundColor: '#EEF3EE',
+                border: '1px solid #E1E7E1',
+                padding: '6px 12px',
+                borderRadius: '8px',
+                fontWeight: 700,
+                whiteSpace: 'nowrap',
+              }}
+            >
+              Queue: {sortedReservations.length}
+            </div>
           </div>
         </div>
 
-        {/* VIEW FILTER: For compact viewports, filter based on active compactTab; for desktop, render full queue */}
+        {/* VIEW FILTER: Controlled by active compactTab across mobile and desktop */}
         {/* Tab 1: INBOX (Active Offers) */}
-        <div style={{ display: compactTab === 'inbox' || typeof window === 'undefined' ? 'block' : 'none' }} className="inbox-section">
+        <div style={{ display: compactTab === 'inbox' ? 'block' : 'none' }} className="inbox-section">
           {heldReservations.length === 0 ? (
             <div
               style={{
@@ -755,7 +877,7 @@ export default function HospitalDashboardClient({
         </div>
 
         {/* Tab 3: HISTORY (Resolved Offers) */}
-        <div style={{ display: compactTab === 'history' || typeof window === 'undefined' ? 'block' : 'none' }}>
+        <div style={{ display: compactTab === 'history' ? 'block' : 'none' }}>
           <div style={{ marginTop: '1.5rem', marginBottom: '1rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem', marginBottom: '0.75rem' }}>
               <div>

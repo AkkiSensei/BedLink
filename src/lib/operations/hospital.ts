@@ -256,9 +256,11 @@ export async function getHospitalStatistics(
     const authContext = await requireRole(['hospital', 'admin'], client)
     const { profile } = authContext
 
-    let hospitalId = options?.targetHospitalId || profile.hospital_id || ''
-    if (profile.role === 'hospital' && profile.hospital_id) {
-      hospitalId = options?.targetHospitalId || profile.hospital_id
+    let hospitalId: string
+    if (profile.role === 'hospital') {
+      hospitalId = profile.hospital_id || ''
+    } else {
+      hospitalId = options?.targetHospitalId || profile.hospital_id || ''
     }
 
     let hospitalName = 'Authorized Emergency Facility'
@@ -366,7 +368,7 @@ export async function getHospitalStatistics(
       for (let i = daysCount - 1; i >= 0; i--) {
         const d = new Date(now.getTime() - i * 24 * 60 * 60 * 1000)
         const key = d.toISOString().split('T')[0]
-        const label = d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+        const label = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
         trendMap.set(key, { label, admitted: 0, rejected: 0, expired: 0, total: 0 })
       }
     }

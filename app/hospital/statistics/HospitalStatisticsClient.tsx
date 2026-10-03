@@ -36,7 +36,10 @@ import {
   Sparkles,
   BarChart3,
   FileSpreadsheet,
+  X,
+  FolderOpen,
 } from 'lucide-react'
+import { loginWithPinAction } from '../../actions/auth'
 
 interface HospitalStatisticsClientProps {
   initialData: HospitalStatisticsData
@@ -83,6 +86,13 @@ export default function HospitalStatisticsClient({
     setSelectedHospitalId(newHospId)
     setIsRefreshing(true)
     triggerHaptic('tap')
+
+    const selectedHosp = allHospitals.find((h) => h.hospitalId === newHospId)
+    if (selectedHosp?.pin) {
+      try {
+        await loginWithPinAction(selectedHosp.pin)
+      } catch {}
+    }
 
     try {
       const res = await getHospitalStatisticsAction({
@@ -541,9 +551,10 @@ export default function HospitalStatisticsClient({
                 {searchQuery && (
                   <button
                     onClick={() => setSearchQuery('')}
-                    style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#5C6B64', padding: 0 }}
+                    style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#5C6B64', padding: 0, display: 'flex', alignItems: 'center' }}
+                    aria-label="Clear search query"
                   >
-                    ✕
+                    <X size={14} />
                   </button>
                 )}
               </div>
@@ -1118,7 +1129,9 @@ export default function HospitalStatisticsClient({
           {/* Table / Card List */}
           {filteredHistory.length === 0 ? (
             <div style={{ padding: '3rem 1rem', textAlign: 'center', color: '#5C6B64' }}>
-              <div style={{ fontSize: '1.5rem', marginBottom: '8px' }}>📂</div>
+              <div style={{ marginBottom: '8px', display: 'flex', justifyContent: 'center' }}>
+                <FolderOpen size={32} style={{ color: '#5C6B64' }} />
+              </div>
               <div style={{ fontSize: '0.9rem', fontWeight: 700, color: '#1A2421' }}>
                 No historical patient records match your filter criteria
               </div>

@@ -127,9 +127,9 @@ export async function refreshHospitalReservationsAction(options?: {
       await reservationService.processDueExpiries(new Date(), true)
     } catch {}
 
-    const statuses = options?.includeHistory
-      ? ['held', 'accepted', 'rejected', 'expired']
-      : ['held']
+    const statuses = options?.includeHistory === false
+      ? ['held']
+      : ['held', 'accepted', 'rejected', 'expired']
     const reservations = await getHospitalReservations(client, {
       targetHospitalId: options?.targetHospitalId,
       statuses: statuses as any,
