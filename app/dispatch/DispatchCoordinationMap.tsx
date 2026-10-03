@@ -298,34 +298,29 @@ export default function DispatchCoordinationMap({
       .then((L) => {
         if (isCancelled || !leafletContainerRef.current) return
 
-        if (!leafletMapRef.current) {
-          const lmap = L.map(leafletContainerRef.current, {
-            zoomControl: false,
-            attributionControl: false,
-            scrollWheelZoom: true,
-          })
-          leafletMapRef.current = lmap
-
-          L.tileLayer(
-            'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
-            {
-              maxZoom: 19,
-              subdomains: 'abcd',
-            }
-          ).addTo(lmap)
-
-          L.control.zoom({ position: 'topright' }).addTo(lmap)
+        if (leafletMapRef.current) {
+          try {
+            leafletMapRef.current.remove()
+          } catch {}
+          leafletMapRef.current = null
         }
 
-        const lmap = leafletMapRef.current
-        if (!lmap) return
-
-        // Clear existing markers and polylines
-        lmap.eachLayer((layer: any) => {
-          if (layer instanceof L.Marker || layer instanceof L.Polyline) {
-            lmap.removeLayer(layer)
-          }
+        const lmap = L.map(leafletContainerRef.current, {
+          zoomControl: false,
+          attributionControl: false,
+          scrollWheelZoom: true,
         })
+        leafletMapRef.current = lmap
+
+        L.tileLayer(
+          'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
+          {
+            maxZoom: 19,
+            subdomains: 'abcd',
+          }
+        ).addTo(lmap)
+
+        L.control.zoom({ position: 'topright' }).addTo(lmap)
 
         const bounds = L.latLngBounds([])
 
@@ -477,6 +472,11 @@ export default function DispatchCoordinationMap({
         }
 
         setLeafletLoaded(true)
+        setTimeout(() => {
+          try {
+            lmap.invalidateSize()
+          } catch {}
+        }, 150)
       })
       .catch((err) => {
         console.warn('[DispatchCoordinationMap] Leaflet dynamic error:', err)
@@ -726,7 +726,7 @@ export default function DispatchCoordinationMap({
         )}
 
         {/* Real Leaflet Street Map Container (Active when Google Maps key is missing or errored) */}
-        {viewMode === 'street' && (!mapsLoaded || mapsError) && (
+        {(!mapsLoaded || mapsError) && (
           <div
             ref={leafletContainerRef}
             style={{
@@ -735,7 +735,11 @@ export default function DispatchCoordinationMap({
               left: 0,
               width: '100%',
               height: '100%',
-              zIndex: 1,
+              minHeight: '340px',
+              zIndex: viewMode === 'street' ? 2 : 0,
+              opacity: viewMode === 'street' ? 1 : 0,
+              pointerEvents: viewMode === 'street' ? 'auto' : 'none',
+              transition: 'opacity 0.2s ease',
             }}
           />
         )}
