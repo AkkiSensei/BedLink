@@ -39,7 +39,9 @@ export default function RequestDetailView({ request }: RequestDetailViewProps) {
               padding: '3px 10px',
               borderRadius: '9999px',
               backgroundColor:
-                request.status === 'confirmed'
+                request.status === 'bed_ready'
+                  ? '#ECFDF5'
+                  : request.status === 'confirmed'
                   ? '#E8F5E9'
                   : request.status === 'offered'
                   ? '#FEF3C7'
@@ -47,7 +49,9 @@ export default function RequestDetailView({ request }: RequestDetailViewProps) {
                   ? '#FFF1F2'
                   : '#EEF3EE',
               color:
-                request.status === 'confirmed'
+                request.status === 'bed_ready'
+                  ? '#059669'
+                  : request.status === 'confirmed'
                   ? '#2E7D32'
                   : request.status === 'offered'
                   ? '#B45309'
@@ -57,7 +61,7 @@ export default function RequestDetailView({ request }: RequestDetailViewProps) {
               border: '1px solid currentColor',
             }}
           >
-            {request.status.toUpperCase()}
+            {request.status === 'bed_ready' ? 'BED READY' : request.status.toUpperCase()}
           </span>
         </div>
       </div>

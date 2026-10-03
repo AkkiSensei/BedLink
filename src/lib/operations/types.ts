@@ -37,6 +37,14 @@ export interface NurseBedView {
   room_number: string | null
   last_updated_at: string
   created_at: string
+  active_ems_reservation?: {
+    reservation_id: string
+    bed_request_id: string
+    status: string
+    admitted_at?: string | null
+    discharged_at?: string | null
+    bed_ready_at?: string | null
+  } | null
 }
 
 export interface UpdateNurseBedInput {
@@ -44,6 +52,37 @@ export interface UpdateNurseBedInput {
   status?: BedStatus
   capabilities?: BedCapability[]
   room_number?: string | null
+}
+
+export interface AdmitEmsPatientInput {
+  reservationId?: string
+  bedId?: string
+  evaluationTime?: Date | string | number
+}
+
+export interface AdmitEmsPatientResult {
+  success: boolean
+  reservationId: string
+  bedId: string
+  bedRequestId: string
+  admittedAt: string
+  status: 'occupied'
+  idempotent?: boolean
+}
+
+export interface DischargeEmsPatientInput {
+  bedId: string
+  evaluationTime?: Date | string | number
+}
+
+export interface DischargeEmsPatientResult {
+  success: boolean
+  bedId: string
+  reservationId: string
+  bedRequestId: string
+  hospitalId: string
+  dischargedAt: string
+  status: 'available'
 }
 
 // ==========================================
@@ -68,6 +107,10 @@ export interface DispatchReservationView {
   status: ReservationStatus
   attempt_number: number
   hold_expires_at: string
+  bed_ready_at?: string | null
+  readiness_checklist?: any
+  admitted_at?: string | null
+  discharged_at?: string | null
   created_at: string
 }
 
@@ -138,6 +181,16 @@ export interface HospitalReservationView {
   status: ReservationStatus
   attempt_number: number
   hold_expires_at: string
+  bed_ready_at?: string | null
+  readiness_checklist?: {
+    bedReserved?: boolean
+    oxygenChecked?: boolean
+    ventilatorChecked?: boolean
+    teamAlerted?: boolean
+  } | null
+  admitted_at?: string | null
+  discharged_at?: string | null
+  bed_request_status?: BedRequestStatus
   created_at: string
   updated_at?: string
   required_capabilities: BedCapability[]
@@ -152,6 +205,26 @@ export interface HospitalReservationView {
   bed_capabilities?: BedCapability[]
   estimated_travel_time_minutes?: number | null
   decision_time_seconds?: number | null
+}
+
+export interface MarkBedReadyInput {
+  reservationId: string
+  checklist?: {
+    bedReserved?: boolean
+    oxygenChecked?: boolean
+    ventilatorChecked?: boolean
+    teamAlerted?: boolean
+  }
+  evaluationTime?: Date | string | number
+}
+
+export interface MarkBedReadyResult {
+  success: boolean
+  reservationId: string
+  bedRequestId: string
+  bedReadyAt: string
+  status: 'bed_ready'
+  idempotent?: boolean
 }
 
 export interface AcceptHospitalReservationInput {

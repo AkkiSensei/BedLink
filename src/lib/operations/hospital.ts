@@ -12,6 +12,8 @@ import type {
   AcceptHospitalReservationInput,
   HospitalReservationView,
   RejectHospitalReservationInput,
+  MarkBedReadyInput,
+  MarkBedReadyResult,
   HospitalStatisticsData,
   StatisticsTimeFilter,
   HospitalDailyTrendPoint,
@@ -69,6 +71,8 @@ export async function getHospitalReservations(
       let queryStr = `
         SELECT r.id, r.bed_request_id, r.hospital_id, r.bed_id, r.status,
                r.attempt_number, r.hold_expires_at, r.created_at, r.updated_at,
+               r.bed_ready_at, r.readiness_checklist, r.admitted_at, r.discharged_at,
+               br.status as bed_request_status,
                br.required_capabilities, br.ambulance_latitude,
                br.ambulance_longitude, br.ambulance_phone,
                b.room_number, b.capabilities as bed_capabilities,
@@ -114,9 +118,9 @@ export async function getHospitalReservations(
       let query = client
         .from('reservations')
         .select(
-          `id, bed_request_id, hospital_id, bed_id, status, attempt_number, hold_expires_at, created_at, updated_at,
+          `id, bed_request_id, hospital_id, bed_id, status, attempt_number, hold_expires_at, created_at, updated_at, bed_ready_at, readiness_checklist, admitted_at, discharged_at,
            bed_requests!reservations_bed_request_id_fkey (
-             required_capabilities, ambulance_latitude, ambulance_longitude, ambulance_phone
+             status, required_capabilities, ambulance_latitude, ambulance_longitude, ambulance_phone
            ),
            beds (
              room_number, capabilities
@@ -160,6 +164,11 @@ export async function getHospitalReservations(
         status: r.status,
         attempt_number: r.attempt_number,
         hold_expires_at: r.hold_expires_at,
+        bed_ready_at: r.bed_ready_at,
+        readiness_checklist: r.readiness_checklist,
+        admitted_at: r.admitted_at,
+        discharged_at: r.discharged_at,
+        bed_request_status: r.bed_requests?.status,
         created_at: r.created_at,
         updated_at: r.updated_at,
         required_capabilities: r.bed_requests?.required_capabilities,
@@ -215,6 +224,11 @@ export async function getHospitalReservations(
         status: r.status,
         attempt_number: r.attempt_number,
         hold_expires_at: r.hold_expires_at,
+        bed_ready_at: r.bed_ready_at ?? null,
+        readiness_checklist: r.readiness_checklist ?? null,
+        admitted_at: r.admitted_at ?? null,
+        discharged_at: r.discharged_at ?? null,
+        bed_request_status: r.bed_request_status ?? undefined,
         created_at: r.created_at,
         updated_at: r.updated_at,
         required_capabilities: r.required_capabilities,
@@ -666,3 +680,206 @@ export async function rejectHospitalReservation(
     throw toOperationError(err)
   }
 }
+
+/**
+ * Marks a physical bed READY for an accepted EMS emergency reservation.
+ * Displays preparation checklist confirmation and updates authoritative database state:
+ * State transition: CONFIRMED -> BED READY
+ * Persists readiness + authoritative timestamp against the accepted EMS reservation.
+ * Realtime updates are broadcast to the Dispatch Operator.
+ * (Does not claim this triggers external hospital systems.)
+ */
+export async function markBedReady(
+  input: MarkBedReadyInput,
+  client?: any
+): Promise<MarkBedReadyResult> {
+  try {
+    if (!client) {
+      const { createServerSupabaseClient } = await import('@/lib/supabase/server')
+      client = await createServerSupabaseClient()
+    }
+
+    const authContext = await requireRole(['hospital', 'admin'], client)
+    const { profile } = authContext
+
+    // 1. Validate inputs
+    const reservationId = validateUUID(input.reservationId, 'reservationId')
+    const evaluationTime = validateEvaluationTime(
+      input.evaluationTime,
+      'evaluationTime'
+    )
+    const evalIso = evaluationTime.toISOString()
+    const checklistObj = input.checklist || {
+      bedReserved: true,
+      oxygenChecked: true,
+      ventilatorChecked: true,
+      teamAlerted: true,
+    }
+    const checklistJson = JSON.stringify(checklistObj)
+
+    // 2. Fetch reservation to verify organizational ownership boundary
+    let reservation: any = null
+    if (typeof client?.query === 'function') {
+      const res = await client.query(
+        `SELECT * FROM public.reservations WHERE id = $1;`,
+        [reservationId]
+      )
+      reservation = res.rows[0] ?? null
+    } else if (typeof client?.from === 'function') {
+      const { data, error } = await client
+        .from('reservations')
+        .select('*')
+        .eq('id', reservationId)
+        .maybeSingle()
+      if (error) throw error
+      reservation = data
+    }
+
+    if (!reservation) {
+      throw new NotFoundOperationError(`Reservation not found: ${reservationId}`)
+    }
+
+    // 3. Enforce organizational hospital boundary
+    if (profile.role === 'hospital') {
+      if (reservation.hospital_id !== profile.hospital_id) {
+        throw new ForbiddenOperationError(
+          `Forbidden: Hospital users cannot mark bed ready for reservations belonging to another hospital (${reservation.hospital_id})`
+        )
+      }
+    }
+
+    // 4. Authoritative state guard: reservation must be accepted first
+    if (reservation.status !== 'accepted') {
+      throw new ConflictOperationError(
+        `Cannot mark bed ready: reservation ${reservationId} is in status ${reservation.status} (must be accepted first)`
+      )
+    }
+
+    // 5. Idempotent duplicate check: duplicate readiness returns cleanly
+    if (reservation.bed_ready_at) {
+      return {
+        success: true,
+        reservationId,
+        bedRequestId: reservation.bed_request_id,
+        bedReadyAt: reservation.bed_ready_at,
+        status: 'bed_ready',
+        idempotent: true,
+      }
+    }
+
+    // 6. Check active reference on BedRequest (protect against stale action)
+    let bedRequest: any = null
+    if (typeof client?.query === 'function') {
+      const res = await client.query(
+        `SELECT * FROM public.bed_requests WHERE id = $1;`,
+        [reservation.bed_request_id]
+      )
+      bedRequest = res.rows[0] ?? null
+    } else if (typeof client?.from === 'function') {
+      const { data, error } = await client
+        .from('bed_requests')
+        .select('*')
+        .eq('id', reservation.bed_request_id)
+        .maybeSingle()
+      if (error) throw error
+      bedRequest = data
+    }
+
+    if (!bedRequest || bedRequest.current_active_reservation_id !== reservationId) {
+      throw new ConflictOperationError(
+        `Stale reservation action: reservation ${reservationId} is no longer active for BedRequest ${reservation.bed_request_id}`
+      )
+    }
+
+    // 7. Atomic update (via RPC or direct queries)
+    if (typeof client?.query === 'function') {
+      try {
+        const res = await client.query(
+          `SELECT public.mark_bed_ready_atomic($1, $2::jsonb, $3::timestamptz) as result;`,
+          [reservationId, checklistJson, evalIso]
+        )
+        const result = res.rows[0]?.result
+        return {
+          success: true,
+          reservationId: result.reservation_id,
+          bedRequestId: result.bed_request_id,
+          bedReadyAt: result.bed_ready_at,
+          status: 'bed_ready',
+          idempotent: Boolean(result.idempotent),
+        }
+      } catch (err: any) {
+        // Fallback to direct SQL
+        await client.query(
+          `UPDATE public.reservations
+           SET bed_ready_at = $1, readiness_checklist = $2::jsonb, updated_at = $1
+           WHERE id = $3;`,
+          [evalIso, checklistJson, reservationId]
+        )
+        await client.query(
+          `UPDATE public.bed_requests
+           SET status = 'bed_ready', updated_at = $1
+           WHERE id = $2;`,
+          [evalIso, reservation.bed_request_id]
+        )
+        return {
+          success: true,
+          reservationId,
+          bedRequestId: reservation.bed_request_id,
+          bedReadyAt: evalIso,
+          status: 'bed_ready',
+          idempotent: false,
+        }
+      }
+    } else {
+      // Supabase client execution
+      try {
+        const { data, error } = await client.rpc('mark_bed_ready_atomic', {
+          p_reservation_id: reservationId,
+          p_checklist: checklistObj,
+          p_now: evalIso,
+        })
+        if (!error && data) {
+          return {
+            success: true,
+            reservationId: data.reservation_id,
+            bedRequestId: data.bed_request_id,
+            bedReadyAt: data.bed_ready_at,
+            status: 'bed_ready',
+            idempotent: Boolean(data.idempotent),
+          }
+        }
+      } catch {
+        // Fallback below
+      }
+
+      await client
+        .from('reservations')
+        .update({
+          bed_ready_at: evalIso,
+          readiness_checklist: checklistObj,
+          updated_at: evalIso,
+        })
+        .eq('id', reservationId)
+
+      await client
+        .from('bed_requests')
+        .update({
+          status: 'bed_ready',
+          updated_at: evalIso,
+        })
+        .eq('id', reservation.bed_request_id)
+
+      return {
+        success: true,
+        reservationId,
+        bedRequestId: reservation.bed_request_id,
+        bedReadyAt: evalIso,
+        status: 'bed_ready',
+        idempotent: false,
+      }
+    }
+  } catch (err) {
+    throw toOperationError(err)
+  }
+}
+

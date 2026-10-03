@@ -240,7 +240,8 @@ export async function getDispatchBedRequest(
     if (typeof client?.query === 'function') {
       const res = await client.query(
         `SELECT r.id, r.hospital_id, h.name as hospital_name, r.bed_id, b.room_number, b.capabilities, r.status,
-                r.attempt_number, r.hold_expires_at, r.created_at
+                r.attempt_number, r.hold_expires_at, r.created_at,
+                r.bed_ready_at, r.readiness_checklist, r.admitted_at, r.discharged_at
          FROM public.reservations r
          LEFT JOIN public.hospitals h ON h.id = r.hospital_id
          LEFT JOIN public.beds b ON b.id = r.bed_id AND b.hospital_id = r.hospital_id
@@ -274,6 +275,10 @@ export async function getDispatchBedRequest(
             status: activeRow.status,
             attempt_number: activeRow.attempt_number,
             hold_expires_at: activeRow.hold_expires_at,
+            bed_ready_at: activeRow.bed_ready_at ?? null,
+            readiness_checklist: activeRow.readiness_checklist ?? null,
+            admitted_at: activeRow.admitted_at ?? null,
+            discharged_at: activeRow.discharged_at ?? null,
             created_at: activeRow.created_at,
           }
         }
@@ -283,6 +288,7 @@ export async function getDispatchBedRequest(
         .from('reservations')
         .select(
           `id, hospital_id, bed_id, status, attempt_number, hold_expires_at, created_at,
+           bed_ready_at, readiness_checklist, admitted_at, discharged_at,
            hospitals ( name ),
            beds ( room_number, capabilities )`
         )
@@ -315,6 +321,10 @@ export async function getDispatchBedRequest(
               status: activeItem.status,
               attempt_number: activeItem.attempt_number,
               hold_expires_at: activeItem.hold_expires_at,
+              bed_ready_at: activeItem.bed_ready_at ?? null,
+              readiness_checklist: activeItem.readiness_checklist ?? null,
+              admitted_at: activeItem.admitted_at ?? null,
+              discharged_at: activeItem.discharged_at ?? null,
               created_at: activeItem.created_at,
             }
           }

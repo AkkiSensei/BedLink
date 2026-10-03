@@ -12,6 +12,7 @@ import {
   AlertCircle,
   AlertTriangle,
   X,
+  ClipboardCheck,
 } from 'lucide-react'
 import type { HospitalReservationView } from '@/lib/operations/types'
 import HospitalCountdown from './HospitalCountdown'
@@ -20,6 +21,7 @@ import { ALL_HOSPITALS } from '@/lib/auth/pins'
 import {
   acceptHospitalReservationAction,
   rejectHospitalReservationAction,
+  markBedReadyAction,
 } from './actions'
 import { triggerHaptic } from '@/lib/device/phoneCraft'
 
@@ -32,7 +34,7 @@ interface HospitalReservationCardProps {
   onReservationUpdated?: (
     reservationId: string,
     newStatus: 'accepted' | 'rejected' | 'expired',
-    details?: { statusMessage?: string }
+    details?: { statusMessage?: string; bed_ready_at?: string; readiness_checklist?: any }
   ) => void
   onRefreshNeeded?: () => void
 }
@@ -53,8 +55,21 @@ export default function HospitalReservationCard({
   const [isCountdownExpired, setIsCountdownExpired] = useState<boolean>(false)
   const isSubmittingRef = useRef<boolean>(false)
 
-  const isHeld = localStatus === 'held'
-  const isAccepted = localStatus === 'accepted'
+  // Bed Readiness State
+  const [bedReadyAt, setBedReadyAt] = useState<string | null>(reservation.bed_ready_at || null)
+  const [isMarkingReady, setIsMarkingReady] = useState<boolean>(false)
+  const [checklist, setChecklist] = useState({
+    bedReserved: true,
+    oxygenChecked: true,
+    ventilatorChecked:
+      reservation.required_capabilities.includes('ventilator') ||
+      Boolean(reservation.readiness_checklist?.ventilatorChecked),
+    teamAlerted: true,
+  })
+
+  const isBedReady = Boolean(bedReadyAt) || localStatus === 'bed_ready'
+  const isHeld = localStatus === 'held' && !isBedReady
+  const isAccepted = localStatus === 'accepted' || isBedReady
   const isRejected = localStatus === 'rejected'
   const isExpired = localStatus === 'expired'
   const isStale = localStatus === 'stale'
@@ -163,9 +178,43 @@ export default function HospitalReservationCard({
     }
   }
 
+  const handleMarkBedReady = async () => {
+    if (isMarkingReady || isBedReady) return
+
+    setIsMarkingReady(true)
+    setErrorMessage(null)
+
+    try {
+      const res = await markBedReadyAction({
+        reservationId: reservation.id,
+        checklist,
+      })
+
+      if (res.success && res.result) {
+        triggerHaptic('success')
+        setBedReadyAt(res.result.bedReadyAt)
+        setLocalStatus('bed_ready')
+        setStatusNote('Bed marked ready. Preparation checklist confirmed.')
+        onReservationUpdated?.(reservation.id, 'accepted', {
+          statusMessage: 'Bed marked ready. Preparation checklist confirmed.',
+          bed_ready_at: res.result.bedReadyAt,
+          readiness_checklist: checklist,
+        })
+      } else if (res.error) {
+        setErrorMessage(res.error.message || 'Failed to mark bed ready')
+      }
+    } catch (err: any) {
+      setErrorMessage(err.message || 'Unexpected network error while marking bed ready')
+    } finally {
+      setIsMarkingReady(false)
+    }
+  }
+
   // Border & Header Styling by state
   const cardBorder = isHeld
     ? '2px solid #2D6A4F'
+    : isBedReady
+    ? '2px solid #059669'
     : isAccepted
     ? '2px solid #2E7D32'
     : isRejected
@@ -176,6 +225,8 @@ export default function HospitalReservationCard({
 
   const headerBg = isHeld
     ? '#2D6A4F'
+    : isBedReady
+    ? '#059669'
     : isAccepted
     ? '#2E7D32'
     : isRejected
@@ -194,6 +245,8 @@ export default function HospitalReservationCard({
         boxSizing: 'border-box',
         boxShadow: isHeld
           ? '0 4px 14px -2px rgba(45, 106, 79, 0.18)'
+          : isBedReady
+          ? '0 4px 14px -2px rgba(5, 150, 105, 0.18)'
           : '0 1px 3px rgba(0,0,0,0.04)',
         overflow: 'hidden',
         transition: 'border 0.3s ease',
@@ -217,6 +270,8 @@ export default function HospitalReservationCard({
           <span style={{ display: 'inline-flex', alignItems: 'center' }}>
             {isHeld ? (
               <Siren size={20} />
+            ) : isBedReady ? (
+              <ClipboardCheck size={20} />
             ) : isAccepted ? (
               <CheckCircle2 size={20} />
             ) : isRejected ? (
@@ -230,7 +285,7 @@ export default function HospitalReservationCard({
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
               <span style={{ fontWeight: 800, fontSize: '1rem', letterSpacing: '-0.01em' }}>
-                {isHeld ? 'INCOMING EMERGENCY' : 'Emergency Request'} #{reservation.bed_request_id.slice(0, 8)}
+                {isBedReady ? 'BED READY' : isHeld ? 'INCOMING EMERGENCY' : 'Emergency Request'} #{reservation.bed_request_id.slice(0, 8)}
               </span>
               <span
                 style={{
@@ -265,6 +320,8 @@ export default function HospitalReservationCard({
               letterSpacing: '0.04em',
               backgroundColor: submittingAction
                 ? '#FEF3C7'
+                : isBedReady
+                ? '#059669'
                 : isHeld
                 ? '#E8F5E9'
                 : isAccepted
@@ -276,6 +333,8 @@ export default function HospitalReservationCard({
                 : '#EEF3EE',
               color: submittingAction
                 ? '#B45309'
+                : isBedReady
+                ? '#FFFFFF'
                 : isHeld
                 ? '#2E7D32'
                 : isAccepted
@@ -285,11 +344,13 @@ export default function HospitalReservationCard({
                 : isExpired
                 ? '#B45309'
                 : '#1A2421',
-              border: '1px solid currentColor',
+              border: isBedReady ? '1px solid #059669' : '1px solid currentColor',
             }}
           >
             {submittingAction
               ? 'PROCESSING...'
+              : isBedReady
+              ? 'CONFIRMED · BED READY'
               : isHeld
               ? 'INCOMING · ACTION REQUIRED'
               : isAccepted
@@ -336,33 +397,304 @@ export default function HospitalReservationCard({
           </div>
         )}
 
-        {/* State Banners */}
+        {/* PREPARE BED SECTION (Shown after Hospital Staff ACCEPTS emergency reservation) */}
         {isAccepted && (
           <div
             style={{
               marginBottom: '1.25rem',
-              padding: '1rem',
-              backgroundColor: '#E8F5E9',
-              border: '1px solid #C8E6C9',
-              borderRadius: '8px',
-              color: '#2E7D32',
+              padding: '1.25rem',
+              backgroundColor: isBedReady ? '#ECFDF5' : '#F0FDF4',
+              border: isBedReady ? '2px solid #059669' : '1px solid #86EFAC',
+              borderRadius: '10px',
+              boxShadow: '0 2px 6px rgba(0,0,0,0.04)',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 800, fontSize: '0.95rem' }}>
-              <CheckCircle2 size={18} style={{ color: '#2E7D32' }} />
-              <span>Accepted</span>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.875rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
+                <ClipboardCheck size={22} style={{ color: isBedReady ? '#059669' : '#16A34A' }} />
+                <div>
+                  <h4 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 800, color: '#1A2421', letterSpacing: '-0.01em' }}>
+                    PREPARE BED
+                  </h4>
+                  <div style={{ fontSize: '0.75rem', color: '#5C6B64' }}>
+                    Authoritative clinical readiness protocol for incoming accepted emergency patient
+                  </div>
+                </div>
+              </div>
+
+              <span
+                style={{
+                  padding: '4px 10px',
+                  borderRadius: '9999px',
+                  fontSize: '0.75rem',
+                  fontWeight: 800,
+                  letterSpacing: '0.04em',
+                  textTransform: 'uppercase',
+                  backgroundColor: isBedReady ? '#059669' : '#DCFCE7',
+                  color: isBedReady ? '#FFFFFF' : '#166534',
+                  border: `1px solid ${isBedReady ? '#059669' : '#86EFAC'}`,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                }}
+              >
+                {isBedReady ? <CheckCircle2 size={13} /> : null}
+                {isBedReady ? 'BED READY' : 'CONFIRMED'}
+              </span>
             </div>
-            <div style={{ fontSize: '0.85rem', marginTop: '4px', fontWeight: 600 }}>
-              Bed remains held for this reservation.
-            </div>
+
+            {/* Display: Bed/Room, Ambulance ETA, Reservation status, Required capabilities */}
             <div
               style={{
-                marginTop: '8px',
-                fontSize: '0.75rem',
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+                gap: '0.75rem',
+                backgroundColor: '#FFFFFF',
+                border: '1px solid #E1E7E1',
+                borderRadius: '8px',
+                padding: '0.875rem',
+                marginBottom: '1rem',
+                fontSize: '0.825rem',
+              }}
+            >
+              <div>
+                <div style={{ color: '#5C6B64', fontSize: '0.7rem', textTransform: 'uppercase', fontWeight: 700 }}>
+                  Bed / Room
+                </div>
+                <div style={{ fontWeight: 800, color: '#1A2421', fontSize: '0.95rem', marginTop: '2px' }}>
+                  {reservation.room_number ? `Room ${reservation.room_number}` : 'Designated Acute Bed'}
+                </div>
+                <div style={{ fontSize: '0.72rem', color: '#5C6B64', fontFamily: 'monospace' }}>
+                  Bed #{reservation.bed_id.slice(0, 8)}
+                </div>
+              </div>
+
+              <div>
+                <div style={{ color: '#5C6B64', fontSize: '0.7rem', textTransform: 'uppercase', fontWeight: 700 }}>
+                  Ambulance ETA
+                </div>
+                <div style={{ fontWeight: 800, color: '#2D6A4F', fontSize: '0.95rem', marginTop: '2px' }}>
+                  {reservation.estimated_travel_time_minutes !== null && reservation.estimated_travel_time_minutes !== undefined
+                    ? `~${reservation.estimated_travel_time_minutes} min`
+                    : 'In Transit'}
+                </div>
+                <div style={{ fontSize: '0.72rem', color: '#5C6B64' }}>
+                  Inbound emergency ambulance
+                </div>
+              </div>
+
+              <div>
+                <div style={{ color: '#5C6B64', fontSize: '0.7rem', textTransform: 'uppercase', fontWeight: 700 }}>
+                  Reservation Status
+                </div>
+                <div style={{ fontWeight: 800, color: isBedReady ? '#059669' : '#166534', fontSize: '0.95rem', marginTop: '2px' }}>
+                  {isBedReady ? 'BED READY' : 'CONFIRMED'}
+                </div>
+                <div style={{ fontSize: '0.72rem', color: '#5C6B64' }}>
+                  {isBedReady && bedReadyAt
+                    ? `Marked ready at ${new Date(bedReadyAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`
+                    : 'Awaiting bed readiness mark'}
+                </div>
+              </div>
+
+              <div>
+                <div style={{ color: '#5C6B64', fontSize: '0.7rem', textTransform: 'uppercase', fontWeight: 700, marginBottom: '4px' }}>
+                  Required Capabilities
+                </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                  {reservation.required_capabilities.map((cap) => (
+                    <span
+                      key={cap}
+                      style={{
+                        backgroundColor: '#EEF3EE',
+                        color: '#2D6A4F',
+                        border: '1px solid #C8E6C9',
+                        padding: '2px 6px',
+                        borderRadius: '4px',
+                        fontSize: '0.7rem',
+                        fontWeight: 700,
+                        textTransform: 'uppercase',
+                      }}
+                    >
+                      {cap}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Preparation Checklist */}
+            <div style={{ marginBottom: '1rem' }}>
+              <div style={{ fontSize: '0.75rem', fontWeight: 800, color: '#1A2421', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '0.5rem' }}>
+                Preparation Checklist:
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem', fontSize: '0.85rem' }}>
+                {/* Bed reserved */}
+                <label
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    cursor: isBedReady ? 'default' : 'pointer',
+                    color: '#1A2421',
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={checklist.bedReserved}
+                    disabled={isBedReady}
+                    onChange={(e) => setChecklist((prev) => ({ ...prev, bedReserved: e.target.checked }))}
+                    style={{ width: '16px', height: '16px', accentColor: '#2D6A4F' }}
+                  />
+                  <span style={{ fontWeight: 600 }}>Bed reserved</span>
+                  <span style={{ fontSize: '0.72rem', color: '#5C6B64' }}>(Authoritative physical hold in database)</span>
+                </label>
+
+                {/* Oxygen checked */}
+                <label
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    cursor: isBedReady ? 'default' : 'pointer',
+                    color: '#1A2421',
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={checklist.oxygenChecked}
+                    disabled={isBedReady}
+                    onChange={(e) => setChecklist((prev) => ({ ...prev, oxygenChecked: e.target.checked }))}
+                    style={{ width: '16px', height: '16px', accentColor: '#2D6A4F' }}
+                  />
+                  <span style={{ fontWeight: 600 }}>Oxygen checked</span>
+                  <span style={{ fontSize: '0.72rem', color: '#5C6B64' }}>(Wall port and line checked)</span>
+                </label>
+
+                {/* Ventilator checked when required */}
+                <label
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    cursor: isBedReady ? 'default' : 'pointer',
+                    color: '#1A2421',
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={checklist.ventilatorChecked}
+                    disabled={isBedReady}
+                    onChange={(e) => setChecklist((prev) => ({ ...prev, ventilatorChecked: e.target.checked }))}
+                    style={{ width: '16px', height: '16px', accentColor: '#2D6A4F' }}
+                  />
+                  <span style={{ fontWeight: 600 }}>Ventilator checked when required</span>
+                  {reservation.required_capabilities.includes('ventilator') ? (
+                    <span style={{ fontSize: '0.72rem', color: '#B45309', fontWeight: 700, backgroundColor: '#FEF3C7', padding: '1px 5px', borderRadius: '3px' }}>
+                      REQUIRED FOR PATIENT
+                    </span>
+                  ) : (
+                    <span style={{ fontSize: '0.72rem', color: '#5C6B64' }}>
+                      (Standby checked)
+                    </span>
+                  )}
+                </label>
+
+                {/* Team alerted */}
+                <label
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    cursor: isBedReady ? 'default' : 'pointer',
+                    color: '#1A2421',
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={checklist.teamAlerted}
+                    disabled={isBedReady}
+                    onChange={(e) => setChecklist((prev) => ({ ...prev, teamAlerted: e.target.checked }))}
+                    style={{ width: '16px', height: '16px', accentColor: '#2D6A4F' }}
+                  />
+                  <span style={{ fontWeight: 600 }}>Team alerted</span>
+                  <span style={{ fontSize: '0.72rem', color: '#5C6B64' }}>(Receiving clinical staff alerted)</span>
+                </label>
+              </div>
+            </div>
+
+            {/* Primary Action: MARK BED READY */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap', marginTop: '0.75rem' }}>
+              {isBedReady ? (
+                <div
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    padding: '10px 18px',
+                    backgroundColor: '#059669',
+                    color: '#FFFFFF',
+                    borderRadius: '8px',
+                    fontWeight: 800,
+                    fontSize: '0.9rem',
+                    letterSpacing: '0.025em',
+                  }}
+                  role="status"
+                >
+                  <CheckCircle2 size={18} />
+                  <span>
+                    BED READY · MARKED AT{' '}
+                    {bedReadyAt
+                      ? new Date(bedReadyAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+                      : 'NOW'}
+                  </span>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleMarkBedReady}
+                  disabled={isMarkingReady}
+                  style={{
+                    minHeight: '48px',
+                    padding: '10px 22px',
+                    backgroundColor: '#059669',
+                    color: '#FFFFFF',
+                    border: 'none',
+                    borderRadius: '8px',
+                    fontWeight: 800,
+                    fontSize: '0.925rem',
+                    cursor: isMarkingReady ? 'not-allowed' : 'pointer',
+                    opacity: isMarkingReady ? 0.7 : 1,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    boxShadow: '0 2px 4px rgba(5, 150, 105, 0.25)',
+                    transition: 'background-color 0.15s ease',
+                  }}
+                  aria-label="Mark bed ready for incoming emergency patient"
+                >
+                  {isMarkingReady ? (
+                    <Loader2 size={18} className="animate-spin" />
+                  ) : (
+                    <ClipboardCheck size={18} />
+                  )}
+                  <span>{isMarkingReady ? 'Marking Bed Ready...' : 'MARK BED READY'}</span>
+                </button>
+              )}
+
+              <div style={{ fontSize: '0.75rem', color: '#5C6B64', lineHeight: 1.35, maxWidth: '440px' }}>
+                State transitions from <strong>CONFIRMED → BED READY</strong>. Dispatch Operator sees readiness in realtime.
+              </div>
+            </div>
+
+            <div
+              style={{
+                marginTop: '10px',
+                fontSize: '0.725rem',
                 backgroundColor: '#FFFFFF',
                 border: '1px solid #C8E6C9',
-                padding: '4px 8px',
-                borderRadius: '4px',
+                padding: '5px 10px',
+                borderRadius: '6px',
                 color: '#2E7D32',
               }}
             >

@@ -12,6 +12,7 @@ export type BedRequestStatus =
   | 'offered'
   | 'fallback'
   | 'confirmed'
+  | 'bed_ready'
   | 'admitted'
   | 'closed'
 
@@ -72,6 +73,10 @@ export interface Reservation {
   status: ReservationStatus
   attempt_number: number
   hold_expires_at: string
+  bed_ready_at?: string | null
+  readiness_checklist?: Record<string, boolean> | null
+  admitted_at?: string | null
+  discharged_at?: string | null
   created_at: string
   updated_at: string
 }

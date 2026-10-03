@@ -4,17 +4,30 @@ import {
   acceptHospitalReservation,
   rejectHospitalReservation,
   getHospitalReservations,
+  markBedReady,
 } from '@/lib/operations/hospital'
 import { toOperationError } from '@/lib/operations/errors'
 import type {
   AcceptHospitalReservationInput,
   RejectHospitalReservationInput,
   HospitalReservationView,
+  MarkBedReadyInput,
+  MarkBedReadyResult,
 } from '@/lib/operations/types'
 import type {
   AcceptReservationResult,
   RejectReservationResult,
 } from '@/lib/reservations/types'
+
+export interface MarkBedReadyActionResult {
+  success: boolean
+  result?: MarkBedReadyResult
+  error?: {
+    code: string
+    message: string
+    status: number
+  }
+}
 
 export interface AcceptReservationActionResult {
   success: boolean
@@ -67,6 +80,37 @@ export async function acceptHospitalReservationAction(
       result,
     }
   } catch (err: unknown) {
+    const opErr = toOperationError(err)
+    return {
+      success: false,
+      error: {
+        code: opErr.code,
+        message: opErr.message,
+        status: opErr.status,
+      },
+    }
+  }
+}
+
+/**
+ * Server Action: Marks an accepted EMS reservation bed READY.
+ * Persists readiness + timestamp and updates state: CONFIRMED -> BED READY.
+ * Preparation checklist verified; Realtime Dispatch Operator notification triggered.
+ */
+export async function markBedReadyAction(
+  input: MarkBedReadyInput
+): Promise<MarkBedReadyActionResult> {
+  try {
+    const result = await markBedReady({
+      reservationId: input.reservationId,
+      checklist: input.checklist,
+      evaluationTime: input.evaluationTime || new Date(),
+    })
+    return {
+      success: true,
+      result,
+    }
+  } catch (err: any) {
     const opErr = toOperationError(err)
     return {
       success: false,

@@ -58,7 +58,8 @@ export default function ActiveOfferCard({
   }
 
   const isHeld = reservation.status === 'held'
-  const isAccepted = reservation.status === 'accepted'
+  const isBedReady = bedRequestStatus === 'bed_ready' || Boolean(reservation.bed_ready_at)
+  const isAccepted = reservation.status === 'accepted' || isBedReady
 
   // Hold progress percent (based on standard 120-second hold duration)
   const holdPercent = isHeld ? Math.min(100, Math.max(0, (remainingSeconds / 120) * 100)) : 0
@@ -70,11 +71,15 @@ export default function ActiveOfferCard({
         borderRadius: '12px',
         border: isHeld
           ? '2px solid #2D6A4F'
+          : isBedReady
+          ? '2px solid #059669'
           : isAccepted
           ? '2px solid #2E7D32'
           : '1px solid #E1E7E1',
         boxShadow: isHeld
           ? '0 4px 16px -2px rgba(45, 106, 79, 0.18)'
+          : isBedReady
+          ? '0 4px 16px -2px rgba(5, 150, 105, 0.18)'
           : '0 2px 4px rgba(0, 0, 0, 0.05)',
         overflow: 'hidden',
       }}
@@ -84,6 +89,8 @@ export default function ActiveOfferCard({
         style={{
           backgroundColor: isHeld
             ? '#2D6A4F'
+            : isBedReady
+            ? '#059669'
             : isAccepted
             ? '#2E7D32'
             : '#5C6B64',
@@ -103,6 +110,8 @@ export default function ActiveOfferCard({
           <span style={{ fontWeight: 800, fontSize: '0.9rem', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
             {isHeld
               ? 'Active Hospital Offer (Physical Hold)'
+              : isBedReady
+              ? 'Hospital Bed Ready (Confirmed)'
               : isAccepted
               ? 'Reservation Confirmed & Accepted'
               : 'Previous Reservation Offer'}
@@ -130,19 +139,24 @@ export default function ActiveOfferCard({
               textTransform: 'uppercase',
               backgroundColor: isHeld
                 ? '#FEF3C7'
+                : isBedReady
+                ? '#ECFDF5'
                 : isAccepted
                 ? '#E8F5E9'
                 : '#EEF3EE',
               color: isHeld
                 ? '#B45309'
+                : isBedReady
+                ? '#059669'
                 : isAccepted
                 ? '#2E7D32'
                 : '#5C6B64',
+              border: isBedReady ? '1px solid #059669' : 'none',
               padding: '3px 10px',
               borderRadius: '9999px',
             }}
           >
-            {isHeld ? 'HELD' : reservation.status.toUpperCase()}
+            {isHeld ? 'HELD' : isBedReady ? 'BED READY' : reservation.status.toUpperCase()}
           </span>
         </div>
       </div>
@@ -338,26 +352,44 @@ export default function ActiveOfferCard({
           </div>
         )}
 
-        {/* Accepted State Information */}
+        {/* Accepted / Bed Ready State Information */}
         {isAccepted && (
           <div
             style={{
-              backgroundColor: '#E8F5E9',
-              border: '1px solid #C8E6C9',
+              backgroundColor: isBedReady ? '#ECFDF5' : '#E8F5E9',
+              border: isBedReady ? '1px solid #6EE7B7' : '1px solid #C8E6C9',
               borderRadius: '8px',
               padding: '0.875rem 1rem',
-              color: '#2E7D32',
+              color: isBedReady ? '#065F46' : '#2E7D32',
               fontSize: '0.825rem',
               lineHeight: 1.4,
             }}
           >
             <div style={{ fontWeight: 800, marginBottom: '0.25rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <Ambulance size={18} style={{ color: '#2E7D32' }} />
-              <span>Route Confirmed: Patient In Transit</span>
+              {isBedReady ? (
+                <CheckCircle2 size={18} style={{ color: '#059669' }} />
+              ) : (
+                <Ambulance size={18} style={{ color: '#2E7D32' }} />
+              )}
+              <span>
+                {isBedReady
+                  ? 'Hospital Bed Ready: Clinical Preparation Complete'
+                  : 'Route Confirmed: Patient In Transit'}
+              </span>
             </div>
             <div>
-              Hospital staff has verified and accepted the patient. Architectural Invariant:{' '}
-              <strong>ACCEPTED ≠ OCCUPIED</strong>. The physical bed remains held until clinical intake.
+              {isBedReady ? (
+                <span>
+                  Hospital staff has marked the bed <strong>READY</strong>
+                  {reservation.bed_ready_at ? ` at ${new Date(reservation.bed_ready_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}` : ''}.
+                  Preparation checklist confirmed: Bed reserved, oxygen checked, ventilator verified when required, receiving team alerted.
+                </span>
+              ) : (
+                <span>
+                  Hospital staff has verified and accepted the patient. Architectural Invariant:{' '}
+                  <strong>ACCEPTED ≠ OCCUPIED</strong>. The physical bed remains held until clinical intake.
+                </span>
+              )}
             </div>
           </div>
         )}
