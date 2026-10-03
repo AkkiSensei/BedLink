@@ -1,11 +1,11 @@
 import React from 'react'
-import { cookies } from 'next/headers'
 import { createServerSupabaseClient } from '@/lib/supabase/server'
+import { getCurrentProfile } from '@/lib/auth/server'
 import { listDispatchBedRequests } from '@/lib/operations/dispatch'
 import { DEMO_IDENTITIES } from '@/lib/auth/demoIdentities'
-import { getPinSessionFromCookies } from '@/lib/auth/sessionCookie'
 import DispatchDashboardClient from './DispatchDashboardClient'
 import type { DispatchBedRequestView } from '@/lib/operations/types'
+import type { Profile } from '@/lib/types/database'
 import { Lock } from 'lucide-react'
 
 export const dynamic = 'force-dynamic'
@@ -17,40 +17,8 @@ export default async function DispatchPage({
 }) {
   const params = await searchParams
   const supabase = await createServerSupabaseClient()
-  const cookieStore = await cookies()
-  const pinSession = getPinSessionFromCookies(cookieStore)
-
-  // 1. Resolve active user session
-  let user: { id: string } | null = null
-  try {
-    const { data: userData } = await supabase.auth.getUser()
-    user = userData?.user ?? null
-  } catch {
-    user = null
-  }
-
-  if (!user && pinSession) {
-    user = { id: pinSession.userId }
-  }
-
-  // 2. Resolve profile from database or PIN session
-  let profile: { role: string; hospital_id: string | null; full_name?: string } | null = null
-  if (user) {
-    const { data: profileData } = await supabase
-      .from('profiles')
-      .select('role, hospital_id, full_name')
-      .eq('user_id', user.id)
-      .maybeSingle()
-    profile = profileData ?? null
-  }
-
-  if (!profile && pinSession && (!user || pinSession.userId === user.id)) {
-    profile = {
-      role: pinSession.role,
-      hospital_id: pinSession.hospitalId,
-      full_name: pinSession.fullName,
-    }
-  }
+  let profile: Pick<Profile, 'user_id' | 'role' | 'hospital_id' | 'full_name'> | null =
+    await getCurrentProfile(supabase)
 
   // Demo fallback mode strictly gated behind explicit ALLOW_DEMO_BYPASS environment flag
   const allowDemoBypass =
@@ -65,6 +33,7 @@ export default async function DispatchPage({
       demoTarget = DEMO_IDENTITIES.ADMIN
     }
     profile = {
+      user_id: demoTarget.userId,
       role: demoTarget.role,
       hospital_id: demoTarget.hospitalId,
       full_name: demoTarget.fullName,
@@ -143,7 +112,7 @@ export default async function DispatchPage({
   }
 
   const currentUserId =
-    user?.id ||
+    profile.user_id ||
     (params?.demo === 'dispatch2'
       ? DEMO_IDENTITIES.DISPATCH_2.userId
       : DEMO_IDENTITIES.DISPATCH_1.userId)
@@ -157,4 +126,3 @@ export default async function DispatchPage({
     />
   )
 }
-

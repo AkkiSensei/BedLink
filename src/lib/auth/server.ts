@@ -26,7 +26,9 @@ export async function getCurrentUser(
     if (!error && supabaseUser) {
       user = supabaseUser
     }
-  } catch {}
+  } catch (error) {
+    console.warn('[BedLink Auth] Supabase user lookup failed:', error)
+  }
 
   if (user) {
     return user
@@ -37,18 +39,28 @@ export async function getCurrentUser(
     const { cookies } = await import('next/headers')
     const cookieStore = await cookies()
     const { getPinSessionFromCookies } = await import('./sessionCookie')
-    const pinSession = getPinSessionFromCookies(cookieStore)
+    const pinSession = await getPinSessionFromCookies(cookieStore)
     if (pinSession) {
       return {
         id: pinSession.userId,
         email: pinSession.email,
+        phone: '',
+        confirmed_at: new Date(pinSession.createdAt).toISOString(),
+        email_confirmed_at: new Date(pinSession.createdAt).toISOString(),
+        phone_confirmed_at: undefined,
+        last_sign_in_at: new Date(pinSession.createdAt).toISOString(),
+        role: 'authenticated',
+        updated_at: new Date(pinSession.createdAt).toISOString(),
+        is_anonymous: false,
         app_metadata: {},
         user_metadata: { full_name: pinSession.fullName },
         aud: 'authenticated',
         created_at: new Date(pinSession.createdAt).toISOString(),
-      } as any
+      }
     }
-  } catch {}
+  } catch (error) {
+    console.warn('[BedLink Auth] PIN session fallback lookup failed:', error)
+  }
 
   return null
 }
@@ -97,7 +109,7 @@ export async function getCurrentProfile(
     const { cookies } = await import('next/headers')
     const cookieStore = await cookies()
     const { getPinSessionFromCookies } = await import('./sessionCookie')
-    const pinSession = getPinSessionFromCookies(cookieStore)
+    const pinSession = await getPinSessionFromCookies(cookieStore)
     if (pinSession && (!targetUserId || pinSession.userId === targetUserId)) {
       return {
         user_id: pinSession.userId,
@@ -108,7 +120,9 @@ export async function getCurrentProfile(
         updated_at: new Date(pinSession.createdAt).toISOString(),
       } as Profile
     }
-  } catch {}
+  } catch (error) {
+    console.warn('[BedLink Auth] Profile PIN fallback lookup failed:', error)
+  }
 
   return null
 }

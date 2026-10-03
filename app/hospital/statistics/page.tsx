@@ -19,7 +19,7 @@ export default async function HospitalStatisticsPage({
   const params = await searchParams
   const supabase = await createServerSupabaseClient()
   const cookieStore = await cookies()
-  const pinSession = getPinSessionFromCookies(cookieStore)
+  const pinSession = await getPinSessionFromCookies(cookieStore)
 
   // 1. Resolve active user session
   let user: { id: string } | null = null

@@ -11,7 +11,7 @@ const ROLE_ROUTE_PREFIXES: Record<string, UserRole[]> = {
 
 const PUBLIC_EXACT_ROUTES = ['/login']
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   // 1. Allow public assets and static paths without authentication
@@ -28,7 +28,7 @@ export async function middleware(request: NextRequest) {
   const { response, user, supabase } = await updateSession(request)
 
   // Also resolve PIN session cookie
-  const pinSession = getPinSessionFromCookies(request.cookies)
+  const pinSession = await getPinSessionFromCookies(request.cookies)
 
   let effectiveUserId = user?.id ?? pinSession?.userId ?? null
   let effectiveRole: UserRole | null = null

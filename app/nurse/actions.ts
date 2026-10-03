@@ -54,7 +54,7 @@ export async function updateBedStatusAction(
       success: true,
       bed: updatedBed,
     }
-  } catch (err: any) {
+  } catch (err: unknown) {
     const opErr = toOperationError(err)
     return {
       success: false,
@@ -80,7 +80,7 @@ export async function refreshNurseBedsAction(
       success: true,
       beds,
     }
-  } catch (err: any) {
+  } catch (err: unknown) {
     const opErr = toOperationError(err)
     return {
       success: false,
@@ -105,7 +105,7 @@ export async function confirmNurseInventoryAction(): Promise<ConfirmInventoryAct
       confirmedAt: result.confirmed_at,
       message: result.message,
     }
-  } catch (err: any) {
+  } catch (err: unknown) {
     const opErr = toOperationError(err)
     return {
       success: false,
