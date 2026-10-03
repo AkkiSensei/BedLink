@@ -112,10 +112,11 @@ export async function rejectHospitalReservationAction(
 }
 
 /**
- * Server Action: Refreshes active emergency reservation holds for the authenticated hospital.
+ * Server Action: Refreshes emergency reservation holds (and optionally history) for the authenticated hospital.
  */
 export async function refreshHospitalReservationsAction(options?: {
   targetHospitalId?: string
+  includeHistory?: boolean
 }): Promise<RefreshReservationsActionResult> {
   try {
     const { createServerSupabaseClient } = await import('@/lib/supabase/server')
@@ -126,7 +127,13 @@ export async function refreshHospitalReservationsAction(options?: {
       await reservationService.processDueExpiries(new Date(), true)
     } catch {}
 
-    const reservations = await getHospitalReservations(client, options)
+    const statuses = options?.includeHistory
+      ? ['held', 'accepted', 'rejected', 'expired']
+      : ['held']
+    const reservations = await getHospitalReservations(client, {
+      targetHospitalId: options?.targetHospitalId,
+      statuses: statuses as any,
+    })
     return {
       success: true,
       reservations,
@@ -146,4 +153,44 @@ export async function refreshHospitalReservationsAction(options?: {
 }
 
 export const syncAndExpireDueReservationsAction = refreshHospitalReservationsAction
+
+export interface GetHospitalStatisticsActionResult {
+  success: boolean
+  data?: import('@/lib/operations/types').HospitalStatisticsData
+  error?: {
+    code: string
+    message: string
+    status: number
+  }
+}
+
+/**
+ * Server Action: Retrieves comprehensive statistics, development recommendations,
+ * and historical attendance ledger for hospital operations.
+ */
+export async function getHospitalStatisticsAction(options?: {
+  targetHospitalId?: string
+  timeFilter?: import('@/lib/operations/types').StatisticsTimeFilter
+}): Promise<GetHospitalStatisticsActionResult> {
+  try {
+    const { getHospitalStatistics } = await import('@/lib/operations/hospital')
+    const { createServerSupabaseClient } = await import('@/lib/supabase/server')
+    const client = await createServerSupabaseClient()
+    const data = await getHospitalStatistics(client, options)
+    return {
+      success: true,
+      data,
+    }
+  } catch (err: any) {
+    const opErr = toOperationError(err)
+    return {
+      success: false,
+      error: {
+        code: opErr.code,
+        message: opErr.message,
+        status: opErr.status,
+      },
+    }
+  }
+}
 

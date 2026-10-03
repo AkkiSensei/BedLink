@@ -139,29 +139,49 @@ export default function DispatchDashboardClient({
     }
   }, [userId])
 
-  // Resilient 4-second background auto-sync heartbeat: guarantees Dispatch reflects
-  // hospital acceptances, rejections, and fallback progressions without manual refresh
+  // Intelligent auto-sync heartbeat: guarantees Dispatch reflects
+  // hospital acceptances, rejections, and fallback progressions without hammering the server
+  const isFetchingSyncRef = useRef(false)
+  const lastCandidatesReqIdRef = useRef<string | null>(null)
+  const lastCandidatesResIdRef = useRef<string | null>(null)
+
   useEffect(() => {
     if (!userId) return
 
     const heartbeat = setInterval(async () => {
-      if (isSubmittingFormRef.current) return
+      if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return
+      if (isSubmittingFormRef.current || isFetchingSyncRef.current) return
+      isFetchingSyncRef.current = true
+
       try {
         const res = await refreshRequestsAction()
         if (res.success && res.requests) {
           setRequests(res.requests)
           const currentId = selectedRequestIdRef.current || res.requests[0]?.id
           if (currentId) {
-            const cRes = await fetchRankedCandidatesAction(currentId)
-            if (cRes.success && cRes.candidates) {
-              setRankedCandidates(cRes.candidates)
+            const currentReq = res.requests.find((r) => r.id === currentId)
+            const activeResId = currentReq?.current_active_reservation_id || null
+
+            // Avoid redundant ranking recalculations if request and active offer haven't changed
+            if (
+              currentId !== lastCandidatesReqIdRef.current ||
+              activeResId !== lastCandidatesResIdRef.current
+            ) {
+              lastCandidatesReqIdRef.current = currentId
+              lastCandidatesResIdRef.current = activeResId
+              const cRes = await fetchRankedCandidatesAction(currentId)
+              if (cRes.success && cRes.candidates) {
+                setRankedCandidates(cRes.candidates)
+              }
             }
           }
         }
       } catch {
         // silent background sync
+      } finally {
+        isFetchingSyncRef.current = false
       }
-    }, 4000)
+    }, 12000)
 
     return () => clearInterval(heartbeat)
   }, [userId])

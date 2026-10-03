@@ -638,3 +638,18 @@ textarea,
   text-shadow: none !important;
 }
 
+/* Floating Action Button: Hospital Statistics */
+.hospital-stats-fab {
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@media (max-width: 768px) {
+  .hospital-stats-fab {
+    bottom: calc(var(--tab-bar-height) + var(--safe-bottom) + 12px) !important;
+    right: 12px !important;
+    padding: 10px 14px !important;
+    font-size: 0.8rem !important;
+  }
+}
+
+

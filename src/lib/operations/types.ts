@@ -139,6 +139,7 @@ export interface HospitalReservationView {
   attempt_number: number
   hold_expires_at: string
   created_at: string
+  updated_at?: string
   required_capabilities: BedCapability[]
   ambulance_latitude: number
   ambulance_longitude: number
@@ -150,6 +151,7 @@ export interface HospitalReservationView {
   room_number?: string | null
   bed_capabilities?: BedCapability[]
   estimated_travel_time_minutes?: number | null
+  decision_time_seconds?: number | null
 }
 
 export interface AcceptHospitalReservationInput {
@@ -160,4 +162,63 @@ export interface AcceptHospitalReservationInput {
 export interface RejectHospitalReservationInput {
   reservationId: string
   evaluationTime?: Date | string | number
+}
+
+// ==========================================
+// Hospital Statistics & Intelligence Contracts
+// ==========================================
+
+export type StatisticsTimeFilter = 'today' | '7days' | '30days' | 'all'
+export type StatisticsOutcomeFilter = 'all' | 'admitted' | 'rejected' | 'expired'
+export type StatisticsAcuityFilter = 'all' | 'icu' | 'ventilator' | 'oxygen' | 'general'
+
+export interface HospitalStatisticsMetrics {
+  totalAttended: number
+  admittedCount: number
+  rejectedCount: number
+  expiredCount: number
+  activeCount: number
+  acceptanceRate: number
+  rejectionRate: number
+  expiredRate: number
+  avgDecisionTimeSeconds: number | null
+  fastestDecisionSeconds: number | null
+  slowestDecisionSeconds: number | null
+}
+
+export interface HospitalAcuityStats {
+  total: number
+  admitted: number
+  rejected: number
+  expired: number
+}
+
+export interface HospitalDevelopmentInsight {
+  id: string
+  type: 'success' | 'warning' | 'info' | 'critical'
+  title: string
+  message: string
+  actionItem?: string
+}
+
+export interface HospitalDailyTrendPoint {
+  dateKey: string
+  label: string
+  admitted: number
+  rejected: number
+  expired: number
+  total: number
+}
+
+export interface HospitalStatisticsData {
+  hospitalId: string
+  hospitalName: string
+  hospitalCity: string
+  timeFilter: StatisticsTimeFilter
+  metrics: HospitalStatisticsMetrics
+  acuityBreakdown: Record<'icu' | 'ventilator' | 'oxygen' | 'general', HospitalAcuityStats>
+  trendPoints: HospitalDailyTrendPoint[]
+  insights: HospitalDevelopmentInsight[]
+  history: HospitalReservationView[]
+  generatedAt: string
 }

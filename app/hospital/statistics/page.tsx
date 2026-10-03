@@ -1,19 +1,20 @@
 import React from 'react'
 import { cookies } from 'next/headers'
 import { createServerSupabaseClient } from '@/lib/supabase/server'
-import { getHospitalReservations } from '@/lib/operations/hospital'
+import { getHospitalStatistics } from '@/lib/operations/hospital'
 import { DEMO_IDENTITIES } from '@/lib/auth/demoIdentities'
+import { ALL_HOSPITALS } from '@/lib/auth/pins'
 import { getPinSessionFromCookies } from '@/lib/auth/sessionCookie'
-import HospitalDashboardClient from './HospitalDashboardClient'
-import type { HospitalReservationView } from '@/lib/operations/types'
+import HospitalStatisticsClient from './HospitalStatisticsClient'
+import type { HospitalStatisticsData, StatisticsTimeFilter } from '@/lib/operations/types'
 import { Lock } from 'lucide-react'
 
 export const dynamic = 'force-dynamic'
 
-export default async function HospitalPage({
+export default async function HospitalStatisticsPage({
   searchParams,
 }: {
-  searchParams?: Promise<{ demo?: string; hospitalId?: string }>
+  searchParams?: Promise<{ demo?: string; hospitalId?: string; timeFilter?: string }>
 }) {
   const params = await searchParams
   const supabase = await createServerSupabaseClient()
@@ -71,7 +72,6 @@ export default async function HospitalPage({
         full_name: DEMO_IDENTITIES.ADMIN.fullName,
       }
     } else {
-      // Default demo: Hospital Apex
       profile = {
         role: DEMO_IDENTITIES.HOSPITAL_APEX.role,
         hospital_id: DEMO_IDENTITIES.HOSPITAL_APEX.hospitalId,
@@ -80,7 +80,7 @@ export default async function HospitalPage({
     }
   }
 
-  // 3. Authorization check: hospital or admin required
+  // 3. Authorization check: hospital staff or admin required
   if (!profile || (profile.role !== 'hospital' && profile.role !== 'admin')) {
     return (
       <div
@@ -110,11 +110,11 @@ export default async function HospitalPage({
             <Lock size={40} style={{ color: '#5C6B64' }} />
           </div>
           <h1 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#1A2421', margin: '0 0 0.5rem 0' }}>
-            Hospital Access Restricted
+            Hospital Statistics Restricted
           </h1>
           <p style={{ fontSize: '0.9rem', color: '#5C6B64', lineHeight: 1.5, margin: 0 }}>
-            The Emergency Hospital Response Console is accessible only to authenticated users with the{' '}
-            <strong>Hospital Staff</strong> role. Please sign in with authorized credentials.
+            The Hospital Performance & Statistics Dashboard is accessible only to authenticated users with the{' '}
+            <strong>Hospital Staff</strong> or <strong>System Admin</strong> role.
           </p>
           <div style={{ marginTop: '1.75rem', display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
             <a
@@ -146,7 +146,7 @@ export default async function HospitalPage({
                 border: '1px solid #E1E7E1',
               }}
             >
-              Switch Role or Return to Login
+              Return to Login
             </a>
           </div>
         </div>
@@ -154,49 +154,90 @@ export default async function HospitalPage({
     )
   }
 
-  // 4. Resolve hospital details
-  let hospitalName = 'Authorized Emergency Facility'
-  let hospitalCity = 'Emergency Operations'
-  let hospitalLatitude: number | null = null
-  let hospitalLongitude: number | null = null
-  const targetHospitalId = profile.hospital_id || params?.hospitalId || null
+  // 4. Resolve target hospital ID
+  // Hospital staff can view their own hospital or any selected hospital from dropdown
+  const targetHospitalId =
+    params?.hospitalId || profile.hospital_id || ALL_HOSPITALS[0].hospitalId
 
-  if (targetHospitalId) {
+  // Match hospital metadata from ALL_HOSPITALS or fallback
+  const hospitalInfo = ALL_HOSPITALS.find((h) => h.hospitalId === targetHospitalId)
+  let hospitalName = hospitalInfo?.name || 'Authorized Emergency Facility'
+  let hospitalCity = hospitalInfo?.city || 'Mumbai'
+
+  // If not in static list, query hospitals table
+  if (!hospitalInfo && targetHospitalId) {
     const { data: hospData } = await supabase
       .from('hospitals')
-      .select('name, city, latitude, longitude')
+      .select('name, city')
       .eq('id', targetHospitalId)
       .maybeSingle()
     if (hospData) {
       hospitalName = hospData.name
       hospitalCity = hospData.city
-      hospitalLatitude = hospData.latitude ? Number(hospData.latitude) : null
-      hospitalLongitude = hospData.longitude ? Number(hospData.longitude) : null
     }
   }
 
-  // 5. Fetch initial active reservations directly without fake mock fallback
-  let initialReservations: HospitalReservationView[] = []
+  const initialTimeFilter: StatisticsTimeFilter =
+    params?.timeFilter === '7days' || params?.timeFilter === '30days' || params?.timeFilter === 'all'
+      ? params.timeFilter
+      : 'today'
+
+  // 5. Fetch initial statistics and attendance history
+  let initialStatistics: HospitalStatisticsData | null = null
   try {
-    initialReservations = await getHospitalReservations(supabase, {
-      targetHospitalId: targetHospitalId || undefined,
-      statuses: ['held', 'accepted', 'rejected', 'expired'],
+    initialStatistics = await getHospitalStatistics(supabase, {
+      targetHospitalId,
+      timeFilter: initialTimeFilter,
     })
-  } catch {
-    initialReservations = []
+  } catch (err: any) {
+    // Fallback empty statistics structure
+    initialStatistics = {
+      hospitalId: targetHospitalId,
+      hospitalName,
+      hospitalCity,
+      timeFilter: initialTimeFilter,
+      metrics: {
+        totalAttended: 0,
+        admittedCount: 0,
+        rejectedCount: 0,
+        expiredCount: 0,
+        activeCount: 0,
+        acceptanceRate: 0,
+        rejectionRate: 0,
+        expiredRate: 0,
+        avgDecisionTimeSeconds: null,
+        fastestDecisionSeconds: null,
+        slowestDecisionSeconds: null,
+      },
+      acuityBreakdown: {
+        icu: { total: 0, admitted: 0, rejected: 0, expired: 0 },
+        ventilator: { total: 0, admitted: 0, rejected: 0, expired: 0 },
+        oxygen: { total: 0, admitted: 0, rejected: 0, expired: 0 },
+        general: { total: 0, admitted: 0, rejected: 0, expired: 0 },
+      },
+      trendPoints: [],
+      insights: [
+        {
+          id: 'initial',
+          type: 'info',
+          title: 'Emergency Console Active',
+          message: 'Zero recorded offers in this timeframe. Statistics will populate as ambulances are dispatched.',
+        },
+      ],
+      history: [],
+      generatedAt: new Date().toISOString(),
+    }
   }
 
   return (
-    <HospitalDashboardClient
-      initialReservations={initialReservations}
-      initialServerTime={new Date().toISOString()}
-      hospitalId={targetHospitalId || ''}
+    <HospitalStatisticsClient
+      initialData={initialStatistics}
+      hospitalId={targetHospitalId}
       hospitalName={hospitalName}
       hospitalCity={hospitalCity}
-      hospitalLatitude={hospitalLatitude}
-      hospitalLongitude={hospitalLongitude}
       staffName={profile.full_name || 'Hospital Staff'}
       staffRole={profile.role}
+      allHospitals={ALL_HOSPITALS}
     />
   )
 }

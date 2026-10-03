@@ -1,0 +1,15 @@
+#!/usr/bin/env sh
+# BedLink Pre-Commit Hook: Prevents committing API keys or credentials
+echo "🔒 Running BedLink Pre-Commit Security Checks..."
+
+npm run check:secrets
+RESULT=$?
+
+if [ $RESULT -ne 0 ]; then
+  echo "❌ Commit rejected! A secret or forbidden credential was detected."
+  echo "Refer to GIT_RULES.md for remediation steps."
+  exit 1
+fi
+
+echo "✅ Pre-commit security verification passed."
+exit 0

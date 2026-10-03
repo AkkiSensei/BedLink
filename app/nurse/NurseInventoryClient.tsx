@@ -105,13 +105,16 @@ export default function NurseInventoryClient({
     }
   }, [hospitalId])
 
-  // Resilient 5-second background auto-sync heartbeat: ensures nurse bed matrix
+  // Intelligent background auto-sync heartbeat: ensures nurse bed matrix
   // immediately reflects reservations placed by Dispatch or released by expiry
+  const isFetchingSyncRef = useRef(false)
   useEffect(() => {
     if (!hospitalId) return
 
     const heartbeat = setInterval(async () => {
-      if (updatingBedIdRef.current) return
+      if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return
+      if (updatingBedIdRef.current || isFetchingSyncRef.current) return
+      isFetchingSyncRef.current = true
       try {
         const result = await refreshNurseBedsAction({ targetHospitalId: hospitalId })
         if (result.success && result.beds) {
@@ -119,8 +122,10 @@ export default function NurseInventoryClient({
         }
       } catch {
         // silent background sync
+      } finally {
+        isFetchingSyncRef.current = false
       }
-    }, 5000)
+    }, 15000)
 
     return () => clearInterval(heartbeat)
   }, [hospitalId])

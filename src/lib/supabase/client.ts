@@ -15,7 +15,13 @@ export function isSupabaseConfigured(): boolean {
   return true
 }
 
+let browserClientInstance: ReturnType<typeof createBrowserClient> | null = null
+
 export function createClient() {
+  if (typeof window !== 'undefined' && browserClientInstance) {
+    return browserClientInstance
+  }
+
   // Support both Next.js (NEXT_PUBLIC_) and Vite (VITE_) env var naming conventions.
   // In Next.js the NEXT_PUBLIC_ prefix is required for browser-accessible vars.
   // In Vite only VITE_ prefixed vars are exposed at build time.
@@ -44,6 +50,10 @@ export function createClient() {
   const supabaseUrl = rawUrl || 'https://placeholder.supabase.co'
   const supabaseKey = rawKey || 'placeholder-anon-key'
 
-  return createBrowserClient(supabaseUrl, supabaseKey)
+  const client = createBrowserClient(supabaseUrl, supabaseKey)
+  if (typeof window !== 'undefined') {
+    browserClientInstance = client
+  }
+  return client
 }
 

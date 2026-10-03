@@ -21,6 +21,10 @@ import {
   CheckCircle2,
   Phone,
   ShieldCheck,
+  TrendingUp,
+  BarChart3,
+  ArrowUpRight,
+  Filter,
 } from 'lucide-react'
 
 interface HospitalDashboardClientProps {
@@ -53,6 +57,7 @@ export default function HospitalDashboardClient({
   const [refreshError, setRefreshError] = useState<string | null>(null)
   const [realtimeStatus, setRealtimeStatus] = useState<RealtimeConnectionStatus>('CONNECTING')
   const [compactTab, setCompactTab] = useState<CompactTabType>('inbox')
+  const [historyFilter, setHistoryFilter] = useState<'all' | 'accepted' | 'rejected' | 'expired'>('all')
   const [isSigningOut, setIsSigningOut] = useState<boolean>(false)
   const [serverClockOffsetMs, setServerClockOffsetMs] = useState<number>(() => {
     if (initialServerTime) {
@@ -194,14 +199,24 @@ export default function HospitalDashboardClient({
     }
   }, [hospitalId])
 
-  // Resilient 4-second background auto-sync heartbeat: guarantees zero missed offers
-  // even during mobile network sleep, tab pause, or transient WebSocket reconnection.
+  // Intelligent auto-sync heartbeat: guarantees zero missed offers
+  // Relaxes polling to 15s when Realtime is active, pauses when tab is hidden.
+  const isFetchingSyncRef = useRef(false)
   useEffect(() => {
     if (!hospitalId) return
 
+    const intervalMs = realtimeStatus === 'SUBSCRIBED' ? 15000 : 6000
+
     const heartbeat = setInterval(async () => {
+      if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return
+      if (isFetchingSyncRef.current) return
+      isFetchingSyncRef.current = true
+
       try {
-        const result = await refreshHospitalReservationsAction({ targetHospitalId: hospitalId })
+        const result = await refreshHospitalReservationsAction({
+          targetHospitalId: hospitalId,
+          includeHistory: true,
+        })
         if (result.success && result.reservations) {
           const newOffset = result.serverTime
             ? new Date(result.serverTime).getTime() - Date.now()
@@ -211,11 +226,19 @@ export default function HospitalDashboardClient({
         }
       } catch {
         // silent background sync
+      } finally {
+        isFetchingSyncRef.current = false
       }
-    }, 4000)
+    }, intervalMs)
 
     return () => clearInterval(heartbeat)
-  }, [hospitalId])
+  }, [hospitalId, realtimeStatus])
+
+  // Filtered history based on quick sub-filter
+  const filteredHistory = historyReservations.filter((r) => {
+    if (historyFilter === 'all') return true
+    return r.status === historyFilter
+  })
 
   // Sort reservations: HELD first, then newest first
   const sortedReservations = [...reservations].sort((a, b) => {
@@ -733,17 +756,91 @@ export default function HospitalDashboardClient({
 
         {/* Tab 3: HISTORY (Resolved Offers) */}
         <div style={{ display: compactTab === 'history' || typeof window === 'undefined' ? 'block' : 'none' }}>
-          <div className="desktop-only" style={{ marginTop: '2rem', marginBottom: '0.75rem' }}>
-            <h2 style={{ fontSize: '1.1rem', fontWeight: 800, color: '#1A2421' }}>
-              Offer History ({historyReservations.length})
-            </h2>
+          <div style={{ marginTop: '1.5rem', marginBottom: '1rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem', marginBottom: '0.75rem' }}>
+              <div>
+                <h2 style={{ fontSize: '1.1rem', fontWeight: 800, color: '#1A2421', margin: 0 }}>
+                  Offer History & Attendance ({historyReservations.length})
+                </h2>
+                <p style={{ fontSize: '0.8rem', color: '#5C6B64', margin: '2px 0 0' }}>
+                  Audited past emergency offers, admissions, and rejections for {hospitalName}.
+                </p>
+              </div>
+
+              <a
+                href={`/hospital/statistics${hospitalId ? `?hospitalId=${hospitalId}` : ''}`}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '6px 12px',
+                  backgroundColor: '#E8F5E9',
+                  border: '1px solid #A5D6A7',
+                  borderRadius: '6px',
+                  color: '#1B4D39',
+                  fontWeight: 600,
+                  fontSize: '0.75rem',
+                  textDecoration: 'none',
+                }}
+              >
+                <TrendingUp size={14} color="#2D6A4F" />
+                <span>Open Statistics Dashboard</span>
+                <ArrowUpRight size={12} />
+              </a>
+            </div>
+
+            {/* Sub-filter pills for Offer History */}
+            <div style={{ display: 'flex', gap: '6px', overflowX: 'auto', paddingBottom: '4px' }}>
+              {(
+                [
+                  { id: 'all', label: `All (${historyReservations.length})` },
+                  {
+                    id: 'accepted',
+                    label: `Admissions (${historyReservations.filter((r) => r.status === 'accepted').length})`,
+                  },
+                  {
+                    id: 'rejected',
+                    label: `Rejections (${historyReservations.filter((r) => r.status === 'rejected').length})`,
+                  },
+                  {
+                    id: 'expired',
+                    label: `Expired Holds (${historyReservations.filter((r) => r.status === 'expired').length})`,
+                  },
+                ] as const
+              ).map((tab) => {
+                const active = historyFilter === tab.id
+                return (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => {
+                      setHistoryFilter(tab.id)
+                      triggerHaptic('tap')
+                    }}
+                    style={{
+                      padding: '5px 10px',
+                      borderRadius: '9999px',
+                      fontSize: '0.75rem',
+                      fontWeight: active ? 700 : 500,
+                      backgroundColor: active ? '#1A2421' : '#FFFFFF',
+                      color: active ? '#FFFFFF' : '#5C6B64',
+                      border: active ? '1px solid #1A2421' : '1px solid #E1E7E1',
+                      cursor: 'pointer',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {tab.label}
+                  </button>
+                )
+              })}
+            </div>
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            {historyReservations.length === 0 ? (
+            {filteredHistory.length === 0 ? (
               <div
                 style={{
-                  padding: '2rem 1rem',
+                  padding: '2.5rem 1rem',
                   textAlign: 'center',
                   backgroundColor: '#FFFFFF',
                   borderRadius: '10px',
@@ -752,10 +849,10 @@ export default function HospitalDashboardClient({
                   fontSize: '0.85rem',
                 }}
               >
-                No historical bed offers in this session.
+                No historical bed offers match this filter.
               </div>
             ) : (
-              historyReservations.map((reservation) => (
+              filteredHistory.map((reservation) => (
                 <HospitalReservationCard
                   key={reservation.id}
                   reservation={reservation}
@@ -847,6 +944,49 @@ export default function HospitalDashboardClient({
           <span>History</span>
         </button>
       </nav>
+
+      {/* 5. Authoritative Bottom-Right Action Button: Leads to Statistics Dashboard */}
+      <a
+        href={`/hospital/statistics${hospitalId ? `?hospitalId=${hospitalId}` : ''}`}
+        id="hospital-stats-dashboard-fab"
+        className="hospital-stats-fab"
+        title="View Hospital Statistics & Operational Development"
+        aria-label="View Hospital Statistics & Operational Development"
+        style={{
+          position: 'fixed',
+          bottom: '24px',
+          right: '24px',
+          zIndex: 50,
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          padding: '12px 18px',
+          background: 'linear-gradient(135deg, #1B4D39 0%, #2D6A4F 100%)',
+          color: '#FFFFFF',
+          borderRadius: '9999px',
+          fontWeight: 700,
+          fontSize: '0.85rem',
+          textDecoration: 'none',
+          boxShadow: '0 8px 24px rgba(45, 106, 79, 0.4), 0 2px 6px rgba(0, 0, 0, 0.15)',
+          border: '1.5px solid rgba(255, 255, 255, 0.35)',
+          backdropFilter: 'blur(8px)',
+          WebkitBackdropFilter: 'blur(8px)',
+          cursor: 'pointer',
+          transition: 'transform 0.18s ease, box-shadow 0.18s ease',
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.transform = 'translateY(-2px) scale(1.02)'
+          e.currentTarget.style.boxShadow = '0 12px 28px rgba(45, 106, 79, 0.5), 0 4px 10px rgba(0, 0, 0, 0.2)'
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.transform = 'translateY(0) scale(1)'
+          e.currentTarget.style.boxShadow = '0 8px 24px rgba(45, 106, 79, 0.4), 0 2px 6px rgba(0, 0, 0, 0.15)'
+        }}
+      >
+        <TrendingUp size={18} style={{ color: '#D8F3DC' }} />
+        <span className="stats-fab-label">Hospital Statistics</span>
+        <ArrowUpRight size={14} style={{ color: '#A5D6A7' }} />
+      </a>
     </div>
   )
 }
