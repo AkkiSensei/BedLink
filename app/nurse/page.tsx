@@ -13,7 +13,7 @@ export const dynamic = 'force-dynamic'
 export default async function NursePage({
   searchParams,
 }: {
-  searchParams?: Promise<{ demo?: string }>
+  searchParams?: Promise<{ demo?: string; hospitalId?: string }>
 }) {
   const params = await searchParams
   const supabase = await createServerSupabaseClient()
@@ -61,7 +61,7 @@ export default async function NursePage({
     const demoTarget = params?.demo === 'stjude' ? DEMO_IDENTITIES.NURSE_STJUDE : DEMO_IDENTITIES.NURSE_APEX
     profile = {
       role: demoTarget.role,
-      hospital_id: demoTarget.hospitalId,
+      hospital_id: params?.hospitalId || demoTarget.hospitalId,
       full_name: demoTarget.fullName,
     }
   }
@@ -131,11 +131,13 @@ export default async function NursePage({
   let hospitalName = 'Authorized Facility'
   let hospitalCity = 'Emergency Operations'
   let hospitalUpdatedAt: string | null = null
-  if (profile.hospital_id) {
+  const targetHospitalId = params?.hospitalId || profile.hospital_id || null
+
+  if (targetHospitalId) {
     const { data: hospData } = await supabase
       .from('hospitals')
       .select('name, city, updated_at')
-      .eq('id', profile.hospital_id)
+      .eq('id', targetHospitalId)
       .maybeSingle()
     if (hospData) {
       hospitalName = hospData.name
@@ -147,7 +149,9 @@ export default async function NursePage({
   // 5. Fetch initial bed inventory directly from database without fake mock fallback
   let initialBeds: NurseBedView[] = []
   try {
-    initialBeds = await getNurseBeds(supabase)
+    initialBeds = await getNurseBeds(supabase, {
+      targetHospitalId: targetHospitalId || undefined,
+    })
   } catch {
     initialBeds = []
   }
@@ -155,7 +159,7 @@ export default async function NursePage({
   return (
     <NurseInventoryClient
       initialBeds={initialBeds}
-      hospitalId={profile.hospital_id || ''}
+      hospitalId={targetHospitalId || ''}
       hospitalName={hospitalName}
       hospitalCity={hospitalCity}
       nurseName={profile.full_name || 'Staff Nurse'}

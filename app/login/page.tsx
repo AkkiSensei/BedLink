@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback, useRef, Suspense } from 'react
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { loginWithPinAction } from '../actions/auth'
-import { ROLE_PINS, getRoleByPin, ALL_HOSPITALS } from '@/lib/auth/pins'
+import { ROLE_PINS, getRoleByPin, ALL_HOSPITALS, ALL_NURSES } from '@/lib/auth/pins'
 import { 
   Building2, 
   Ambulance, 
@@ -424,9 +424,9 @@ function LoginFormInner() {
           </div>
 
           <p style={{ fontSize: '0.7rem', color: '#5C6B64', margin: 0 }}>
-            {activeTab === 'nurse' && 'Type 2468 to launch Nurse Inventory Console'}
+            {activeTab === 'nurse' && 'Type 2001 or 2468 for Apex (or 2001–2010 for any hospital nurse)'}
             {activeTab === 'dispatch' && 'Type 9110 to launch Dispatch Operator Console'}
-            {activeTab === 'hospital' && 'Type 1001 for Apex (or 1001–1010 for any hospital)'}
+            {activeTab === 'hospital' && 'Type 1001 for Apex (or 1001–1010 for any hospital staff)'}
           </p>
         </div>
 
@@ -710,7 +710,11 @@ function LoginFormInner() {
             letterSpacing: '0.04em',
             marginBottom: '1px',
           }}>
-            {activeTab === 'hospital' ? 'Facility PIN Directory (1-Tap to Login)' : '1-Tap Demo Shortcuts'}
+            {activeTab === 'hospital'
+              ? 'Facility PIN Directory (1-Tap to Login)'
+              : activeTab === 'nurse'
+              ? 'Staff Nurse PIN Directory (1-Tap to Login)'
+              : '1-Tap Demo Shortcuts'}
           </div>
 
           {activeTab === 'hospital' ? (
@@ -780,6 +784,76 @@ function LoginFormInner() {
                 <span>Super Administrator</span>
                 <span style={{ fontFamily: 'monospace', fontWeight: 800, backgroundColor: '#FDE68A', padding: '1px 5px', borderRadius: '3px', fontSize: '0.65rem' }}>
                   0000
+                </span>
+              </button>
+            </div>
+          ) : activeTab === 'nurse' ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <div style={{
+                maxHeight: '74px',
+                overflowY: 'auto',
+                display: 'grid',
+                gridTemplateColumns: 'repeat(2, 1fr)',
+                gap: '3px',
+                paddingRight: '2px',
+              }}>
+                {ALL_NURSES.map((nurse) => (
+                  <button
+                    key={nurse.hospitalId}
+                    type="button"
+                    disabled={isAuthenticating}
+                    onClick={() => handleQuickFill(nurse.pin, 'nurse')}
+                    style={{
+                      padding: '3px 6px',
+                      borderRadius: '5px',
+                      backgroundColor: '#F0FDF4',
+                      border: '1px solid #BBF7D0',
+                      color: '#166534',
+                      fontSize: '0.65rem',
+                      fontWeight: 600,
+                      cursor: isAuthenticating ? 'not-allowed' : 'pointer',
+                      textAlign: 'left',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      transition: 'all 100ms',
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#DCFCE7')}
+                    onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#F0FDF4')}
+                  >
+                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '95px' }}>
+                      {nurse.shortName}
+                    </span>
+                    <span style={{ fontFamily: 'monospace', fontWeight: 800, color: '#15803D', backgroundColor: '#DCFCE7', padding: '1px 4px', borderRadius: '3px', fontSize: '0.62rem' }}>
+                      {nurse.pin}
+                    </span>
+                  </button>
+                ))}
+              </div>
+
+              {/* Legacy Nurse Shortcut */}
+              <button
+                type="button"
+                disabled={isAuthenticating}
+                onClick={() => handleQuickFill('2468', 'nurse')}
+                style={{
+                  width: '100%',
+                  padding: '3px 8px',
+                  borderRadius: '5px',
+                  backgroundColor: '#E8F5E9',
+                  border: '1px solid #A3D9C9',
+                  color: '#2D6A4F',
+                  fontSize: '0.65rem',
+                  fontWeight: 700,
+                  cursor: isAuthenticating ? 'not-allowed' : 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                }}
+              >
+                <span>Primary Ward Nurse (Apex Metro)</span>
+                <span style={{ fontFamily: 'monospace', fontWeight: 800, backgroundColor: '#C8E6C9', padding: '1px 5px', borderRadius: '3px', fontSize: '0.65rem' }}>
+                  2468
                 </span>
               </button>
             </div>

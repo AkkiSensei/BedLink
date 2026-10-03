@@ -33,10 +33,10 @@ export async function getNurseBeds(
 
     let hospitalId: string
     if (profile.role === 'nurse') {
-      if (!profile.hospital_id) {
+      hospitalId = options?.targetHospitalId || profile.hospital_id || ''
+      if (!hospitalId) {
         throw new ForbiddenOperationError('Nurse profile missing hospital affiliation')
       }
-      hospitalId = profile.hospital_id
     } else {
       // Admin role
       hospitalId = options?.targetHospitalId || profile.hospital_id || ''

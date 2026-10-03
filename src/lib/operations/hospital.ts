@@ -116,6 +116,7 @@ export async function getHospitalReservations(
 
     return rows.map((r) => {
       let eta: number | null = null
+      let distanceKm: number | null = null
       if (
         r.ambulance_latitude !== undefined &&
         r.ambulance_longitude !== undefined &&
@@ -129,9 +130,11 @@ export async function getHospitalReservations(
             Number(r.hospital_latitude),
             Number(r.hospital_longitude)
           )
+          distanceKm = Math.round(distKm * 10) / 10
           eta = calculateEtaMinutes(distKm)
         } catch {
           eta = null
+          distanceKm = null
         }
       }
 
@@ -149,6 +152,9 @@ export async function getHospitalReservations(
         ambulance_longitude: Number(r.ambulance_longitude),
         ambulance_phone: r.ambulance_phone,
         hospital_name: r.hospital_name || undefined,
+        hospital_latitude: r.hospital_latitude !== undefined ? Number(r.hospital_latitude) : null,
+        hospital_longitude: r.hospital_longitude !== undefined ? Number(r.hospital_longitude) : null,
+        distance_km: distanceKm,
         room_number: r.room_number ?? null,
         bed_capabilities: r.bed_capabilities || undefined,
         estimated_travel_time_minutes: eta,

@@ -144,6 +144,9 @@ export interface HospitalReservationView {
   ambulance_longitude: number
   ambulance_phone: string | null
   hospital_name?: string
+  hospital_latitude?: number | null
+  hospital_longitude?: number | null
+  distance_km?: number | null
   room_number?: string | null
   bed_capabilities?: BedCapability[]
   estimated_travel_time_minutes?: number | null

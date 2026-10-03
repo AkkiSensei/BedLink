@@ -22,7 +22,7 @@ export async function loginWithPinAction(pin: string): Promise<PinAuthResult> {
     if (!mapping) {
       return {
         success: false,
-        error: 'Invalid PIN. Use 2468 (Nurse), 9110 (Dispatch), or 1001–1010 for Hospitals.',
+        error: 'Invalid PIN. Use 2001–2010 or 2468 (Nurse), 9110 (Dispatch), or 1001–1010 for Hospitals.',
       }
     }
 

@@ -10,7 +10,8 @@ import {
 } from './actions'
 import BedCard from './BedCard'
 import { subscribeNurseBeds, type RealtimeConnectionStatus } from '@/lib/realtime'
-import { logoutAction } from '../actions/auth'
+import { logoutAction, loginWithPinAction } from '../actions/auth'
+import { ALL_NURSES } from '@/lib/auth/pins'
 import { triggerHaptic } from '@/lib/device/phoneCraft'
 import {
   Loader2,
@@ -88,7 +89,7 @@ export default function NurseInventoryClient({
       onReconcile: async () => {
         if (updatingBedIdRef.current) return
         try {
-          const result = await refreshNurseBedsAction()
+          const result = await refreshNurseBedsAction({ targetHospitalId: hospitalId })
           if (result.success && result.beds) {
             setBeds(result.beds)
           }
@@ -111,7 +112,7 @@ export default function NurseInventoryClient({
     const heartbeat = setInterval(async () => {
       if (updatingBedIdRef.current) return
       try {
-        const result = await refreshNurseBedsAction()
+        const result = await refreshNurseBedsAction({ targetHospitalId: hospitalId })
         if (result.success && result.beds) {
           setBeds(result.beds)
         }
@@ -269,7 +270,7 @@ export default function NurseInventoryClient({
     startTransition(async () => {
       setFeedback(null)
       try {
-        const result = await refreshNurseBedsAction()
+        const result = await refreshNurseBedsAction({ targetHospitalId: hospitalId })
         if (result.success && result.beds) {
           setBeds(result.beds)
           setFeedback({
@@ -443,16 +444,54 @@ export default function NurseInventoryClient({
                 </span>
               </div>
 
-              <div style={{
-                fontSize: '0.68rem',
-                color: '#A3B0A9',
-                marginTop: '1px',
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                maxWidth: '200px',
-              }}>
-                {hospitalName} {hospitalCity ? `• ${hospitalCity}` : ''}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '1px', flexWrap: 'nowrap', minWidth: 0 }}>
+                <span style={{
+                  fontSize: '0.68rem',
+                  color: '#A3B0A9',
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  maxWidth: '140px',
+                }}>
+                  {hospitalName} {hospitalCity ? `• ${hospitalCity}` : ''}
+                </span>
+
+                {/* Facility Switcher with Visible PINs for Nurses */}
+                <select
+                  aria-label="Switch Ward Facility (All 10 Facilities)"
+                  value={hospitalId}
+                  onChange={async (e) => {
+                    const newHospId = e.target.value
+                    if (newHospId && newHospId !== hospitalId) {
+                      const selected = ALL_NURSES.find((n) => n.hospitalId === newHospId)
+                      if (selected) {
+                        try {
+                          await loginWithPinAction(selected.pin)
+                        } catch {}
+                        window.location.href = `/nurse?hospitalId=${newHospId}`
+                      }
+                    }
+                  }}
+                  style={{
+                    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+                    color: '#A3D9C9',
+                    border: '1px solid rgba(255, 255, 255, 0.15)',
+                    borderRadius: '999px',
+                    padding: '1px 6px',
+                    fontSize: '0.65rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    outline: 'none',
+                    maxWidth: '130px',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {ALL_NURSES.map((n) => (
+                    <option key={n.hospitalId} value={n.hospitalId} style={{ backgroundColor: '#1A2421', color: '#FFFFFF' }}>
+                      {n.shortName} (PIN: {n.pin})
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
           </div>

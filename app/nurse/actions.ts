@@ -71,9 +71,11 @@ export async function updateBedStatusAction(
  * Server Action: Refreshes the bed inventory for the authenticated nurse.
  * Delegates to the Phase 6 getNurseBeds operation.
  */
-export async function refreshNurseBedsAction(): Promise<RefreshBedsActionResult> {
+export async function refreshNurseBedsAction(
+  options?: { targetHospitalId?: string }
+): Promise<RefreshBedsActionResult> {
   try {
-    const beds = await getNurseBeds()
+    const beds = await getNurseBeds(undefined, options)
     return {
       success: true,
       beds,

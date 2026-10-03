@@ -31,6 +31,8 @@ interface HospitalDashboardClientProps {
   hospitalCity: string
   staffName: string
   staffRole: string
+  hospitalLatitude?: number | null
+  hospitalLongitude?: number | null
 }
 
 type CompactTabType = 'inbox' | 'beds' | 'history'
@@ -43,6 +45,8 @@ export default function HospitalDashboardClient({
   hospitalCity,
   staffName,
   staffRole,
+  hospitalLatitude,
+  hospitalLongitude,
 }: HospitalDashboardClientProps) {
   const [reservations, setReservations] = useState<HospitalReservationView[]>(initialReservations)
   const [isRefreshing, setIsRefreshing] = useState(false)
@@ -658,6 +662,9 @@ export default function HospitalDashboardClient({
                   key={reservation.id}
                   reservation={reservation}
                   serverClockOffsetMs={serverClockOffsetMs}
+                  hospitalLatitude={hospitalLatitude}
+                  hospitalLongitude={hospitalLongitude}
+                  hospitalName={hospitalName}
                   onReservationUpdated={handleReservationUpdated}
                   onRefreshNeeded={handleRefresh}
                 />
@@ -740,6 +747,9 @@ export default function HospitalDashboardClient({
                   key={reservation.id}
                   reservation={reservation}
                   serverClockOffsetMs={serverClockOffsetMs}
+                  hospitalLatitude={hospitalLatitude}
+                  hospitalLongitude={hospitalLongitude}
+                  hospitalName={hospitalName}
                   onReservationUpdated={handleReservationUpdated}
                   onRefreshNeeded={handleRefresh}
                 />

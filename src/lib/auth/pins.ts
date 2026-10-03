@@ -20,6 +20,19 @@ export interface HospitalPinInfo {
   city: string
   userId: string
   email: string
+  latitude: number
+  longitude: number
+}
+
+export interface NursePinInfo {
+  pin: string
+  hospitalId: string
+  name: string
+  shortName: string
+  city: string
+  userId: string
+  email: string
+  fullName: string
 }
 
 export const ALL_HOSPITALS: HospitalPinInfo[] = [
@@ -31,6 +44,8 @@ export const ALL_HOSPITALS: HospitalPinInfo[] = [
     city: 'Mumbai',
     userId: 'f0000000-0000-4000-8000-000000000001',
     email: 'hospital.apex@bedlink.internal',
+    latitude: 18.922,
+    longitude: 72.8258,
   },
   {
     pin: '1002',
@@ -40,6 +55,8 @@ export const ALL_HOSPITALS: HospitalPinInfo[] = [
     city: 'Mumbai',
     userId: 'f0000000-0000-4000-8000-000000000002',
     email: 'hospital.stjude@bedlink.internal',
+    latitude: 19.0544,
+    longitude: 72.8402,
   },
   {
     pin: '1003',
@@ -49,6 +66,8 @@ export const ALL_HOSPITALS: HospitalPinInfo[] = [
     city: 'Mumbai',
     userId: 'f0000000-0000-4000-8000-000000000003',
     email: 'hospital.lifeline@bedlink.internal',
+    latitude: 19.1197,
+    longitude: 72.8468,
   },
   {
     pin: '1004',
@@ -58,6 +77,8 @@ export const ALL_HOSPITALS: HospitalPinInfo[] = [
     city: 'Mumbai',
     userId: 'f0000000-0000-4000-8000-000000000004',
     email: 'hospital.citycare@bedlink.internal',
+    latitude: 19.0178,
+    longitude: 72.8478,
   },
   {
     pin: '1005',
@@ -67,6 +88,8 @@ export const ALL_HOSPITALS: HospitalPinInfo[] = [
     city: 'Mumbai',
     userId: 'f0000000-0000-4000-8000-000000000005',
     email: 'hospital.horizon@bedlink.internal',
+    latitude: 19.1176,
+    longitude: 72.906,
   },
   {
     pin: '1006',
@@ -76,6 +99,8 @@ export const ALL_HOSPITALS: HospitalPinInfo[] = [
     city: 'Mumbai',
     userId: 'f0000000-0000-4000-8000-000000000006',
     email: 'hospital.trinity@bedlink.internal',
+    latitude: 19.0726,
+    longitude: 72.8845,
   },
   {
     pin: '1007',
@@ -85,6 +110,8 @@ export const ALL_HOSPITALS: HospitalPinInfo[] = [
     city: 'Thane',
     userId: 'f0000000-0000-4000-8000-000000000007',
     email: 'hospital.highland@bedlink.internal',
+    latitude: 19.2183,
+    longitude: 72.9781,
   },
   {
     pin: '1008',
@@ -94,6 +121,8 @@ export const ALL_HOSPITALS: HospitalPinInfo[] = [
     city: 'Navi Mumbai',
     userId: 'f0000000-0000-4000-8000-000000000008',
     email: 'hospital.silvercross@bedlink.internal',
+    latitude: 19.0771,
+    longitude: 72.9986,
   },
   {
     pin: '1009',
@@ -103,6 +132,8 @@ export const ALL_HOSPITALS: HospitalPinInfo[] = [
     city: 'Mumbai',
     userId: 'f0000000-0000-4000-8000-000000000009',
     email: 'hospital.metrowest@bedlink.internal',
+    latitude: 19.2307,
+    longitude: 72.8567,
   },
   {
     pin: '1010',
@@ -112,15 +143,43 @@ export const ALL_HOSPITALS: HospitalPinInfo[] = [
     city: 'Navi Mumbai',
     userId: 'f0000000-0000-4000-8000-000000000010',
     email: 'hospital.pinevalley@bedlink.internal',
+    latitude: 19.0664,
+    longitude: 73.0032,
   },
 ]
 
+// Distinct Staff Nurses for each hospital (PINs 2001 to 2010)
+export const ALL_NURSES: NursePinInfo[] = ALL_HOSPITALS.map((hosp, idx) => {
+  const pin = (2001 + idx).toString()
+  const nurseNum = (idx + 1).toString().padStart(12, '0')
+  return {
+    pin,
+    hospitalId: hosp.hospitalId,
+    name: hosp.name,
+    shortName: hosp.shortName,
+    city: hosp.city,
+    userId:
+      idx === 0
+        ? DEMO_IDENTITIES.NURSE_APEX.userId
+        : idx === 1
+        ? DEMO_IDENTITIES.NURSE_STJUDE.userId
+        : `e0000000-0000-4000-8000-${nurseNum}`,
+    email:
+      idx === 0
+        ? DEMO_IDENTITIES.NURSE_APEX.email
+        : idx === 1
+        ? DEMO_IDENTITIES.NURSE_STJUDE.email
+        : `nurse.${hosp.shortName.toLowerCase().replace(/[^a-z0-9]/g, '')}@bedlink.internal`,
+    fullName: `Staff Nurse (${hosp.shortName})`,
+  }
+})
+
 export const ROLE_PINS: Record<string, RolePinConfig> = {
-  // Nurse PINs (2468 is primary)
+  // Nurse PINs (2468 and 1234 are backward-compatible aliases for Apex Metro Nurse)
   '2468': {
     pin: '2468',
     role: 'nurse',
-    destination: '/nurse',
+    destination: '/nurse?hospitalId=11111111-1111-4111-8111-111111111101',
     roleTitle: 'Staff Nurse (Apex Metro)',
     userId: DEMO_IDENTITIES.NURSE_APEX.userId,
     hospitalId: DEMO_IDENTITIES.NURSE_APEX.hospitalId,
@@ -130,7 +189,7 @@ export const ROLE_PINS: Record<string, RolePinConfig> = {
   '1234': {
     pin: '1234',
     role: 'nurse',
-    destination: '/nurse',
+    destination: '/nurse?hospitalId=11111111-1111-4111-8111-111111111101',
     roleTitle: 'Staff Nurse (Apex Metro)',
     userId: DEMO_IDENTITIES.NURSE_APEX.userId,
     hospitalId: DEMO_IDENTITIES.NURSE_APEX.hospitalId,
@@ -215,7 +274,7 @@ export const ROLE_PINS: Record<string, RolePinConfig> = {
   },
 }
 
-// Dynamically register 1001 to 1010 for all 10 hospitals
+// Dynamically register 1001 to 1010 for all 10 hospital staff
 ALL_HOSPITALS.forEach((hosp) => {
   ROLE_PINS[hosp.pin] = {
     pin: hosp.pin,
@@ -226,6 +285,20 @@ ALL_HOSPITALS.forEach((hosp) => {
     hospitalId: hosp.hospitalId,
     email: hosp.email,
     fullName: `ED Coordinator (${hosp.shortName})`,
+  }
+})
+
+// Dynamically register 2001 to 2010 for all 10 hospital nurses
+ALL_NURSES.forEach((nurse) => {
+  ROLE_PINS[nurse.pin] = {
+    pin: nurse.pin,
+    role: 'nurse',
+    destination: `/nurse?hospitalId=${nurse.hospitalId}`,
+    roleTitle: `Staff Nurse (${nurse.shortName})`,
+    userId: nurse.userId,
+    hospitalId: nurse.hospitalId,
+    email: nurse.email,
+    fullName: nurse.fullName,
   }
 })
 

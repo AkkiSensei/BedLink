@@ -15,6 +15,8 @@ import {
 } from 'lucide-react'
 import type { HospitalReservationView } from '@/lib/operations/types'
 import HospitalCountdown from './HospitalCountdown'
+import HospitalCoordinationMap from './HospitalCoordinationMap'
+import { ALL_HOSPITALS } from '@/lib/auth/pins'
 import {
   acceptHospitalReservationAction,
   rejectHospitalReservationAction,
@@ -24,6 +26,9 @@ import { triggerHaptic } from '@/lib/device/phoneCraft'
 interface HospitalReservationCardProps {
   reservation: HospitalReservationView
   serverClockOffsetMs?: number
+  hospitalLatitude?: number | null
+  hospitalLongitude?: number | null
+  hospitalName?: string
   onReservationUpdated?: (
     reservationId: string,
     newStatus: 'accepted' | 'rejected' | 'expired',
@@ -35,6 +40,9 @@ interface HospitalReservationCardProps {
 export default function HospitalReservationCard({
   reservation,
   serverClockOffsetMs = 0,
+  hospitalLatitude,
+  hospitalLongitude,
+  hospitalName,
   onReservationUpdated,
   onRefreshNeeded,
 }: HospitalReservationCardProps) {
@@ -563,6 +571,34 @@ export default function HospitalReservationCard({
             )}
           </div>
         </div>
+
+        {/* Live EMS Transit & Coordination Map (Shows Distance and ETA between Staff and EMS) */}
+        <HospitalCoordinationMap
+          ambulanceLatitude={reservation.ambulance_latitude}
+          ambulanceLongitude={reservation.ambulance_longitude}
+          ambulancePhone={reservation.ambulance_phone}
+          hospitalLatitude={
+            reservation.hospital_latitude ??
+            hospitalLatitude ??
+            ALL_HOSPITALS.find((h) => h.hospitalId === reservation.hospital_id)?.latitude ??
+            18.922
+          }
+          hospitalLongitude={
+            reservation.hospital_longitude ??
+            hospitalLongitude ??
+            ALL_HOSPITALS.find((h) => h.hospitalId === reservation.hospital_id)?.longitude ??
+            72.8258
+          }
+          hospitalName={
+            reservation.hospital_name ||
+            hospitalName ||
+            ALL_HOSPITALS.find((h) => h.hospitalId === reservation.hospital_id)?.name ||
+            'Authorized Emergency Facility'
+          }
+          distanceKm={reservation.distance_km}
+          etaMinutes={reservation.estimated_travel_time_minutes}
+          status={localStatus}
+        />
 
         {/* 120-Second Countdown (Synchronized with authoritative state) */}
         {isHeld && (

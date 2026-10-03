@@ -157,17 +157,21 @@ export default async function HospitalPage({
   // 4. Resolve hospital details
   let hospitalName = 'Authorized Emergency Facility'
   let hospitalCity = 'Emergency Operations'
+  let hospitalLatitude: number | null = null
+  let hospitalLongitude: number | null = null
   const targetHospitalId = profile.hospital_id || params?.hospitalId || null
 
   if (targetHospitalId) {
     const { data: hospData } = await supabase
       .from('hospitals')
-      .select('name, city')
+      .select('name, city, latitude, longitude')
       .eq('id', targetHospitalId)
       .maybeSingle()
     if (hospData) {
       hospitalName = hospData.name
       hospitalCity = hospData.city
+      hospitalLatitude = hospData.latitude ? Number(hospData.latitude) : null
+      hospitalLongitude = hospData.longitude ? Number(hospData.longitude) : null
     }
   }
 
@@ -188,6 +192,8 @@ export default async function HospitalPage({
       hospitalId={targetHospitalId || ''}
       hospitalName={hospitalName}
       hospitalCity={hospitalCity}
+      hospitalLatitude={hospitalLatitude}
+      hospitalLongitude={hospitalLongitude}
       staffName={profile.full_name || 'Hospital Staff'}
       staffRole={profile.role}
     />
