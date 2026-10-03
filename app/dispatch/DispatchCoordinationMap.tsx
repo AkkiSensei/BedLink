@@ -248,6 +248,23 @@ export default function DispatchCoordinationMap({
           map,
         })
 
+        const applyFallbackRoadGeometry = () => {
+          fetch(
+            `https://router.project-osrm.org/route/v1/driving/${ambulanceLongitude},${ambulanceLatitude};${activeCandidate.longitude},${activeCandidate.latitude}?overview=full&geometries=geojson`
+          )
+            .then((res) => res.json())
+            .then((data) => {
+              if (isCancelled || !data?.routes?.[0]?.geometry?.coordinates) return
+              const roadPath = data.routes[0].geometry.coordinates.map((pt: [number, number]) => ({
+                lat: pt[1],
+                lng: pt[0],
+              }))
+              polylineRef.current?.setPath(roadPath)
+              casingPolylineRef.current?.setPath(roadPath)
+            })
+            .catch(() => {})
+        }
+
         try {
           const directionsService = new google.maps.DirectionsService()
           directionsService.route(
@@ -265,11 +282,13 @@ export default function DispatchCoordinationMap({
                 const drivingStreetPath = result.routes[0].overview_path
                 polylineRef.current?.setPath(drivingStreetPath)
                 casingPolylineRef.current?.setPath(drivingStreetPath)
+              } else {
+                applyFallbackRoadGeometry()
               }
             }
           )
         } catch (dirErr) {
-          console.warn('[DispatchCoordinationMap] DirectionsService routing fallback:', dirErr)
+          applyFallbackRoadGeometry()
         }
       }
 
@@ -462,18 +481,32 @@ export default function DispatchCoordinationMap({
         if (activeCandidate?.latitude && activeCandidate?.longitude) {
           const destLatLng: [number, number] = [activeCandidate.latitude, activeCandidate.longitude]
 
-          L.polyline([ambLatLng, destLatLng], {
+          const casingPoly = L.polyline([ambLatLng, destLatLng], {
             color: '#1B4D39',
             weight: 7,
             opacity: 0.35,
           }).addTo(lmap)
 
-          L.polyline([ambLatLng, destLatLng], {
+          const primaryPoly = L.polyline([ambLatLng, destLatLng], {
             color: '#2D6A4F',
             weight: 4,
             opacity: 0.95,
             dashArray: '8, 6',
           }).addTo(lmap)
+
+          fetch(
+            `https://router.project-osrm.org/route/v1/driving/${ambulanceLongitude},${ambulanceLatitude};${activeCandidate.longitude},${activeCandidate.latitude}?overview=full&geometries=geojson`
+          )
+            .then((res) => res.json())
+            .then((data) => {
+              if (isCancelled || !data?.routes?.[0]?.geometry?.coordinates) return
+              const roadPath: [number, number][] = data.routes[0].geometry.coordinates.map(
+                (pt: [number, number]) => [pt[1], pt[0]]
+              )
+              casingPoly.setLatLngs(roadPath)
+              primaryPoly.setLatLngs(roadPath)
+            })
+            .catch(() => {})
         }
 
         // Fit bounds

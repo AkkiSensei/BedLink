@@ -250,19 +250,33 @@ export default function HospitalCoordinationMap({
         `)
 
         // Route Casing Line (Glow)
-        L.polyline([ambLatLng, hospLatLng], {
+        const casingLine = L.polyline([ambLatLng, hospLatLng], {
           color: '#1B4D39',
           weight: 7,
           opacity: 0.3,
         }).addTo(leafletMap)
 
         // Route Primary Line
-        L.polyline([ambLatLng, hospLatLng], {
+        const primaryLine = L.polyline([ambLatLng, hospLatLng], {
           color: '#2D6A4F',
           weight: 4,
           opacity: 0.95,
           dashArray: '8, 6',
         }).addTo(leafletMap)
+
+        fetch(
+          `https://router.project-osrm.org/route/v1/driving/${ambulanceLongitude},${ambulanceLatitude};${hospitalLongitude},${hospitalLatitude}?overview=full&geometries=geojson`
+        )
+          .then((res) => res.json())
+          .then((data) => {
+            if (isCancelled || !data?.routes?.[0]?.geometry?.coordinates) return
+            const roadCoords: [number, number][] = data.routes[0].geometry.coordinates.map(
+              (pt: [number, number]) => [pt[1], pt[0]]
+            )
+            casingLine.setLatLngs(roadCoords)
+            primaryLine.setLatLngs(roadCoords)
+          })
+          .catch(() => {})
 
         // Fit bounds with comfortable padding for mobile & desktop
         const bounds = L.latLngBounds([ambLatLng, hospLatLng])
