@@ -115,7 +115,11 @@ export async function logoutAction() {
     if (isServerSupabaseConfigured()) {
       try {
         const supabase = await createServerSupabaseClient()
-        await supabase.auth.signOut()
+        // Fast signout: do not let remote network call hold up the user redirect
+        await Promise.race([
+          supabase.auth.signOut(),
+          new Promise((resolve) => setTimeout(resolve, 200)),
+        ])
       } catch {}
     }
   } catch {}

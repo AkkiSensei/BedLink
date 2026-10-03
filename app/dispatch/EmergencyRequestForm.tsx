@@ -21,6 +21,7 @@ import { triggerHaptic } from '@/lib/device/phoneCraft'
 interface EmergencyRequestFormProps {
   onRequestCreated: (newRequest: DispatchBedRequestView) => void
   onSubmittingChange?: (isSubmitting: boolean) => void
+  onLocationChange?: (lat: number, lng: number) => void
 }
 
 const AVAILABLE_CAPABILITIES: {
@@ -42,7 +43,7 @@ const QUICK_PRESETS = [
   { label: 'Dadar Central', lat: 19.0180, lng: 72.8480 },
 ]
 
-export default function EmergencyRequestForm({ onRequestCreated, onSubmittingChange }: EmergencyRequestFormProps) {
+export default function EmergencyRequestForm({ onRequestCreated, onSubmittingChange, onLocationChange }: EmergencyRequestFormProps) {
   const [capabilities, setCapabilities] = useState<BedCapability[]>(['icu', 'ventilator'])
   const [latitude, setLatitude] = useState<string>('18.9220')
   const [longitude, setLongitude] = useState<string>('72.8340')
@@ -66,6 +67,7 @@ export default function EmergencyRequestForm({ onRequestCreated, onSubmittingCha
     setLongitude(lng.toString())
     setLocationSource('manual')
     setLocationNotice(null)
+    onLocationChange?.(lat, lng)
   }
 
   const handleUseCurrentLocation = () => {
@@ -89,6 +91,7 @@ export default function EmergencyRequestForm({ onRequestCreated, onSubmittingCha
         setLocationSource('live')
         setIsLocating(false)
         setLocationNotice(`GPS lock acquired (accuracy ±${acc}m)`)
+        onLocationChange?.(lat, lng)
         setTimeout(() => setLocationNotice(null), 4000)
 
         // Stage 2: Refine in background if supported
@@ -96,6 +99,7 @@ export default function EmergencyRequestForm({ onRequestCreated, onSubmittingCha
           (refinedPos) => {
             setLatitude(refinedPos.coords.latitude.toFixed(6))
             setLongitude(refinedPos.coords.longitude.toFixed(6))
+            onLocationChange?.(refinedPos.coords.latitude, refinedPos.coords.longitude)
           },
           () => {},
           { enableHighAccuracy: true, timeout: 6000 }
@@ -122,8 +126,21 @@ export default function EmergencyRequestForm({ onRequestCreated, onSubmittingCha
   }
 
   const handleCoordinateChange = (field: 'lat' | 'lng', value: string) => {
-    if (field === 'lat') setLatitude(value)
-    else setLongitude(value)
+    if (field === 'lat') {
+      setLatitude(value)
+      const parsedLat = parseFloat(value)
+      const parsedLng = parseFloat(longitude)
+      if (!isNaN(parsedLat) && !isNaN(parsedLng)) {
+        onLocationChange?.(parsedLat, parsedLng)
+      }
+    } else {
+      setLongitude(value)
+      const parsedLat = parseFloat(latitude)
+      const parsedLng = parseFloat(value)
+      if (!isNaN(parsedLat) && !isNaN(parsedLng)) {
+        onLocationChange?.(parsedLat, parsedLng)
+      }
+    }
     setLocationSource('manual')
   }
 
@@ -406,26 +423,38 @@ export default function EmergencyRequestForm({ onRequestCreated, onSubmittingCha
               )}
             </button>
 
-            {QUICK_PRESETS.map((preset) => (
-              <button
-                key={preset.label}
-                type="button"
-                onClick={() => applyPreset(preset.lat, preset.lng)}
-                style={{
-                  fontSize: '0.7rem',
-                  fontWeight: 600,
-                  backgroundColor: '#EEF3EE',
-                  color: '#5C6B64',
-                  border: '1px solid #E1E7E1',
-                  borderRadius: '4px',
-                  padding: '4px 6px',
-                  cursor: 'pointer',
-                  minHeight: '28px',
-                }}
-              >
-                {preset.label}
-              </button>
-            ))}
+            {QUICK_PRESETS.map((preset) => {
+              const curLat = parseFloat(latitude)
+              const curLng = parseFloat(longitude)
+              const isActive =
+                !isNaN(curLat) &&
+                !isNaN(curLng) &&
+                Math.abs(curLat - preset.lat) < 0.001 &&
+                Math.abs(curLng - preset.lng) < 0.001
+
+              return (
+                <button
+                  key={preset.label}
+                  type="button"
+                  onClick={() => applyPreset(preset.lat, preset.lng)}
+                  style={{
+                    fontSize: '0.7rem',
+                    fontWeight: isActive ? 800 : 600,
+                    backgroundColor: isActive ? '#2D6A4F' : '#EEF3EE',
+                    color: isActive ? '#FFFFFF' : '#5C6B64',
+                    border: isActive ? '1.5px solid #2D6A4F' : '1px solid #E1E7E1',
+                    borderRadius: '6px',
+                    padding: '4px 8px',
+                    cursor: 'pointer',
+                    minHeight: '28px',
+                    boxShadow: isActive ? '0 2px 6px rgba(45, 106, 79, 0.25)' : 'none',
+                    transition: 'all 120ms ease',
+                  }}
+                >
+                  {preset.label}
+                </button>
+              )
+            })}
           </div>
         </div>
 

@@ -71,6 +71,7 @@ export default function NurseInventoryClient({
   const [realtimeStatus, setRealtimeStatus] = useState<RealtimeConnectionStatus>('CONNECTING')
   const [focusedBedIndex, setFocusedBedIndex] = useState<number | null>(null)
   const [isPending, startTransition] = useTransition()
+  const [isSigningOut, setIsSigningOut] = useState<boolean>(false)
 
   // History stack for Undo (Ctrl+Z)
   const historyStackRef = useRef<Array<{ bedId: string; prevStatus: BedStatus }>>([])
@@ -526,19 +527,27 @@ export default function NurseInventoryClient({
               <span className="desktop-only">{isPending ? 'Syncing...' : 'Sync'}</span>
             </button>
 
-            <form action={logoutAction} style={{ margin: 0 }}>
+            <form
+              action={async () => {
+                setIsSigningOut(true)
+                triggerHaptic('tap')
+                await logoutAction()
+              }}
+              style={{ margin: 0 }}
+            >
               <button
                 type="submit"
+                disabled={isSigningOut}
                 style={{
                   height: '32px',
                   padding: '0 12px',
-                  backgroundColor: 'rgba(255, 255, 255, 0.08)',
-                  color: '#D8E2DC',
+                  backgroundColor: isSigningOut ? 'rgba(239, 68, 68, 0.25)' : 'rgba(255, 255, 255, 0.08)',
+                  color: isSigningOut ? '#FCA5A5' : '#D8E2DC',
                   border: '1px solid rgba(255, 255, 255, 0.15)',
                   borderRadius: '999px',
                   fontSize: '0.74rem',
                   fontWeight: 600,
-                  cursor: 'pointer',
+                  cursor: isSigningOut ? 'not-allowed' : 'pointer',
                   whiteSpace: 'nowrap',
                   display: 'inline-flex',
                   alignItems: 'center',
@@ -546,19 +555,23 @@ export default function NurseInventoryClient({
                   transition: 'all 150ms',
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.15)'
-                  e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.3)'
-                  e.currentTarget.style.color = '#FCA5A5'
+                  if (!isSigningOut) {
+                    e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.15)'
+                    e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.3)'
+                    e.currentTarget.style.color = '#FCA5A5'
+                  }
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.08)'
-                  e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.15)'
-                  e.currentTarget.style.color = '#D8E2DC'
+                  if (!isSigningOut) {
+                    e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.08)'
+                    e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.15)'
+                    e.currentTarget.style.color = '#D8E2DC'
+                  }
                 }}
                 title="Sign out of Nurse Dashboard"
                 aria-label="Sign Out"
               >
-                Sign Out
+                {isSigningOut ? 'Signing out...' : 'Sign Out'}
               </button>
             </form>
           </div>

@@ -53,6 +53,7 @@ export default function HospitalDashboardClient({
   const [refreshError, setRefreshError] = useState<string | null>(null)
   const [realtimeStatus, setRealtimeStatus] = useState<RealtimeConnectionStatus>('CONNECTING')
   const [compactTab, setCompactTab] = useState<CompactTabType>('inbox')
+  const [isSigningOut, setIsSigningOut] = useState<boolean>(false)
   const [serverClockOffsetMs, setServerClockOffsetMs] = useState<number>(() => {
     if (initialServerTime) {
       return new Date(initialServerTime).getTime() - Date.now()
@@ -462,19 +463,27 @@ export default function HospitalDashboardClient({
               <span className="desktop-only">{isRefreshing ? 'Syncing...' : 'Sync'}</span>
             </button>
 
-            <form action={logoutAction} style={{ margin: 0 }}>
+            <form
+              action={async () => {
+                setIsSigningOut(true)
+                triggerHaptic('tap')
+                await logoutAction()
+              }}
+              style={{ margin: 0 }}
+            >
               <button
                 type="submit"
+                disabled={isSigningOut}
                 style={{
                   height: '32px',
                   padding: '0 12px',
-                  backgroundColor: 'rgba(255, 255, 255, 0.08)',
-                  color: '#D8E2DC',
+                  backgroundColor: isSigningOut ? 'rgba(239, 68, 68, 0.25)' : 'rgba(255, 255, 255, 0.08)',
+                  color: isSigningOut ? '#FCA5A5' : '#D8E2DC',
                   border: '1px solid rgba(255, 255, 255, 0.15)',
                   borderRadius: '999px',
                   fontSize: '0.74rem',
                   fontWeight: 600,
-                  cursor: 'pointer',
+                  cursor: isSigningOut ? 'not-allowed' : 'pointer',
                   whiteSpace: 'nowrap',
                   display: 'inline-flex',
                   alignItems: 'center',
@@ -482,19 +491,23 @@ export default function HospitalDashboardClient({
                   transition: 'all 150ms',
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.15)'
-                  e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.3)'
-                  e.currentTarget.style.color = '#FCA5A5'
+                  if (!isSigningOut) {
+                    e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.15)'
+                    e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.3)'
+                    e.currentTarget.style.color = '#FCA5A5'
+                  }
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.08)'
-                  e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.15)'
-                  e.currentTarget.style.color = '#D8E2DC'
+                  if (!isSigningOut) {
+                    e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.08)'
+                    e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.15)'
+                    e.currentTarget.style.color = '#D8E2DC'
+                  }
                 }}
                 title="Sign out of Hospital Staff Console"
                 aria-label="Sign out"
               >
-                Sign Out
+                {isSigningOut ? 'Signing out...' : 'Sign Out'}
               </button>
             </form>
           </div>

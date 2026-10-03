@@ -65,6 +65,12 @@ export default function DispatchDashboardClient({
   const [compactTab, setCompactTab] = useState<DispatchCompactTab>('new')
   const [isMobileDrilledIn, setIsMobileDrilledIn] = useState<boolean>(false)
 
+  const [isSigningOut, setIsSigningOut] = useState<boolean>(false)
+  const [liveAmbulanceCoords, setLiveAmbulanceCoords] = useState<{ lat: number; lng: number }>({
+    lat: initialRequests[0]?.ambulance_latitude ?? 18.922,
+    lng: initialRequests[0]?.ambulance_longitude ?? 72.834,
+  })
+
   const selectedRequestIdRef = useRef(selectedRequestId)
   const isSubmittingFormRef = useRef(false)
   useEffect(() => {
@@ -73,6 +79,16 @@ export default function DispatchDashboardClient({
 
   // Screen Wake Lock while active request hold is running
   const selectedRequest = requests.find((r) => r.id === selectedRequestId) ?? requests[0] ?? null
+
+  // Synchronize live ambulance coordinates when selected request changes
+  useEffect(() => {
+    if (selectedRequest?.ambulance_latitude && selectedRequest?.ambulance_longitude) {
+      setLiveAmbulanceCoords({
+        lat: selectedRequest.ambulance_latitude,
+        lng: selectedRequest.ambulance_longitude,
+      })
+    }
+  }, [selectedRequest?.id, selectedRequest?.ambulance_latitude, selectedRequest?.ambulance_longitude])
   const liveHoldRequest = requests.find((r) => r.active_reservation && r.status !== 'closed' && r.status !== 'admitted')
   const activeCandidate = rankedCandidates.find(
     (c) => c.hospital_id === selectedRequest?.active_reservation?.hospital_id
@@ -407,19 +423,27 @@ export default function DispatchDashboardClient({
               <span className="desktop-only">{isRefreshing ? 'Syncing...' : 'Sync'}</span>
             </button>
 
-            <form action={logoutAction} style={{ margin: 0 }}>
+            <form
+              action={async () => {
+                setIsSigningOut(true)
+                triggerHaptic('tap')
+                await logoutAction()
+              }}
+              style={{ margin: 0 }}
+            >
               <button
                 type="submit"
+                disabled={isSigningOut}
                 style={{
                   height: '32px',
                   padding: '0 12px',
-                  backgroundColor: 'rgba(255, 255, 255, 0.08)',
-                  color: '#D8E2DC',
+                  backgroundColor: isSigningOut ? 'rgba(239, 68, 68, 0.25)' : 'rgba(255, 255, 255, 0.08)',
+                  color: isSigningOut ? '#FCA5A5' : '#D8E2DC',
                   border: '1px solid rgba(255, 255, 255, 0.15)',
                   borderRadius: '999px',
                   fontSize: '0.74rem',
                   fontWeight: 600,
-                  cursor: 'pointer',
+                  cursor: isSigningOut ? 'not-allowed' : 'pointer',
                   whiteSpace: 'nowrap',
                   display: 'inline-flex',
                   alignItems: 'center',
@@ -427,19 +451,23 @@ export default function DispatchDashboardClient({
                   transition: 'all 150ms',
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.15)'
-                  e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.3)'
-                  e.currentTarget.style.color = '#FCA5A5'
+                  if (!isSigningOut) {
+                    e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.15)'
+                    e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.3)'
+                    e.currentTarget.style.color = '#FCA5A5'
+                  }
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.08)'
-                  e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.15)'
-                  e.currentTarget.style.color = '#D8E2DC'
+                  if (!isSigningOut) {
+                    e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.08)'
+                    e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.15)'
+                    e.currentTarget.style.color = '#D8E2DC'
+                  }
                 }}
                 title="Sign out of Dispatch Console"
                 aria-label="Sign out"
               >
-                Sign Out
+                {isSigningOut ? 'Signing out...' : 'Sign Out'}
               </button>
             </form>
           </div>
@@ -517,6 +545,9 @@ export default function DispatchDashboardClient({
             onSubmittingChange={(submitting) => {
               isSubmittingFormRef.current = submitting
             }}
+            onLocationChange={(lat, lng) => {
+              setLiveAmbulanceCoords({ lat, lng })
+            }}
           />
 
           {selectedRequest && (
@@ -535,8 +566,8 @@ export default function DispatchDashboardClient({
           {/* Live Coordination Map — Visible on Desktop or when mobile tab is 'hospitals' */}
           <div className="dispatch-map-wrapper">
             <DispatchCoordinationMap
-              ambulanceLatitude={selectedRequest?.ambulance_latitude ?? 18.9220}
-              ambulanceLongitude={selectedRequest?.ambulance_longitude ?? 72.8340}
+              ambulanceLatitude={liveAmbulanceCoords.lat}
+              ambulanceLongitude={liveAmbulanceCoords.lng}
               candidates={rankedCandidates}
               activeHospitalId={selectedRequest?.active_reservation?.hospital_id}
               activeHospitalName={selectedRequest?.active_reservation?.hospital_name}
