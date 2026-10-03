@@ -3,7 +3,13 @@
 import React, { useState, useEffect, useRef } from 'react'
 import type { HospitalReservationView } from '@/lib/operations/types'
 import HospitalReservationCard from './HospitalReservationCard'
-import { refreshHospitalReservationsAction } from './actions'
+import HospitalCountdown from './HospitalCountdown'
+import {
+  refreshHospitalReservationsAction,
+  acceptHospitalReservationAction,
+  rejectHospitalReservationAction,
+  type NetworkActiveHoldInfo,
+} from './actions'
 import { subscribeHospitalOffers, type RealtimeConnectionStatus } from '@/lib/realtime'
 import { playAlertChime } from '@/lib/sound'
 import { logoutAction, loginWithPinAction } from '../actions/auth'
@@ -25,6 +31,9 @@ import {
   BarChart3,
   ArrowUpRight,
   Filter,
+  Siren,
+  XCircle,
+  Loader2,
 } from 'lucide-react'
 
 interface HospitalDashboardClientProps {
@@ -65,6 +74,13 @@ export default function HospitalDashboardClient({
     }
     return 0
   })
+
+  // Acceptance Request Pop-Up Modal and Network Hold state
+  const [popupReservationId, setPopupReservationId] = useState<string | null>(null)
+  const [dismissedPopupIds, setDismissedPopupIds] = useState<Set<string>>(new Set())
+  const [networkActiveHold, setNetworkActiveHold] = useState<NetworkActiveHoldInfo | null>(null)
+  const [popupSubmitting, setPopupSubmitting] = useState<'accept' | 'reject' | null>(null)
+  const [popupError, setPopupError] = useState<string | null>(null)
 
   // Calculate active held count & history
   const heldReservations = reservations.filter((r) => r.status === 'held')
@@ -109,7 +125,7 @@ export default function HospitalDashboardClient({
     })
   }
 
-  // Sound chime ONLY when a new un-alerted active offer arrives
+  // Sound chime & trigger Acceptance Request Pop-Up when an active offer arrives
   const alertedReservationIdsRef = useRef<Set<string>>(new Set(initialReservations.map((r) => r.id)))
   useEffect(() => {
     const newlyArrivedHeld = reservations.filter(
@@ -118,37 +134,30 @@ export default function HospitalDashboardClient({
 
     if (newlyArrivedHeld.length > 0) {
       newlyArrivedHeld.forEach((r) => alertedReservationIdsRef.current.add(r.id))
+      // Automatically switch to inbox tab so ED coordinator sees the offer immediately
+      setCompactTab('inbox')
+      // Immediately open the acceptance request modal dialog
+      setPopupReservationId(newlyArrivedHeld[0].id)
       playAlertChime()
       triggerHaptic('alert')
+    } else if (heldReservations.length > 0 && !popupReservationId) {
+      const firstUndismissed = heldReservations.find((r) => !dismissedPopupIds.has(r.id))
+      if (firstUndismissed) {
+        setPopupReservationId(firstUndismissed.id)
+      }
     }
-  }, [reservations])
+  }, [reservations, dismissedPopupIds, heldReservations, popupReservationId])
 
   const serverClockOffsetMsRef = useRef(serverClockOffsetMs)
   useEffect(() => {
     serverClockOffsetMsRef.current = serverClockOffsetMs
   }, [serverClockOffsetMs])
 
-  // Re-sync on visibility change (when tab regains focus) and online events
+  // Instantaneous re-sync on visibility change, window focus, and online reconnection
   useEffect(() => {
-    const handleVisibility = () => {
-      if (document.visibilityState === 'visible' && hospitalId) {
-        refreshHospitalReservationsAction({ targetHospitalId: hospitalId })
-          .then((res) => {
-            if (res.success && res.reservations) {
-              const newOffset = res.serverTime
-                ? new Date(res.serverTime).getTime() - Date.now()
-                : serverClockOffsetMsRef.current
-              if (res.serverTime) setServerClockOffsetMs(newOffset)
-              reconcileReservations(res.reservations, newOffset)
-            }
-          })
-          .catch(() => {})
-      }
-    }
-
-    const handleOnline = () => {
+    const handleRecheck = () => {
       if (hospitalId) {
-        refreshHospitalReservationsAction({ targetHospitalId: hospitalId })
+        refreshHospitalReservationsAction({ targetHospitalId: hospitalId, includeHistory: true })
           .then((res) => {
             if (res.success && res.reservations) {
               const newOffset = res.serverTime
@@ -156,18 +165,23 @@ export default function HospitalDashboardClient({
                 : serverClockOffsetMsRef.current
               if (res.serverTime) setServerClockOffsetMs(newOffset)
               reconcileReservations(res.reservations, newOffset)
+              if (res.networkActiveHold !== undefined) {
+                setNetworkActiveHold(res.networkActiveHold)
+              }
             }
           })
           .catch(() => {})
       }
     }
 
-    document.addEventListener('visibilitychange', handleVisibility)
-    window.addEventListener('online', handleOnline)
+    document.addEventListener('visibilitychange', handleRecheck)
+    window.addEventListener('focus', handleRecheck)
+    window.addEventListener('online', handleRecheck)
 
     return () => {
-      document.removeEventListener('visibilitychange', handleVisibility)
-      window.removeEventListener('online', handleOnline)
+      document.removeEventListener('visibilitychange', handleRecheck)
+      window.removeEventListener('focus', handleRecheck)
+      window.removeEventListener('online', handleRecheck)
     }
   }, [hospitalId])
 
@@ -180,13 +194,19 @@ export default function HospitalDashboardClient({
       onStatusChange: (status) => setRealtimeStatus(status),
       onReconcile: async () => {
         try {
-          const result = await refreshHospitalReservationsAction({ targetHospitalId: hospitalId })
+          const result = await refreshHospitalReservationsAction({
+            targetHospitalId: hospitalId,
+            includeHistory: true,
+          })
           if (result.success && result.reservations) {
             const newOffset = result.serverTime
               ? new Date(result.serverTime).getTime() - Date.now()
               : serverClockOffsetMsRef.current
             if (result.serverTime) setServerClockOffsetMs(newOffset)
             reconcileReservations(result.reservations, newOffset)
+            if (result.networkActiveHold !== undefined) {
+              setNetworkActiveHold(result.networkActiveHold)
+            }
           }
         } catch {
           // background sync error ignored
@@ -200,15 +220,12 @@ export default function HospitalDashboardClient({
   }, [hospitalId])
 
   // Intelligent auto-sync heartbeat: guarantees zero missed offers
-  // Relaxes polling to 15s when Realtime is active, pauses when tab is hidden.
+  // High-frequency 2.5s active polling, 5s background polling
   const isFetchingSyncRef = useRef(false)
   useEffect(() => {
     if (!hospitalId) return
 
-    const intervalMs = realtimeStatus === 'SUBSCRIBED' ? 15000 : 6000
-
     const heartbeat = setInterval(async () => {
-      if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return
       if (isFetchingSyncRef.current) return
       isFetchingSyncRef.current = true
 
@@ -223,16 +240,69 @@ export default function HospitalDashboardClient({
             : serverClockOffsetMsRef.current
           if (result.serverTime) setServerClockOffsetMs(newOffset)
           reconcileReservations(result.reservations, newOffset)
+          if (result.networkActiveHold !== undefined) {
+            setNetworkActiveHold(result.networkActiveHold)
+          }
         }
       } catch {
         // silent background sync
       } finally {
         isFetchingSyncRef.current = false
       }
-    }, intervalMs)
+    }, typeof document !== 'undefined' && document.visibilityState !== 'visible' ? 5000 : 2500)
 
     return () => clearInterval(heartbeat)
   }, [hospitalId, realtimeStatus])
+
+  // Handlers for instant acceptance or rejection from the Acceptance Request Pop-Up Modal
+  const handlePopupAccept = async (resId: string) => {
+    if (popupSubmitting) return
+    setPopupSubmitting('accept')
+    setPopupError(null)
+    try {
+      const res = await acceptHospitalReservationAction({ reservationId: resId })
+      if (res.success && res.result) {
+        triggerHaptic('success')
+        handleReservationUpdated(resId, 'accepted', {
+          statusMessage: 'Emergency bed reservation ACCEPTED. Bed held for incoming ambulance.',
+        })
+        setPopupReservationId(null)
+      } else if (res.error) {
+        setPopupError(res.error.message || 'Failed to accept reservation')
+      }
+    } catch (err: any) {
+      setPopupError(err?.message || 'Network error during acceptance')
+    } finally {
+      setPopupSubmitting(null)
+    }
+  }
+
+  const handlePopupReject = async (resId: string) => {
+    if (popupSubmitting) return
+    setPopupSubmitting('reject')
+    setPopupError(null)
+    try {
+      const res = await rejectHospitalReservationAction({ reservationId: resId })
+      if (res.success && res.result) {
+        triggerHaptic('reject')
+        handleReservationUpdated(resId, 'rejected', {
+          statusMessage: 'Emergency offer rejected. Request rerouted to fallback hospital.',
+        })
+        setPopupReservationId(null)
+      } else if (res.error) {
+        setPopupError(res.error.message || 'Failed to reject reservation')
+      }
+    } catch (err: any) {
+      setPopupError(err?.message || 'Network error during rejection')
+    } finally {
+      setPopupSubmitting(null)
+    }
+  }
+
+  // Active reservation currently displayed in the Acceptance Pop-Up Modal
+  const activePopupReservation = popupReservationId
+    ? reservations.find((r) => r.id === popupReservationId && r.status === 'held')
+    : null
 
   // Filtered history based on quick sub-filter
   const filteredHistory = historyReservations.filter((r) => {
@@ -615,6 +685,65 @@ export default function HospitalDashboardClient({
               aria-label="Dismiss error"
             >
               <X size={14} />
+            </button>
+          </div>
+        )}
+
+        {/* Network-wide emergency hold alert (when request was assigned to another hospital in the network) */}
+        {networkActiveHold && networkActiveHold.hospitalId !== hospitalId && (
+          <div
+            role="alert"
+            style={{
+              marginBottom: '1rem',
+              padding: '0.75rem 1rem',
+              backgroundColor: '#FEF3C7',
+              border: '1.5px solid #F59E0B',
+              borderRadius: '10px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: '0.75rem',
+              boxShadow: '0 2px 4px rgba(245, 158, 11, 0.1)',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
+              <Siren size={20} style={{ color: '#D97706', flexShrink: 0 }} />
+              <div>
+                <div style={{ fontSize: '0.875rem', fontWeight: 800, color: '#92400E' }}>
+                  Network Emergency Hold Active at {networkActiveHold.hospitalName}
+                </div>
+                <div style={{ fontSize: '0.75rem', color: '#B45309', marginTop: '1px' }}>
+                  Dispatch requested a bed matching {networkActiveHold.requiredCapabilities?.join(', ') || 'clinical needs'} held at {networkActiveHold.hospitalName} (120s response window).
+                </div>
+              </div>
+            </div>
+            <button
+              onClick={async () => {
+                const targetHosp = ALL_HOSPITALS.find((h) => h.hospitalId === networkActiveHold.hospitalId)
+                if (targetHosp) {
+                  try {
+                    await loginWithPinAction(targetHosp.pin)
+                  } catch {}
+                  window.location.href = `/hospital?hospitalId=${targetHosp.hospitalId}`
+                }
+              }}
+              style={{
+                padding: '8px 14px',
+                backgroundColor: '#D97706',
+                color: '#FFFFFF',
+                borderRadius: '6px',
+                border: 'none',
+                fontWeight: 700,
+                fontSize: '0.8rem',
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.35rem',
+              }}
+            >
+              <span>Switch to {networkActiveHold.hospitalName.split(' ')[0]}</span>
+              <ArrowUpRight size={14} />
             </button>
           </div>
         )}
@@ -1109,6 +1238,330 @@ export default function HospitalDashboardClient({
         <span className="stats-fab-label">Hospital Statistics</span>
         <ArrowUpRight size={14} style={{ color: '#A5D6A7' }} />
       </a>
+
+      {/* 6. High-Priority Incoming Acceptance Request Pop-Up Modal */}
+      {activePopupReservation && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="acceptance-popup-title"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 99999,
+            backgroundColor: 'rgba(15, 23, 42, 0.78)',
+            backdropFilter: 'blur(6px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '1rem',
+            boxSizing: 'border-box',
+          }}
+        >
+          <div
+            style={{
+              backgroundColor: '#FFFFFF',
+              borderRadius: '16px',
+              border: '2px solid #2D6A4F',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.35)',
+              maxWidth: '520px',
+              width: '100%',
+              overflow: 'hidden',
+              display: 'flex',
+              flexDirection: 'column',
+              maxHeight: '92vh',
+            }}
+          >
+            {/* Pop-Up Header with emergency beacon */}
+            <div
+              style={{
+                backgroundColor: '#2D6A4F',
+                color: '#FFFFFF',
+                padding: '1rem 1.25rem',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
+                <span style={{ display: 'inline-flex', alignItems: 'center', color: '#86EFAC' }}>
+                  <Siren size={24} />
+                </span>
+                <div>
+                  <div
+                    id="acceptance-popup-title"
+                    style={{
+                      fontSize: '1rem',
+                      fontWeight: 800,
+                      letterSpacing: '-0.01em',
+                      color: '#FFFFFF',
+                    }}
+                  >
+                    EMERGENCY BED OFFER RECEIVED
+                  </div>
+                  <div style={{ fontSize: '0.75rem', color: '#D8E2DC' }}>
+                    Request #{activePopupReservation.bed_request_id.slice(0, 8)} • Attempt #{activePopupReservation.attempt_number}
+                  </div>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setDismissedPopupIds((prev) => new Set([...prev, activePopupReservation.id]))
+                  setPopupReservationId(null)
+                }}
+                style={{
+                  background: 'rgba(255, 255, 255, 0.15)',
+                  border: 'none',
+                  borderRadius: '999px',
+                  color: '#FFFFFF',
+                  width: '28px',
+                  height: '28px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                }}
+                aria-label="Minimize and view on desk"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Pop-Up Body */}
+            <div style={{ padding: '1.25rem', overflowY: 'auto' }}>
+              {/* Facility & Room Destination */}
+              <div
+                style={{
+                  backgroundColor: '#F0FDF4',
+                  border: '1px solid #BBF7D0',
+                  borderRadius: '10px',
+                  padding: '0.75rem 1rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  marginBottom: '1rem',
+                }}
+              >
+                <div>
+                  <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#166534', textTransform: 'uppercase' }}>
+                    Target Facility & Bed
+                  </div>
+                  <div style={{ fontSize: '0.95rem', fontWeight: 800, color: '#14532D', marginTop: '2px' }}>
+                    {hospitalName}
+                  </div>
+                </div>
+                <div
+                  style={{
+                    backgroundColor: '#DCFCE7',
+                    border: '1px solid #86EFAC',
+                    color: '#15803D',
+                    padding: '4px 10px',
+                    borderRadius: '8px',
+                    fontWeight: 800,
+                    fontSize: '0.85rem',
+                  }}
+                >
+                  Room: {activePopupReservation.room_number || 'Reserved'}
+                </div>
+              </div>
+
+              {/* Countdown Component */}
+              <HospitalCountdown
+                holdExpiresAt={activePopupReservation.hold_expires_at}
+                isHeld={true}
+                serverClockOffsetMs={serverClockOffsetMs}
+                onRefresh={handleRefresh}
+                onExpired={() => {
+                  handleRefresh()
+                  setPopupReservationId(null)
+                }}
+              />
+
+              {/* Ambulance & Clinical Details Grid */}
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(2, 1fr)',
+                  gap: '0.75rem',
+                  marginTop: '1rem',
+                }}
+              >
+                <div
+                  style={{
+                    padding: '0.75rem',
+                    backgroundColor: '#F8FAFC',
+                    border: '1px solid #E2E8F0',
+                    borderRadius: '8px',
+                  }}
+                >
+                  <div style={{ fontSize: '0.7rem', fontWeight: 700, color: '#64748B', textTransform: 'uppercase' }}>
+                    Ambulance Telemetry
+                  </div>
+                  <div style={{ fontSize: '0.875rem', fontWeight: 700, color: '#0F172A', marginTop: '3px' }}>
+                    {activePopupReservation.distance_km != null ? `${activePopupReservation.distance_km} km` : 'En route'}
+                    {activePopupReservation.estimated_travel_time_minutes != null && ` (~${activePopupReservation.estimated_travel_time_minutes} min)`}
+                  </div>
+                  {activePopupReservation.ambulance_phone && (
+                    <div style={{ fontSize: '0.75rem', color: '#0284C7', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <Phone size={12} />
+                      <a href={`tel:${activePopupReservation.ambulance_phone}`} style={{ color: '#0284C7', textDecoration: 'none' }}>
+                        {activePopupReservation.ambulance_phone}
+                      </a>
+                    </div>
+                  )}
+                </div>
+
+                <div
+                  style={{
+                    padding: '0.75rem',
+                    backgroundColor: '#F8FAFC',
+                    border: '1px solid #E2E8F0',
+                    borderRadius: '8px',
+                  }}
+                >
+                  <div style={{ fontSize: '0.7rem', fontWeight: 700, color: '#64748B', textTransform: 'uppercase' }}>
+                    Required Capabilities
+                  </div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginTop: '4px' }}>
+                    {activePopupReservation.required_capabilities && activePopupReservation.required_capabilities.length > 0 ? (
+                      activePopupReservation.required_capabilities.map((cap) => (
+                        <span
+                          key={cap}
+                          style={{
+                            display: 'inline-block',
+                            backgroundColor: '#E0F2FE',
+                            color: '#0369A1',
+                            padding: '2px 6px',
+                            borderRadius: '4px',
+                            fontSize: '0.7rem',
+                            fontWeight: 700,
+                            textTransform: 'uppercase',
+                          }}
+                        >
+                          {cap}
+                        </span>
+                      ))
+                    ) : (
+                      <span style={{ fontSize: '0.75rem', color: '#64748B' }}>Standard</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {popupError && (
+                <div
+                  style={{
+                    marginTop: '1rem',
+                    padding: '8px 12px',
+                    backgroundColor: '#FFF1F2',
+                    border: '1px solid #FECDD3',
+                    borderRadius: '6px',
+                    color: '#E11D48',
+                    fontSize: '0.8rem',
+                  }}
+                >
+                  {popupError}
+                </div>
+              )}
+
+              {/* Action Buttons (Thumb-zone friendly: >= 56px height) */}
+              <div
+                style={{
+                  marginTop: '1.25rem',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '0.625rem',
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={() => handlePopupAccept(activePopupReservation.id)}
+                  disabled={Boolean(popupSubmitting)}
+                  className="primary-action-btn"
+                  style={{
+                    width: '100%',
+                    minHeight: '56px',
+                    padding: '14px 20px',
+                    backgroundColor: popupSubmitting === 'accept' ? '#245640' : '#15803D',
+                    color: '#FFFFFF',
+                    border: 'none',
+                    borderRadius: '10px',
+                    fontSize: '1rem',
+                    fontWeight: 800,
+                    letterSpacing: '0.025em',
+                    cursor: popupSubmitting ? 'not-allowed' : 'pointer',
+                    boxShadow: '0 4px 6px -1px rgba(21, 128, 61, 0.4)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '0.5rem',
+                    touchAction: 'manipulation',
+                  }}
+                >
+                  <CheckCircle2 size={20} />
+                  <span>{popupSubmitting === 'accept' ? 'Accepting Bed Offer...' : 'ACCEPT BED RESERVATION'}</span>
+                </button>
+
+                <div style={{ display: 'flex', gap: '0.625rem' }}>
+                  <button
+                    type="button"
+                    onClick={() => handlePopupReject(activePopupReservation.id)}
+                    disabled={Boolean(popupSubmitting)}
+                    className="primary-action-btn"
+                    style={{
+                      flex: 1,
+                      minHeight: '48px',
+                      padding: '10px 16px',
+                      backgroundColor: popupSubmitting === 'reject' ? '#E11D48' : '#FFF1F2',
+                      color: '#E11D48',
+                      border: '1.5px solid #FDA4AF',
+                      borderRadius: '8px',
+                      fontSize: '0.875rem',
+                      fontWeight: 700,
+                      cursor: popupSubmitting ? 'not-allowed' : 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '0.35rem',
+                      touchAction: 'manipulation',
+                    }}
+                  >
+                    <XCircle size={16} />
+                    <span>{popupSubmitting === 'reject' ? 'Rejecting...' : 'Reject Offer'}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDismissedPopupIds((prev) => new Set([...prev, activePopupReservation.id]))
+                      setPopupReservationId(null)
+                    }}
+                    style={{
+                      flex: 1,
+                      minHeight: '48px',
+                      padding: '10px 16px',
+                      backgroundColor: '#F1F5F9',
+                      color: '#475569',
+                      border: '1.5px solid #CBD5E1',
+                      borderRadius: '8px',
+                      fontSize: '0.875rem',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      touchAction: 'manipulation',
+                    }}
+                  >
+                    View on Desk
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

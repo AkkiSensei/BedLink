@@ -4,6 +4,7 @@ import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { getHospitalReservations } from '@/lib/operations/hospital'
 import { DEMO_IDENTITIES } from '@/lib/auth/demoIdentities'
 import { getPinSessionFromCookies } from '@/lib/auth/sessionCookie'
+import { ALL_HOSPITALS } from '@/lib/auth/pins'
 import HospitalDashboardClient from './HospitalDashboardClient'
 import type { HospitalReservationView } from '@/lib/operations/types'
 import { Lock } from 'lucide-react'
@@ -33,23 +34,21 @@ export default async function HospitalPage({
     user = { id: pinSession.userId }
   }
 
-  // 2. Resolve profile from database or PIN session
+  // 2. Resolve profile from PIN session (authoritative for active browser session) or database
   let profile: { role: string; hospital_id: string | null; full_name?: string } | null = null
-  if (user) {
+  if (pinSession) {
+    profile = {
+      role: pinSession.role,
+      hospital_id: pinSession.hospitalId,
+      full_name: pinSession.fullName,
+    }
+  } else if (user) {
     const { data: profileData } = await supabase
       .from('profiles')
       .select('role, hospital_id, full_name')
       .eq('user_id', user.id)
       .maybeSingle()
     profile = profileData ?? null
-  }
-
-  if (!profile && pinSession && (!user || pinSession.userId === user.id)) {
-    profile = {
-      role: pinSession.role,
-      hospital_id: pinSession.hospitalId,
-      full_name: pinSession.fullName,
-    }
   }
 
   // Demo fallback mode strictly gated behind explicit ALLOW_DEMO_BYPASS environment flag
@@ -155,11 +154,18 @@ export default async function HospitalPage({
   }
 
   // 4. Resolve hospital details
-  let hospitalName = 'Authorized Emergency Facility'
-  let hospitalCity = 'Emergency Operations'
-  let hospitalLatitude: number | null = null
-  let hospitalLongitude: number | null = null
-  const targetHospitalId = profile.hospital_id || params?.hospitalId || null
+  // Prioritize explicitly requested query param, then profile hospital, then pinSession, then default to primary hospital (Apex Metro)
+  const targetHospitalId =
+    params?.hospitalId ||
+    profile.hospital_id ||
+    pinSession?.hospitalId ||
+    ALL_HOSPITALS[0].hospitalId
+
+  const fallbackHosp = ALL_HOSPITALS.find((h) => h.hospitalId === targetHospitalId) || ALL_HOSPITALS[0]
+  let hospitalName = fallbackHosp.name
+  let hospitalCity = fallbackHosp.city
+  let hospitalLatitude: number | null = fallbackHosp.latitude
+  let hospitalLongitude: number | null = fallbackHosp.longitude
 
   if (targetHospitalId) {
     const { data: hospData } = await supabase
@@ -170,8 +176,8 @@ export default async function HospitalPage({
     if (hospData) {
       hospitalName = hospData.name
       hospitalCity = hospData.city
-      hospitalLatitude = hospData.latitude ? Number(hospData.latitude) : null
-      hospitalLongitude = hospData.longitude ? Number(hospData.longitude) : null
+      hospitalLatitude = hospData.latitude ? Number(hospData.latitude) : fallbackHosp.latitude
+      hospitalLongitude = hospData.longitude ? Number(hospData.longitude) : fallbackHosp.longitude
     }
   }
 
@@ -190,7 +196,7 @@ export default async function HospitalPage({
     <HospitalDashboardClient
       initialReservations={initialReservations}
       initialServerTime={new Date().toISOString()}
-      hospitalId={targetHospitalId || ''}
+      hospitalId={targetHospitalId || ALL_HOSPITALS[0].hospitalId}
       hospitalName={hospitalName}
       hospitalCity={hospitalCity}
       hospitalLatitude={hospitalLatitude}

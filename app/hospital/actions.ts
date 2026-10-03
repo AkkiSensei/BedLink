@@ -36,9 +36,19 @@ export interface RejectReservationActionResult {
   }
 }
 
+export interface NetworkActiveHoldInfo {
+  reservationId: string
+  hospitalId: string
+  hospitalName: string
+  holdExpiresAt: string
+  requiredCapabilities?: string[]
+  roomNumber?: string
+}
+
 export interface RefreshReservationsActionResult {
   success: boolean
   reservations?: HospitalReservationView[]
+  networkActiveHold?: NetworkActiveHoldInfo | null
   serverTime?: string
   error?: {
     code: string
@@ -134,9 +144,64 @@ export async function refreshHospitalReservationsAction(options?: {
       targetHospitalId: options?.targetHospitalId,
       statuses: statuses as any,
     })
+
+    // Discover if there is an active emergency hold assigned to another facility in the network
+    let networkActiveHold: NetworkActiveHoldInfo | null = null
+    try {
+      const activeHospId = options?.targetHospitalId || reservations[0]?.hospital_id
+      if (typeof (client as any)?.query === 'function') {
+        const netRes = await (client as any).query(
+          `SELECT r.id, r.hospital_id, r.hold_expires_at, h.name as hospital_name,
+                  br.required_capabilities, b.room_number
+           FROM public.reservations r
+           JOIN public.hospitals h ON h.id = r.hospital_id
+           JOIN public.bed_requests br ON br.id = r.bed_request_id
+           LEFT JOIN public.beds b ON b.id = r.bed_id
+           WHERE r.status = 'held' AND r.hold_expires_at > now()
+           ${activeHospId ? `AND r.hospital_id != $1` : ''}
+           ORDER BY r.hold_expires_at ASC
+           LIMIT 1;`,
+          activeHospId ? [activeHospId] : []
+        )
+        if (netRes.rows && netRes.rows[0]) {
+          networkActiveHold = {
+            reservationId: netRes.rows[0].id,
+            hospitalId: netRes.rows[0].hospital_id,
+            hospitalName: netRes.rows[0].hospital_name,
+            holdExpiresAt: netRes.rows[0].hold_expires_at,
+            requiredCapabilities: netRes.rows[0].required_capabilities,
+            roomNumber: netRes.rows[0].room_number,
+          }
+        }
+      } else if (typeof (client as any)?.from === 'function') {
+        let q = (client as any)
+          .from('reservations')
+          .select('id, hospital_id, hold_expires_at, hospitals(name), bed_requests(required_capabilities), beds(room_number)')
+          .eq('status', 'held')
+          .gt('hold_expires_at', new Date().toISOString())
+        if (activeHospId) {
+          q = q.neq('hospital_id', activeHospId)
+        }
+        const { data: netData } = await q.order('hold_expires_at', { ascending: true }).limit(1)
+        if (netData && netData[0]) {
+          networkActiveHold = {
+            reservationId: netData[0].id,
+            hospitalId: netData[0].hospital_id,
+            hospitalName: netData[0].hospitals?.name || 'Network Hospital',
+            holdExpiresAt: netData[0].hold_expires_at,
+            requiredCapabilities: netData[0].bed_requests?.required_capabilities,
+            roomNumber: netData[0].beds?.room_number,
+          }
+        }
+      }
+    } catch {
+      // non-critical discovery
+    }
+
     return {
       success: true,
       reservations,
+      networkActiveHold,
       serverTime: new Date().toISOString(),
     }
   } catch (err: any) {
