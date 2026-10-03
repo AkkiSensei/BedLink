@@ -59,7 +59,7 @@ const ROLE_TABS: RoleTabConfig[] = [
     id: 'hospital',
     label: 'Hospital Staff',
     sublabel: 'Apex Emergency Coordination',
-    pin: '1357',
+    pin: '1001',
     icon: <ClipboardList className="w-4 h-4" />,
     color: '#1565C0',
     softBg: '#E3F2FD',
@@ -246,40 +246,51 @@ function LoginFormInner() {
 
   return (
     <div style={{
-      minHeight: '100vh',
+      height: '100dvh',
+      maxHeight: '100dvh',
+      width: '100vw',
+      overflow: 'hidden',
       backgroundColor: '#F4F6F4',
       display: 'flex',
       flexDirection: 'column',
       alignItems: 'center',
       justifyContent: 'center',
-      padding: '1.25rem',
+      padding: '0.5rem 1rem',
+      boxSizing: 'border-box',
       fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
     }}>
       {/* Brand Header */}
-      <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
+      <div style={{ textAlign: 'center', marginBottom: '0.45rem' }}>
         <div style={{
           display: 'inline-flex',
           alignItems: 'center',
           justifyContent: 'center',
-          width: '48px',
-          height: '48px',
-          backgroundColor: '#2D6A4F',
-          borderRadius: '12px',
-          marginBottom: '0.75rem',
-          boxShadow: '0 4px 12px rgba(45, 106, 79, 0.25)',
+          gap: '8px',
+          marginBottom: '2px',
         }}>
-          <Link2 size={24} className="text-white" />
+          <div style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: '28px',
+            height: '28px',
+            backgroundColor: '#2D6A4F',
+            borderRadius: '7px',
+            boxShadow: '0 2px 6px rgba(45, 106, 79, 0.25)',
+          }}>
+            <Link2 size={16} className="text-white" />
+          </div>
+          <h1 style={{
+            fontSize: '1.25rem',
+            fontWeight: 800,
+            color: '#1A2421',
+            letterSpacing: '-0.02em',
+            margin: 0,
+          }}>
+            BedLink
+          </h1>
         </div>
-        <h1 style={{
-          fontSize: '1.6rem',
-          fontWeight: 800,
-          color: '#1A2421',
-          letterSpacing: '-0.02em',
-          margin: '0 0 0.25rem',
-        }}>
-          BedLink
-        </h1>
-        <p style={{ fontSize: '0.85rem', color: '#5C6B64', margin: 0, fontWeight: 500 }}>
+        <p style={{ fontSize: '0.72rem', color: '#5C6B64', margin: 0, fontWeight: 500 }}>
           Emergency Hospital-Bed Coordination Platform
         </p>
       </div>
@@ -287,36 +298,37 @@ function LoginFormInner() {
       {/* Main Authentication Card */}
       <div style={{
         width: '100%',
-        maxWidth: '430px',
+        maxWidth: '380px',
         backgroundColor: '#FFFFFF',
-        borderRadius: '16px',
+        borderRadius: '14px',
         border: '1px solid #E1E7E1',
-        boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
-        padding: '1.75rem',
+        boxShadow: '0 4px 16px rgba(0,0,0,0.06)',
+        padding: '0.85rem 1.15rem',
         boxSizing: 'border-box',
+        overflow: 'hidden',
       }}>
         {/* Auth Transition Error / Warning Banner */}
         {urlNotice && (
           <div
             role="alert"
             style={{
-              marginBottom: '1.25rem',
-              padding: '0.75rem 1rem',
-              borderRadius: '10px',
+              marginBottom: '0.45rem',
+              padding: '0.35rem 0.6rem',
+              borderRadius: '8px',
               backgroundColor: urlNotice.type === 'error' ? '#FEF2F2' : '#FFFBEB',
               border: `1px solid ${urlNotice.type === 'error' ? '#FECACA' : '#FDE68A'}`,
               color: urlNotice.type === 'error' ? '#991B1B' : '#92400E',
-              fontSize: '0.825rem',
-              lineHeight: 1.45,
+              fontSize: '0.7rem',
+              lineHeight: 1.3,
               display: 'flex',
-              alignItems: 'flex-start',
-              gap: '8px',
+              alignItems: 'center',
+              gap: '6px',
             }}
           >
-            <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-            <div>
-              <strong style={{ display: 'block', fontWeight: 700, marginBottom: '2px' }}>
-                {urlNotice.title}
+            <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+            <div style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              <strong style={{ fontWeight: 700, marginRight: '4px' }}>
+                {urlNotice.title}:
               </strong>
               <span>{urlNotice.description}</span>
             </div>
@@ -327,11 +339,11 @@ function LoginFormInner() {
         <div style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(3, 1fr)',
-          gap: '6px',
+          gap: '4px',
           backgroundColor: '#F4F6F4',
-          padding: '4px',
-          borderRadius: '12px',
-          marginBottom: '1.5rem',
+          padding: '3px',
+          borderRadius: '10px',
+          marginBottom: '0.45rem',
           border: '1px solid #E1E7E1',
         }}>
           {ROLE_TABS.map((tab) => {
@@ -349,25 +361,25 @@ function LoginFormInner() {
                   flexDirection: 'column',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  padding: '8px 4px',
-                  borderRadius: '8px',
+                  padding: '4px 2px',
+                  borderRadius: '6px',
                   border: isActive ? `1.5px solid ${tab.borderColor}` : '1.5px solid transparent',
                   backgroundColor: isActive ? '#FFFFFF' : 'transparent',
                   color: isActive ? tab.color : '#5C6B64',
-                  boxShadow: isActive ? '0 2px 6px rgba(0,0,0,0.05)' : 'none',
+                  boxShadow: isActive ? '0 1px 3px rgba(0,0,0,0.05)' : 'none',
                   cursor: 'pointer',
-                  transition: 'all 150ms ease',
+                  transition: 'all 120ms ease',
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 700, fontSize: '0.8rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '3px', fontWeight: 700, fontSize: '0.72rem' }}>
                   {tab.icon}
                   <span>{tab.label}</span>
                 </div>
                 <span style={{ 
-                  fontSize: '0.7rem', 
+                  fontSize: '0.62rem', 
                   fontFamily: 'monospace', 
                   fontWeight: 600,
-                  marginTop: '2px',
+                  marginTop: '1px',
                   color: isActive ? tab.color : '#8A9991',
                   letterSpacing: '0.04em'
                 }}>
@@ -379,29 +391,29 @@ function LoginFormInner() {
         </div>
 
         {/* PIN Entry Prompt */}
-        <div style={{ textAlign: 'center', marginBottom: '1.25rem' }}>
+        <div style={{ textAlign: 'center', marginBottom: '0.35rem' }}>
           <div style={{
             display: 'inline-flex',
             alignItems: 'center',
-            gap: '6px',
-            fontSize: '0.75rem',
+            gap: '4px',
+            fontSize: '0.65rem',
             fontWeight: 700,
             textTransform: 'uppercase',
-            letterSpacing: '0.06em',
+            letterSpacing: '0.05em',
             color: ROLE_TABS.find(t => t.id === activeTab)?.color || '#2D6A4F',
             backgroundColor: ROLE_TABS.find(t => t.id === activeTab)?.softBg || '#E8F5E9',
-            padding: '4px 10px',
-            borderRadius: '20px',
-            marginBottom: '0.5rem',
+            padding: '2px 7px',
+            borderRadius: '12px',
+            marginBottom: '0.2rem',
           }}>
-            <Lock className="w-3.5 h-3.5" />
+            <Lock className="w-3 h-3" />
             <span>Enter 4-Digit Role PIN</span>
           </div>
 
-          <p style={{ fontSize: '0.8rem', color: '#5C6B64', margin: 0 }}>
+          <p style={{ fontSize: '0.7rem', color: '#5C6B64', margin: 0 }}>
             {activeTab === 'nurse' && 'Type 2468 to launch Nurse Inventory Console'}
             {activeTab === 'dispatch' && 'Type 9110 to launch Dispatch Operator Console'}
-            {activeTab === 'hospital' && 'Type 1357 to launch Hospital Staff Console'}
+            {activeTab === 'hospital' && 'Type 1001 for Apex (or 1001–1010 for any hospital)'}
           </p>
         </div>
 
@@ -413,8 +425,8 @@ function LoginFormInner() {
             display: 'flex',
             justifyContent: 'center',
             alignItems: 'center',
-            gap: '12px',
-            marginBottom: '0.75rem',
+            gap: '8px',
+            marginBottom: '0.25rem',
             cursor: 'pointer',
             transform: shake ? 'translateX(6px)' : 'none',
             transition: 'transform 100ms ease-in-out',
@@ -456,16 +468,16 @@ function LoginFormInner() {
               <div
                 key={index}
                 style={{
-                  width: '48px',
-                  height: '52px',
-                  borderRadius: '12px',
+                  width: '36px',
+                  height: '38px',
+                  borderRadius: '8px',
                   border: errorMessage
                     ? '2px solid #E11D48'
                     : isCurrent
                     ? '2px solid #2D6A4F'
                     : hasDigit
                     ? '2px solid #2D6A4F'
-                    : '2px solid #E1E7E1',
+                    : '1.5px solid #E1E7E1',
                   backgroundColor: errorMessage
                     ? '#FFF1F2'
                     : hasDigit
@@ -474,23 +486,22 @@ function LoginFormInner() {
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  boxShadow: isCurrent ? '0 0 0 3px rgba(45, 106, 79, 0.12)' : 'none',
-                  transition: 'all 150ms ease',
+                  boxShadow: isCurrent ? '0 0 0 2px rgba(45, 106, 79, 0.12)' : 'none',
+                  transition: 'all 120ms ease',
                 }}
               >
                 {hasDigit ? (
                   <span style={{
-                    width: '12px',
-                    height: '12px',
+                    width: '9px',
+                    height: '9px',
                     borderRadius: '50%',
                     backgroundColor: '#2D6A4F',
                     display: 'block',
-                    animation: 'scaleIn 150ms ease',
                   }} />
                 ) : (
                   <span style={{
-                    width: '6px',
-                    height: '6px',
+                    width: '5px',
+                    height: '5px',
                     borderRadius: '50%',
                     backgroundColor: '#CBD5E1',
                     display: 'block',
@@ -503,28 +514,28 @@ function LoginFormInner() {
 
         {/* Status / Error feedback (fixed height to prevent layout jump) */}
         <div style={{
-          minHeight: '22px',
+          minHeight: '18px',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          marginBottom: '1rem',
+          marginBottom: '0.3rem',
           textAlign: 'center',
-          padding: '0 8px',
+          padding: '0 4px',
         }}>
           {isAuthenticating && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#2D6A4F', fontSize: '0.8rem', fontWeight: 600 }}>
-              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#2D6A4F', fontSize: '0.72rem', fontWeight: 600 }}>
+              <Loader2 className="w-3 h-3 animate-spin" />
               <span>{statusMessage || 'Verifying credentials…'}</span>
             </div>
           )}
           {!isAuthenticating && errorMessage && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#E11D48', fontSize: '0.78rem', fontWeight: 600 }}>
-              <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#E11D48', fontSize: '0.72rem', fontWeight: 600 }}>
+              <AlertCircle className="w-3 h-3 flex-shrink-0" />
               <span>{errorMessage}</span>
             </div>
           )}
           {!isAuthenticating && !errorMessage && (
-            <span style={{ fontSize: '0.75rem', color: '#8A9991' }}>
+            <span style={{ fontSize: '0.68rem', color: '#8A9991' }}>
               Physical keyboard supported (type 0–9 or tap keys)
             </span>
           )}
@@ -534,8 +545,8 @@ function LoginFormInner() {
         <div style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(3, 1fr)',
-          gap: '8px',
-          marginBottom: '1.25rem',
+          gap: '5px',
+          marginBottom: '0.45rem',
         }}>
           {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
             <button
@@ -544,19 +555,19 @@ function LoginFormInner() {
               disabled={isAuthenticating}
               onClick={() => handleDigit(String(num))}
               style={{
-                height: '48px',
-                borderRadius: '10px',
+                height: '36px',
+                borderRadius: '8px',
                 border: '1.5px solid #E1E7E1',
                 backgroundColor: '#FFFFFF',
                 color: '#1A2421',
-                fontSize: '1.15rem',
+                fontSize: '1.05rem',
                 fontWeight: 700,
                 fontFamily: 'monospace',
                 cursor: isAuthenticating ? 'not-allowed' : 'pointer',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+                boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
                 transition: 'background-color 100ms, transform 100ms, border-color 100ms',
               }}
               onMouseEnter={(e) => {
@@ -583,18 +594,18 @@ function LoginFormInner() {
             onClick={handleClear}
             title="Clear PIN"
             style={{
-              height: '48px',
-              borderRadius: '10px',
+              height: '36px',
+              borderRadius: '8px',
               border: '1.5px solid #E1E7E1',
               backgroundColor: '#F8FAF9',
               color: '#5C6B64',
-              fontSize: '0.8rem',
+              fontSize: '0.75rem',
               fontWeight: 600,
               cursor: isAuthenticating ? 'not-allowed' : 'pointer',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+              boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
               transition: 'background-color 100ms, transform 100ms',
             }}
             onMouseEnter={(e) => !isAuthenticating && (e.currentTarget.style.backgroundColor = '#EAEFEA')}
@@ -602,7 +613,7 @@ function LoginFormInner() {
             onMouseDown={(e) => !isAuthenticating && (e.currentTarget.style.transform = 'scale(0.96)')}
             onMouseUp={(e) => !isAuthenticating && (e.currentTarget.style.transform = 'scale(1)')}
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4" />
           </button>
 
           {/* Zero Key */}
@@ -611,19 +622,19 @@ function LoginFormInner() {
             disabled={isAuthenticating}
             onClick={() => handleDigit('0')}
             style={{
-              height: '48px',
-              borderRadius: '10px',
+              height: '36px',
+              borderRadius: '8px',
               border: '1.5px solid #E1E7E1',
               backgroundColor: '#FFFFFF',
               color: '#1A2421',
-              fontSize: '1.15rem',
+              fontSize: '1.05rem',
               fontWeight: 700,
               fontFamily: 'monospace',
               cursor: isAuthenticating ? 'not-allowed' : 'pointer',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+              boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
               transition: 'background-color 100ms, transform 100ms, border-color 100ms',
             }}
             onMouseEnter={(e) => {
@@ -649,8 +660,8 @@ function LoginFormInner() {
             onClick={handleBackspace}
             title="Backspace"
             style={{
-              height: '48px',
-              borderRadius: '10px',
+              height: '36px',
+              borderRadius: '8px',
               border: '1.5px solid #E1E7E1',
               backgroundColor: '#F8FAF9',
               color: '#5C6B64',
@@ -658,7 +669,7 @@ function LoginFormInner() {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+              boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
               transition: 'background-color 100ms, transform 100ms',
             }}
             onMouseEnter={(e) => !isAuthenticating && (e.currentTarget.style.backgroundColor = '#EAEFEA')}
@@ -666,37 +677,37 @@ function LoginFormInner() {
             onMouseDown={(e) => !isAuthenticating && (e.currentTarget.style.transform = 'scale(0.96)')}
             onMouseUp={(e) => !isAuthenticating && (e.currentTarget.style.transform = 'scale(1)')}
           >
-            <Delete className="w-5 h-5" />
+            <Delete className="w-4 h-4" />
           </button>
         </div>
 
         {/* 1-Tap Quick Action Row */}
         <div style={{
           borderTop: '1px solid #E1E7E1',
-          paddingTop: '1rem',
+          paddingTop: '0.4rem',
           display: 'flex',
           flexDirection: 'column',
-          gap: '8px',
+          gap: '4px',
         }}>
           <div style={{
-            fontSize: '0.72rem',
+            fontSize: '0.65rem',
             color: '#5C6B64',
             fontWeight: 600,
             textTransform: 'uppercase',
             letterSpacing: '0.04em',
-            marginBottom: '2px',
+            marginBottom: '1px',
           }}>
             {activeTab === 'hospital' ? 'Facility PIN Directory (1-Tap to Login)' : '1-Tap Demo Shortcuts'}
           </div>
 
           {activeTab === 'hospital' ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
               <div style={{
-                maxHeight: '140px',
+                maxHeight: '74px',
                 overflowY: 'auto',
                 display: 'grid',
                 gridTemplateColumns: 'repeat(2, 1fr)',
-                gap: '5px',
+                gap: '3px',
                 paddingRight: '2px',
               }}>
                 {ALL_HOSPITALS.map((hosp) => (
@@ -706,12 +717,12 @@ function LoginFormInner() {
                     disabled={isAuthenticating}
                     onClick={() => handleQuickFill(hosp.pin, 'hospital')}
                     style={{
-                      padding: '5px 8px',
-                      borderRadius: '6px',
+                      padding: '3px 6px',
+                      borderRadius: '5px',
                       backgroundColor: '#F8FAFC',
                       border: '1px solid #CBD5E1',
                       color: '#0F172A',
-                      fontSize: '0.7rem',
+                      fontSize: '0.65rem',
                       fontWeight: 600,
                       cursor: isAuthenticating ? 'not-allowed' : 'pointer',
                       textAlign: 'left',
@@ -723,10 +734,10 @@ function LoginFormInner() {
                     onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#E2E8F0')}
                     onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#F8FAFC')}
                   >
-                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '105px' }}>
+                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '95px' }}>
                       {hosp.shortName}
                     </span>
-                    <span style={{ fontFamily: 'monospace', fontWeight: 800, color: '#1E40AF', backgroundColor: '#DBEAFE', padding: '1px 5px', borderRadius: '4px', fontSize: '0.68rem' }}>
+                    <span style={{ fontFamily: 'monospace', fontWeight: 800, color: '#1E40AF', backgroundColor: '#DBEAFE', padding: '1px 4px', borderRadius: '3px', fontSize: '0.62rem' }}>
                       {hosp.pin}
                     </span>
                   </button>
@@ -740,12 +751,12 @@ function LoginFormInner() {
                 onClick={() => handleQuickFill('0000', 'hospital')}
                 style={{
                   width: '100%',
-                  padding: '5px 10px',
-                  borderRadius: '6px',
+                  padding: '3px 8px',
+                  borderRadius: '5px',
                   backgroundColor: '#FEF3C7',
                   border: '1px solid #FCD34D',
                   color: '#92400E',
-                  fontSize: '0.72rem',
+                  fontSize: '0.65rem',
                   fontWeight: 700,
                   cursor: isAuthenticating ? 'not-allowed' : 'pointer',
                   display: 'flex',
@@ -753,25 +764,25 @@ function LoginFormInner() {
                   justifyContent: 'space-between',
                 }}
               >
-                <span>Super Administrator (All Hospitals Access)</span>
-                <span style={{ fontFamily: 'monospace', fontWeight: 800, backgroundColor: '#FDE68A', padding: '1px 6px', borderRadius: '4px', fontSize: '0.7rem' }}>
+                <span>Super Administrator</span>
+                <span style={{ fontFamily: 'monospace', fontWeight: 800, backgroundColor: '#FDE68A', padding: '1px 5px', borderRadius: '3px', fontSize: '0.65rem' }}>
                   0000
                 </span>
               </button>
             </div>
           ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '4px' }}>
               <button
                 type="button"
                 disabled={isAuthenticating}
                 onClick={() => handleQuickFill('2468', 'nurse')}
                 style={{
-                  padding: '6px 4px',
-                  borderRadius: '8px',
+                  padding: '4px 2px',
+                  borderRadius: '6px',
                   backgroundColor: '#E8F5E9',
                   border: '1px solid #A3D9C9',
                   color: '#2D6A4F',
-                  fontSize: '0.72rem',
+                  fontSize: '0.68rem',
                   fontWeight: 700,
                   cursor: isAuthenticating ? 'not-allowed' : 'pointer',
                   textAlign: 'center',
@@ -786,12 +797,12 @@ function LoginFormInner() {
                 disabled={isAuthenticating}
                 onClick={() => handleQuickFill('9110', 'dispatch')}
                 style={{
-                  padding: '6px 4px',
-                  borderRadius: '8px',
+                  padding: '4px 2px',
+                  borderRadius: '6px',
                   backgroundColor: '#FEF3C7',
                   border: '1px solid #FCD34D',
                   color: '#B45309',
-                  fontSize: '0.72rem',
+                  fontSize: '0.68rem',
                   fontWeight: 700,
                   cursor: isAuthenticating ? 'not-allowed' : 'pointer',
                   textAlign: 'center',
@@ -806,12 +817,12 @@ function LoginFormInner() {
                 disabled={isAuthenticating}
                 onClick={() => handleQuickFill('1001', 'hospital')}
                 style={{
-                  padding: '6px 4px',
-                  borderRadius: '8px',
+                  padding: '4px 2px',
+                  borderRadius: '6px',
                   backgroundColor: '#E3F2FD',
                   border: '1px solid #90CAF9',
                   color: '#1565C0',
-                  fontSize: '0.72rem',
+                  fontSize: '0.68rem',
                   fontWeight: 700,
                   cursor: isAuthenticating ? 'not-allowed' : 'pointer',
                   textAlign: 'center',
@@ -827,15 +838,15 @@ function LoginFormInner() {
 
       {/* Footer Info */}
       <div style={{
-        marginTop: '1.25rem',
+        marginTop: '0.35rem',
         textAlign: 'center',
         display: 'flex',
         alignItems: 'center',
-        gap: '6px',
-        fontSize: '0.75rem',
+        gap: '4px',
+        fontSize: '0.68rem',
         color: '#5C6B64',
       }}>
-        <ShieldCheck className="w-4 h-4 text-[#2D6A4F]" />
+        <ShieldCheck className="w-3.5 h-3.5 text-[#2D6A4F]" />
         <span>Authoritative Supabase PostgreSQL & Realtime Protected</span>
       </div>
     </div>
