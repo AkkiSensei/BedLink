@@ -2,6 +2,9 @@
   "name": "bedlink",
   "private": true,
   "version": "0.1.0",
+  "engines": {
+    "node": ">=22.0.0"
+  },
   "type": "module",
   "description": "BedLink — Emergency hospital-bed coordination platform with deterministic ranking and atomic reservations",
   "author": "Bug Dealers",
