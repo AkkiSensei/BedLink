@@ -34,6 +34,7 @@ export default function DispatchCoordinationMap({
   const mapInstanceRef = useRef<any>(null)
   const markersRef = useRef<any[]>([])
   const polylineRef = useRef<any>(null)
+  const casingPolylineRef = useRef<any>(null)
 
   const [mapsLoaded, setMapsLoaded] = useState<boolean>(false)
   const [mapsError, setMapsError] = useState<boolean>(false)
@@ -105,6 +106,8 @@ export default function DispatchCoordinationMap({
     const google = (window as any).google
     if (!google?.maps) return
 
+    let isCancelled = false
+
     try {
       if (!mapInstanceRef.current) {
         mapInstanceRef.current = new google.maps.Map(mapContainerRef.current, {
@@ -152,6 +155,10 @@ export default function DispatchCoordinationMap({
       if (polylineRef.current) {
         polylineRef.current.setMap(null)
         polylineRef.current = null
+      }
+      if (casingPolylineRef.current) {
+        casingPolylineRef.current.setMap(null)
+        casingPolylineRef.current = null
       }
 
       // 1. Ambulance Marker (Origin)
@@ -222,21 +229,55 @@ export default function DispatchCoordinationMap({
         markersRef.current.push(marker)
       })
 
-      // 3. Polyline Route to Active Hospital
+      // 3. Polyline Route to Active Hospital (Real street network via DirectionsService)
       if (activeCandidate?.latitude && activeCandidate?.longitude) {
-        const routeCoords = [
-          ambulanceLatLng,
-          { lat: activeCandidate.latitude, lng: activeCandidate.longitude },
-        ]
+        const destLatLng = { lat: activeCandidate.latitude, lng: activeCandidate.longitude }
+        const directCoords = [ambulanceLatLng, destLatLng]
 
+        // Subtle road casing polyline for contrast against map features
+        casingPolylineRef.current = new google.maps.Polyline({
+          path: directCoords,
+          geodesic: true,
+          strokeColor: '#1B4332',
+          strokeOpacity: 0.35,
+          strokeWeight: 7,
+          map,
+        })
+
+        // Emergency route polyline (initialized with direct coords as instant fallback)
         polylineRef.current = new google.maps.Polyline({
-          path: routeCoords,
+          path: directCoords,
           geodesic: true,
           strokeColor: '#2D6A4F',
-          strokeOpacity: 0.9,
+          strokeOpacity: 0.95,
           strokeWeight: 4,
           map,
         })
+
+        // Query real driving directions to snap polyline onto actual streets
+        try {
+          const directionsService = new google.maps.DirectionsService()
+          directionsService.route(
+            {
+              origin: ambulanceLatLng,
+              destination: destLatLng,
+              travelMode: google.maps.TravelMode.DRIVING,
+            },
+            (result: any, status: any) => {
+              if (isCancelled) return
+              if (
+                (status === 'OK' || status === google.maps.DirectionsStatus?.OK) &&
+                result?.routes?.[0]?.overview_path
+              ) {
+                const drivingStreetPath = result.routes[0].overview_path
+                polylineRef.current?.setPath(drivingStreetPath)
+                casingPolylineRef.current?.setPath(drivingStreetPath)
+              }
+            }
+          )
+        } catch (dirErr) {
+          console.warn('[DispatchCoordinationMap] DirectionsService routing fallback:', dirErr)
+        }
       }
 
       // Auto fit zoom with padding if candidates exist; otherwise center on ambulance
@@ -248,6 +289,10 @@ export default function DispatchCoordinationMap({
       }
     } catch {
       setMapsError(true)
+    }
+
+    return () => {
+      isCancelled = true
     }
   }, [mapsLoaded, mapsError, ambulanceLatitude, ambulanceLongitude, candidates, activeCandidate])
 
