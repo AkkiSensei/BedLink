@@ -28,7 +28,7 @@ BedLink automates the coordination lifecycle between ambulances, regional dispat
 ## 2. Setup & Installation Instructions
 
 ### Prerequisites
-- **Node.js**: `v20.x` or higher
+- **Node.js**: `v22.x` or higher
 - **npm**: `v9.x` or higher
 - **Git**: Installed and configured
 
