@@ -347,59 +347,70 @@ export default function NurseInventoryClient({
   return (
     <div className="app-screen-root" style={{ backgroundColor: '#F4F6F4' }}>
       {/* 1. Header (Adaptive: 48px on Mobile, full bar on Laptop) */}
+      {/* 1. Floating Pill Navigation Bar */}
       <header
         style={{
-          backgroundColor: '#1E2923',
-          color: '#FFFFFF',
-          borderBottom: '1px solid #2D3E37',
-          padding: '0.625rem 1rem',
+          padding: '0.5rem 0.75rem 0.25rem',
           flexShrink: 0,
           zIndex: 40,
+          width: '100%',
+          boxSizing: 'border-box',
         }}
       >
         <div
           style={{
-            maxWidth: '1280px',
+            maxWidth: '1240px',
             margin: '0 auto',
+            backgroundColor: 'rgba(26, 38, 32, 0.94)',
+            backdropFilter: 'blur(12px)',
+            WebkitBackdropFilter: 'blur(12px)',
+            border: '1px solid rgba(255, 255, 255, 0.12)',
+            boxShadow: '0 8px 30px rgba(0, 0, 0, 0.22), 0 2px 8px rgba(0, 0, 0, 0.15)',
+            borderRadius: '9999px',
+            padding: '0.35rem 0.85rem',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            gap: '0.75rem',
+            gap: '0.5rem',
+            color: '#FFFFFF',
+            boxSizing: 'border-box',
           }}
         >
           {/* Brand & Hospital Info */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.55rem', minWidth: 0, flexShrink: 1 }}>
             <div
               style={{
-                width: '34px',
-                height: '34px',
-                borderRadius: '8px',
+                width: '32px',
+                height: '32px',
+                borderRadius: '50%',
                 backgroundColor: '#2D6A4F',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 color: '#FFFFFF',
                 flexShrink: 0,
+                boxShadow: '0 2px 6px rgba(0, 0, 0, 0.2)',
               }}
             >
-              <Bed size={18} />
+              <Bed size={16} />
             </div>
 
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-                <span style={{ fontSize: '1.05rem', fontWeight: 800, letterSpacing: '-0.01em' }}>
+            <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '5px', whiteSpace: 'nowrap' }}>
+                <span style={{ fontSize: '0.95rem', fontWeight: 800, letterSpacing: '-0.01em', color: '#FFFFFF' }}>
                   BedLink
                 </span>
                 <span
                   style={{
                     backgroundColor: '#2D6A4F',
                     color: '#FFFFFF',
-                    padding: '2px 7px',
+                    padding: '1px 6px',
                     borderRadius: '999px',
-                    fontSize: '0.675rem',
+                    fontSize: '0.625rem',
                     fontWeight: 700,
                     textTransform: 'uppercase',
                     letterSpacing: '0.04em',
+                    whiteSpace: 'nowrap',
                   }}
                 >
                   Ward Nurse
@@ -411,18 +422,19 @@ export default function NurseInventoryClient({
                     display: 'inline-flex',
                     alignItems: 'center',
                     gap: '4px',
-                    fontSize: '0.675rem',
+                    fontSize: '0.625rem',
                     fontWeight: 700,
                     color: realtimeStatus === 'SUBSCRIBED' ? '#2E7D32' : '#B45309',
                     backgroundColor: realtimeStatus === 'SUBSCRIBED' ? '#E8F5E9' : '#FEF3C7',
-                    padding: '2px 6px',
+                    padding: '1px 5px',
                     borderRadius: '999px',
+                    whiteSpace: 'nowrap',
                   }}
                 >
                   <span
                     style={{
-                      width: '6px',
-                      height: '6px',
+                      width: '5px',
+                      height: '5px',
                       borderRadius: '50%',
                       backgroundColor: realtimeStatus === 'SUBSCRIBED' ? '#2E7D32' : '#B45309',
                     }}
@@ -431,33 +443,44 @@ export default function NurseInventoryClient({
                 </span>
               </div>
 
-              <div style={{ fontSize: '0.75rem', color: '#A3B0A9', marginTop: '1px' }}>
+              <div style={{
+                fontSize: '0.68rem',
+                color: '#A3B0A9',
+                marginTop: '1px',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                maxWidth: '200px',
+              }}>
                 {hospitalName} {hospitalCity ? `• ${hospitalCity}` : ''}
               </div>
             </div>
           </div>
 
           {/* Sync & Logout Controls */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexShrink: 0 }}>
             <button
               type="button"
               disabled={isPending || isConfirming}
               onClick={handleRefresh}
               style={{
-                minHeight: '38px',
-                padding: '6px 10px',
-                borderRadius: '6px',
-                border: '1px solid #3F554B',
-                backgroundColor: '#2D3E37',
+                height: '32px',
+                padding: '0 9px',
+                borderRadius: '999px',
+                border: '1px solid rgba(255, 255, 255, 0.15)',
+                backgroundColor: 'rgba(255, 255, 255, 0.08)',
                 color: '#FFFFFF',
-                fontSize: '0.78rem',
+                fontSize: '0.74rem',
                 fontWeight: 600,
                 cursor: isPending || isConfirming ? 'not-allowed' : 'pointer',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '5px',
+                gap: '4px',
                 opacity: isPending ? 0.6 : 1,
+                whiteSpace: 'nowrap',
+                transition: 'background-color 150ms',
               }}
+              title="Refresh inventory"
               aria-label="Refresh inventory"
             >
               <RotateCw size={13} className={isPending ? 'animate-spin' : ''} />
@@ -468,15 +491,30 @@ export default function NurseInventoryClient({
               <button
                 type="submit"
                 style={{
-                  minHeight: '38px',
-                  padding: '6px 10px',
-                  backgroundColor: 'transparent',
-                  color: '#A3B0A9',
-                  border: '1px solid #3F554B',
-                  borderRadius: '6px',
-                  fontSize: '0.78rem',
+                  height: '32px',
+                  padding: '0 12px',
+                  backgroundColor: 'rgba(255, 255, 255, 0.08)',
+                  color: '#D8E2DC',
+                  border: '1px solid rgba(255, 255, 255, 0.15)',
+                  borderRadius: '999px',
+                  fontSize: '0.74rem',
                   fontWeight: 600,
                   cursor: 'pointer',
+                  whiteSpace: 'nowrap',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  transition: 'all 150ms',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.15)'
+                  e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.3)'
+                  e.currentTarget.style.color = '#FCA5A5'
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.08)'
+                  e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.15)'
+                  e.currentTarget.style.color = '#D8E2DC'
                 }}
                 title="Sign out of Nurse Dashboard"
                 aria-label="Sign Out"
