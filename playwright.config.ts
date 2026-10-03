@@ -11,6 +11,12 @@ export default defineConfig({
     baseURL: process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:3000',
     trace: 'on-first-retry',
   },
+  webServer: {
+    command: 'npm run dev -- --hostname 127.0.0.1',
+    url: 'http://127.0.0.1:3000/login',
+    reuseExistingServer: !process.env.CI,
+    timeout: 120000,
+  },
   projects: [
     {
       name: 'cheap-android',

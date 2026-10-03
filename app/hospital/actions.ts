@@ -66,7 +66,7 @@ export async function acceptHospitalReservationAction(
       success: true,
       result,
     }
-  } catch (err: any) {
+  } catch (err: unknown) {
     const opErr = toOperationError(err)
     return {
       success: false,
@@ -98,7 +98,7 @@ export async function rejectHospitalReservationAction(
       success: true,
       result,
     }
-  } catch (err: any) {
+  } catch (err: unknown) {
     const opErr = toOperationError(err)
     return {
       success: false,
@@ -139,7 +139,7 @@ export async function refreshHospitalReservationsAction(options?: {
       reservations,
       serverTime: new Date().toISOString(),
     }
-  } catch (err: any) {
+  } catch (err: unknown) {
     const opErr = toOperationError(err)
     return {
       success: false,

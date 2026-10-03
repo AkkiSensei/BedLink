@@ -57,7 +57,7 @@ export async function createEmergencyRequestAction(
       success: true,
       request,
     }
-  } catch (err: any) {
+  } catch (err: unknown) {
     const opErr = toOperationError(err)
     return {
       success: false,
@@ -88,7 +88,7 @@ export async function fetchDispatchRequestsAction(): Promise<ListRequestsActionR
       success: true,
       requests,
     }
-  } catch (err: any) {
+  } catch (err: unknown) {
     const opErr = toOperationError(err)
     return {
       success: false,
@@ -115,7 +115,7 @@ export async function fetchDispatchBedRequestAction(
       success: true,
       request,
     }
-  } catch (err: any) {
+  } catch (err: unknown) {
     const opErr = toOperationError(err)
     return {
       success: false,
@@ -150,7 +150,7 @@ export async function fetchRankedCandidatesAction(
       success: true,
       candidates,
     }
-  } catch (err: any) {
+  } catch (err: unknown) {
     const opErr = toOperationError(err)
     return {
       success: false,
@@ -186,7 +186,7 @@ export async function selectHospitalAction(
       success: true,
       request,
     }
-  } catch (err: any) {
+  } catch (err: unknown) {
     const opErr = toOperationError(err)
     return {
       success: false,

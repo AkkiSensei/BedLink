@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, useCallback, useRef, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
 import { loginWithPinAction } from '../actions/auth'
 import { ROLE_PINS, getRoleByPin, ALL_HOSPITALS, ALL_NURSES } from '@/lib/auth/pins'
 import { 
@@ -71,7 +70,6 @@ const ROLE_TABS: RoleTabConfig[] = [
 function LoginFormInner() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const supabase = createClient()
 
   const urlError = searchParams.get('error')
   const isForbidden = searchParams.get('forbidden') === '1'
@@ -152,16 +150,6 @@ function LoginFormInner() {
         return
       }
 
-      // 2. Best-effort client Supabase cache sync without blocking session if offline
-      try {
-        await supabase.auth.signInWithPassword({
-          email: match.email,
-          password: 'DemoPassword123!',
-        })
-      } catch {
-        // Non-blocking for PIN sessions
-      }
-
       setStatusMessage(`Access granted! Opening ${match.role.toUpperCase()} dashboard...`)
 
       // 3. Navigate to destination
@@ -176,7 +164,7 @@ function LoginFormInner() {
       setStatusMessage(null)
       setPin('')
     }
-  }, [isAuthenticating, router, supabase])
+  }, [isAuthenticating, router])
 
   // Handle digit addition
   const handleDigit = useCallback((digit: string) => {
@@ -248,7 +236,7 @@ function LoginFormInner() {
     <div style={{
       height: '100dvh',
       maxHeight: '100dvh',
-      width: '100vw',
+      width: '100%',
       overflow: 'hidden',
       backgroundColor: '#F4F6F4',
       display: 'flex',

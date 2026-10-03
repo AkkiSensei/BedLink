@@ -132,6 +132,8 @@
 
 html {
   height: 100%;
+  width: 100%;
+  overflow-x: hidden;
 }
 
 body {
@@ -143,6 +145,8 @@ body {
   -moz-osx-font-smoothing: grayscale;
   -webkit-tap-highlight-color: transparent;
   min-height: 100%;
+  width: 100%;
+  overflow-x: hidden;
 }
 
 /* =====================================================
@@ -637,7 +641,6 @@ textarea,
   box-shadow: none !important;
   text-shadow: none !important;
 }
-
 /* Floating Action Button: Hospital Statistics */
 .hospital-stats-fab {
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
@@ -651,5 +654,3 @@ textarea,
     font-size: 0.8rem !important;
   }
 }
-
-

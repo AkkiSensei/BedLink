@@ -45,8 +45,17 @@ npm install
 ### Environment Configuration
 Create a `.env.local` file in the root directory (or use the hosted Supabase instance):
 ```env
-
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=your-supabase-publishable-key
+BEDLINK_PIN_SESSION_SECRET=generate-a-long-random-secret
+# Optional: only needed when synchronizing provisioned Supabase demo users
+DEMO_AUTH_PASSWORD=use-a-unique-password
+ENABLE_DEMO_AUTH=false
 ```
+
+`BEDLINK_PIN_SESSION_SECRET` is required in production. Never commit these values or expose
+`DEMO_AUTH_PASSWORD` as a `NEXT_PUBLIC_*` variable.
+PIN authentication is disabled in production unless `ENABLE_DEMO_AUTH=true` is explicitly set.
 
 ### Development Server
 ```bash
