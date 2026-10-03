@@ -121,12 +121,12 @@ export default function HospitalCoordinationMap({
         })
         mapInstanceRef.current = leafletMap
 
-        // CartoDB Voyager clean raster tiles — 100% keyless, crisp medical styling
+        // OpenStreetMap clean raster tiles — 100% keyless, zero watermark
         L.tileLayer(
-          'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
+          'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
           {
             maxZoom: 19,
-            subdomains: 'abcd',
+            attribution: '&copy; OpenStreetMap contributors',
           }
         ).addTo(leafletMap)
 

@@ -313,10 +313,10 @@ export default function DispatchCoordinationMap({
         leafletMapRef.current = lmap
 
         L.tileLayer(
-          'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
+          'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
           {
             maxZoom: 19,
-            subdomains: 'abcd',
+            attribution: '&copy; OpenStreetMap contributors',
           }
         ).addTo(lmap)
 
@@ -574,7 +574,7 @@ export default function DispatchCoordinationMap({
   const mapEngineLabel = useMemo(() => {
     if (viewMode === 'radar') return 'Tactical Radar HUD'
     if (mapsLoaded && !mapsError) return 'Google Maps (Active)'
-    if (leafletLoaded) return 'Street Map (CartoDB Live)'
+    if (leafletLoaded) return 'Street Map (Live)'
     return 'Loading Street Map...'
   }, [viewMode, mapsLoaded, mapsError, leafletLoaded])
 
