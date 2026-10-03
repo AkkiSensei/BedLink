@@ -7,6 +7,8 @@ import {
   updateBedStatusAction,
   refreshNurseBedsAction,
   confirmNurseInventoryAction,
+  dischargeEmsPatientAction,
+  admitEmsPatientAction,
 } from './actions'
 import BedCard from './BedCard'
 import { subscribeNurseBeds, type RealtimeConnectionStatus } from '@/lib/realtime'
@@ -147,11 +149,166 @@ export default function NurseInventoryClient({
     return b.status === filter
   })
 
+  // Explicit EMS Patient Discharge Handler
+  const handleDischargeEmsPatient = async (bedId: string) => {
+    if (updatingBedId) return
+    const targetBed = beds.find((b) => b.id === bedId)
+    if (!targetBed) return
+
+    setUpdatingBedId(bedId)
+    setFeedback(null)
+    triggerHaptic('tap')
+
+    try {
+      const result = await dischargeEmsPatientAction({ bedId })
+      if (result.success && result.result) {
+        const dischargedAt = result.result.dischargedAt
+        setBeds((prev) =>
+          prev.map((b) =>
+            b.id === bedId
+              ? {
+                  ...b,
+                  status: 'available',
+                  last_updated_at: dischargedAt,
+                  active_ems_reservation: b.active_ems_reservation
+                    ? {
+                        ...b.active_ems_reservation,
+                        discharged_at: dischargedAt,
+                      }
+                    : null,
+                }
+              : b
+          )
+        )
+
+        const actionDesc = 'Discharged EMS Patient (AVAILABLE)'
+        const logMsg = `${targetBed.room_number || 'Bed'}: ${actionDesc}`
+        setFeedback({
+          type: 'success',
+          message: `${logMsg}. Realtime central dispatch notified.`,
+          canUndo: false,
+        })
+
+        setRecentUpdates((prev) => [
+          {
+            id: String(Date.now()),
+            timestamp: new Date().toLocaleTimeString([], {
+              hour: '2-digit',
+              minute: '2-digit',
+              second: '2-digit',
+            }),
+            description: actionDesc,
+            bedRoom: targetBed.room_number || undefined,
+          },
+          ...prev.slice(0, 7),
+        ])
+      } else {
+        setFeedback({
+          type: 'error',
+          message: result.error?.message || 'Could not discharge EMS patient. Please try again.',
+        })
+      }
+    } catch (err: any) {
+      setFeedback({
+        type: 'error',
+        message: err.message || 'Unexpected network error during discharge.',
+      })
+    } finally {
+      setUpdatingBedId(null)
+    }
+  }
+
+  // Explicit EMS Patient Admission Handler
+  const handleAdmitEmsPatient = async (reservationId: string, bedId?: string) => {
+    if (updatingBedId) return
+    const targetBed = beds.find(
+      (b) => b.id === bedId || b.active_ems_reservation?.reservation_id === reservationId
+    )
+    const effectiveBedId = bedId || targetBed?.id
+    if (effectiveBedId) setUpdatingBedId(effectiveBedId)
+    setFeedback(null)
+    triggerHaptic('tap')
+
+    try {
+      const result = await admitEmsPatientAction({ reservationId, bedId: effectiveBedId })
+      if (result.success && result.result) {
+        const admittedAt = result.result.admittedAt
+        setBeds((prev) =>
+          prev.map((b) =>
+            b.id === result.result!.bedId
+              ? {
+                  ...b,
+                  status: 'occupied',
+                  last_updated_at: admittedAt,
+                  active_ems_reservation: b.active_ems_reservation
+                    ? {
+                        ...b.active_ems_reservation,
+                        admitted_at: admittedAt,
+                      }
+                    : {
+                        reservation_id: reservationId,
+                        bed_request_id: result.result!.bedRequestId,
+                        status: 'admitted',
+                        admitted_at: admittedAt,
+                      },
+                }
+              : b
+          )
+        )
+
+        const actionDesc = 'Admitted EMS Patient (OCCUPIED)'
+        const logMsg = `${targetBed?.room_number || 'Bed'}: ${actionDesc}`
+        setFeedback({
+          type: 'success',
+          message: logMsg,
+          canUndo: false,
+        })
+
+        setRecentUpdates((prev) => [
+          {
+            id: String(Date.now()),
+            timestamp: new Date().toLocaleTimeString([], {
+              hour: '2-digit',
+              minute: '2-digit',
+              second: '2-digit',
+            }),
+            description: actionDesc,
+            bedRoom: targetBed?.room_number || undefined,
+          },
+          ...prev.slice(0, 7),
+        ])
+      } else {
+        setFeedback({
+          type: 'error',
+          message: result.error?.message || 'Could not admit EMS patient. Please try again.',
+        })
+      }
+    } catch (err: any) {
+      setFeedback({
+        type: 'error',
+        message: err.message || 'Unexpected network error during admission.',
+      })
+    } finally {
+      setUpdatingBedId(null)
+    }
+  }
+
   // Fast status update handler with duplicate tap guard and history stack
   const handleStatusChange = async (bedId: string, newStatus: BedStatus, recordHistory = true) => {
     if (updatingBedId) return
     const targetBed = beds.find((b) => b.id === bedId)
     if (!targetBed || targetBed.status === newStatus) return
+
+    // If bed is occupied with an active EMS admission and nurse is discharging,
+    // route through authoritative EMS discharge operation to persist discharge timestamp
+    if (
+      targetBed.status === 'occupied' &&
+      newStatus === 'available' &&
+      targetBed.active_ems_reservation?.admitted_at &&
+      !targetBed.active_ems_reservation?.discharged_at
+    ) {
+      return handleDischargeEmsPatient(bedId)
+    }
 
     if (recordHistory) {
       historyStackRef.current.push({ bedId, prevStatus: targetBed.status })
@@ -985,6 +1142,8 @@ export default function NurseInventoryClient({
                     bed={bed}
                     isUpdating={updatingBedId === bed.id}
                     onStatusChange={handleStatusChange}
+                    onDischargeEmsPatient={handleDischargeEmsPatient}
+                    onAdmitEmsPatient={handleAdmitEmsPatient}
                   />
                 </div>
               ))

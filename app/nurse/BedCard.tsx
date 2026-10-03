@@ -4,12 +4,14 @@ import React from 'react'
 import type { NurseBedView } from '@/lib/operations/types'
 import type { BedStatus, BedCapability } from '@/lib/types/database'
 import FreshnessBadge from './FreshnessBadge'
-import { Lock, Loader2, UserPlus, UserMinus, Wrench, CheckCircle } from 'lucide-react'
+import { Lock, Loader2, UserPlus, UserMinus, Wrench, CheckCircle, Ambulance } from 'lucide-react'
 
 interface BedCardProps {
   bed: NurseBedView
   isUpdating: boolean
   onStatusChange: (bedId: string, newStatus: BedStatus) => void
+  onDischargeEmsPatient?: (bedId: string) => void
+  onAdmitEmsPatient?: (reservationId: string, bedId?: string) => void
 }
 
 const CAPABILITY_LABELS: Record<BedCapability, string> = {
@@ -49,9 +51,18 @@ const STATUS_CONFIG: Record<
   },
 }
 
-export default function BedCard({ bed, isUpdating, onStatusChange }: BedCardProps) {
+export default function BedCard({
+  bed,
+  isUpdating,
+  onStatusChange,
+  onDischargeEmsPatient,
+  onAdmitEmsPatient,
+}: BedCardProps) {
   const currentStatusConfig = STATUS_CONFIG[bed.status]
   const isHeld = bed.status === 'held'
+  const isEmsAdmitted = Boolean(
+    bed.active_ems_reservation?.admitted_at && !bed.active_ems_reservation?.discharged_at
+  )
 
   return (
     <article
@@ -144,7 +155,7 @@ export default function BedCard({ bed, isUpdating, onStatusChange }: BedCardProp
 
       {/* 3. Action Section: Status-driven actions with exact wording */}
       {isHeld ? (
-        /* HELD: Show status only. Nurse MUST NOT modify held bed. */
+        /* HELD: Active ambulance reservation. Cannot be discharged or modified. */
         <div
           style={{
             padding: '0.75rem',
@@ -155,17 +166,73 @@ export default function BedCard({ bed, isUpdating, onStatusChange }: BedCardProp
             fontSize: '0.8rem',
             display: 'flex',
             flexDirection: 'column',
-            gap: '4px',
+            gap: '8px',
           }}
           role="alert"
         >
-          <div style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <Lock size={14} />
-            <span>Reserved for Emergency Transit</span>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <Lock size={14} />
+              <span>Reserved for Emergency Transit</span>
+            </div>
+            {bed.active_ems_reservation?.bed_ready_at && (
+              <span
+                style={{
+                  fontSize: '0.7rem',
+                  fontWeight: 700,
+                  backgroundColor: '#E8F5E9',
+                  color: '#1B4332',
+                  padding: '2px 6px',
+                  borderRadius: '4px',
+                  border: '1px solid #A7F3D0',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '3px',
+                }}
+              >
+                <CheckCircle size={10} />
+                BED READY
+              </span>
+            )}
           </div>
           <p style={{ margin: 0, opacity: 0.9 }}>
-            This bed is held by an active ambulance reservation. Status cannot be modified while reserved.
+            This bed is held by an active emergency reservation. Status cannot be modified while reserved.
           </p>
+
+          {onAdmitEmsPatient && bed.active_ems_reservation?.reservation_id && (
+            <button
+              type="button"
+              disabled={isUpdating}
+              onClick={() => onAdmitEmsPatient(bed.active_ems_reservation!.reservation_id, bed.id)}
+              id={`admit-ems-btn-${bed.id}`}
+              style={{
+                marginTop: '4px',
+                minHeight: '40px',
+                padding: '8px 12px',
+                borderRadius: '6px',
+                border: 'none',
+                backgroundColor: '#2D6A4F',
+                color: '#FFFFFF',
+                fontWeight: 700,
+                fontSize: '0.82rem',
+                cursor: isUpdating ? 'not-allowed' : 'pointer',
+                opacity: isUpdating ? 0.6 : 1,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '6px',
+                transition: 'background-color 0.15s ease, opacity 0.15s ease',
+              }}
+              aria-label={`Admit EMS Patient to ${bed.room_number || 'bed'}`}
+            >
+              {isUpdating ? (
+                <Loader2 size={16} className="animate-spin" />
+              ) : (
+                <UserPlus size={16} aria-hidden="true" />
+              )}
+              <span>Admit EMS Patient</span>
+            </button>
+          )}
         </div>
       ) : bed.status === 'available' ? (
         /* AVAILABLE: Show Admit Patient & Mark Maintenance */
@@ -245,11 +312,37 @@ export default function BedCard({ bed, isUpdating, onStatusChange }: BedCardProp
         </div>
       ) : bed.status === 'occupied' ? (
         /* OCCUPIED: Show Discharge Patient (OCCUPIED -> AVAILABLE) */
-        <div style={{ marginTop: 'auto' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: 'auto' }}>
+          {isEmsAdmitted && (
+            <div
+              style={{
+                padding: '6px 8px',
+                borderRadius: '6px',
+                backgroundColor: '#EFF6FF',
+                border: '1px solid #BFDBFE',
+                color: '#1E40AF',
+                fontSize: '0.75rem',
+                fontWeight: 600,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+              }}
+            >
+              <Ambulance size={14} />
+              <span>EMS Admitted Patient</span>
+            </div>
+          )}
           <button
             type="button"
             disabled={isUpdating}
-            onClick={() => onStatusChange(bed.id, 'available')}
+            onClick={() => {
+              if (isEmsAdmitted && onDischargeEmsPatient) {
+                onDischargeEmsPatient(bed.id)
+              } else {
+                onStatusChange(bed.id, 'available')
+              }
+            }}
+            id={`discharge-patient-btn-${bed.id}`}
             style={{
               width: '100%',
               minHeight: '44px',
@@ -260,6 +353,7 @@ export default function BedCard({ bed, isUpdating, onStatusChange }: BedCardProp
               color: '#FFFFFF',
               fontWeight: 700,
               fontSize: '0.85rem',
+              letterSpacing: '0.02em',
               cursor: isUpdating ? 'not-allowed' : 'pointer',
               opacity: isUpdating ? 0.6 : 1,
               display: 'flex',
@@ -275,7 +369,7 @@ export default function BedCard({ bed, isUpdating, onStatusChange }: BedCardProp
             ) : (
               <UserMinus size={16} aria-hidden="true" />
             )}
-            <span>Discharge Patient</span>
+            <span>DISCHARGE PATIENT</span>
           </button>
         </div>
       ) : bed.status === 'maintenance' ? (

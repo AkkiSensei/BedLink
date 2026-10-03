@@ -1,8 +1,20 @@
 'use server'
 
-import { updateNurseBed, getNurseBeds, confirmNurseInventory } from '@/lib/operations/nurse'
+import {
+  updateNurseBed,
+  getNurseBeds,
+  confirmNurseInventory,
+  admitEmsPatient,
+  dischargeEmsPatient,
+} from '@/lib/operations/nurse'
 import { toOperationError } from '@/lib/operations/errors'
-import type { NurseBedView } from '@/lib/operations/types'
+import type {
+  NurseBedView,
+  AdmitEmsPatientInput,
+  AdmitEmsPatientResult,
+  DischargeEmsPatientInput,
+  DischargeEmsPatientResult,
+} from '@/lib/operations/types'
 import type { BedStatus } from '@/lib/types/database'
 
 export interface UpdateBedActionResult {
@@ -117,3 +129,77 @@ export async function confirmNurseInventoryAction(): Promise<ConfirmInventoryAct
     }
   }
 }
+
+export interface AdmitEmsPatientActionResult {
+  success: boolean
+  result?: AdmitEmsPatientResult
+  error?: {
+    code: string
+    message: string
+    status: number
+  }
+}
+
+/**
+ * Server Action: Admits an incoming EMS-reserved patient.
+ * Transitions EMS reservation -> ADMITTED -> OCCUPIED.
+ */
+export async function admitEmsPatientAction(
+  input: AdmitEmsPatientInput
+): Promise<AdmitEmsPatientActionResult> {
+  try {
+    const result = await admitEmsPatient(input)
+    return {
+      success: true,
+      result,
+    }
+  } catch (err: any) {
+    const opErr = toOperationError(err)
+    return {
+      success: false,
+      error: {
+        code: opErr.code,
+        message: opErr.message,
+        status: opErr.status,
+      },
+    }
+  }
+}
+
+export interface DischargeEmsPatientActionResult {
+  success: boolean
+  result?: DischargeEmsPatientResult
+  error?: {
+    code: string
+    message: string
+    status: number
+  }
+}
+
+/**
+ * Server Action: The Nurse discharges an EMS-admitted patient.
+ * Transitions OCCUPIED -> AVAILABLE.
+ * Persists discharge timestamp, reservation association, and authoritative bed status.
+ */
+export async function dischargeEmsPatientAction(
+  input: DischargeEmsPatientInput
+): Promise<DischargeEmsPatientActionResult> {
+  try {
+    const result = await dischargeEmsPatient(input)
+    return {
+      success: true,
+      result,
+    }
+  } catch (err: any) {
+    const opErr = toOperationError(err)
+    return {
+      success: false,
+      error: {
+        code: opErr.code,
+        message: opErr.message,
+        status: opErr.status,
+      },
+    }
+  }
+}
+
