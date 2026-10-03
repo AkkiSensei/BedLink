@@ -38,7 +38,7 @@ const ROLE_TABS: RoleTabConfig[] = [
     label: 'Nurse',
     sublabel: 'Apex Hospital Ward',
     pin: '2468',
-    icon: <Building2 className="w-4 h-4" />,
+    icon: <Building2 className="w-3.5 h-3.5" />,
     color: '#2D6A4F',
     softBg: '#E8F5E9',
     borderColor: '#A3D9C9',
@@ -46,10 +46,10 @@ const ROLE_TABS: RoleTabConfig[] = [
   },
   {
     id: 'dispatch',
-    label: 'Dispatch Operator',
+    label: 'Dispatch',
     sublabel: 'Metro EMS Console',
     pin: '9110',
-    icon: <Ambulance className="w-4 h-4" />,
+    icon: <Ambulance className="w-3.5 h-3.5" />,
     color: '#B45309',
     softBg: '#FEF3C7',
     borderColor: '#FCD34D',
@@ -57,10 +57,10 @@ const ROLE_TABS: RoleTabConfig[] = [
   },
   {
     id: 'hospital',
-    label: 'Hospital Staff',
+    label: 'Hospital',
     sublabel: 'Apex Emergency Coordination',
     pin: '1001',
-    icon: <ClipboardList className="w-4 h-4" />,
+    icon: <ClipboardList className="w-3.5 h-3.5" />,
     color: '#1565C0',
     softBg: '#E3F2FD',
     borderColor: '#90CAF9',
@@ -357,21 +357,32 @@ function LoginFormInner() {
                   setErrorMessage(null)
                 }}
                 style={{
+                  height: '44px',
                   display: 'flex',
                   flexDirection: 'column',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  padding: '4px 2px',
-                  borderRadius: '6px',
+                  padding: '3px 2px',
+                  borderRadius: '7px',
                   border: isActive ? `1.5px solid ${tab.borderColor}` : '1.5px solid transparent',
                   backgroundColor: isActive ? '#FFFFFF' : 'transparent',
                   color: isActive ? tab.color : '#5C6B64',
                   boxShadow: isActive ? '0 1px 3px rgba(0,0,0,0.05)' : 'none',
                   cursor: 'pointer',
                   transition: 'all 120ms ease',
+                  boxSizing: 'border-box',
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '3px', fontWeight: 700, fontSize: '0.72rem' }}>
+                <div style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '4px',
+                  fontWeight: 700,
+                  fontSize: '0.74rem',
+                  lineHeight: 1.1,
+                  whiteSpace: 'nowrap',
+                }}>
                   {tab.icon}
                   <span>{tab.label}</span>
                 </div>
@@ -379,9 +390,11 @@ function LoginFormInner() {
                   fontSize: '0.62rem', 
                   fontFamily: 'monospace', 
                   fontWeight: 600,
-                  marginTop: '1px',
+                  marginTop: '2px',
                   color: isActive ? tab.color : '#8A9991',
-                  letterSpacing: '0.04em'
+                  letterSpacing: '0.04em',
+                  lineHeight: 1.1,
+                  whiteSpace: 'nowrap',
                 }}>
                   PIN: {tab.pin}
                 </span>
