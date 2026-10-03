@@ -755,6 +755,12 @@ export async function markBedReady(
       )
     }
 
+    if (reservation.discharged_at) {
+      throw new ConflictOperationError(
+        `Cannot mark bed ready: reservation ${reservationId} has already been discharged`
+      )
+    }
+
     // 5. Idempotent duplicate check: duplicate readiness returns cleanly
     if (reservation.bed_ready_at) {
       return {

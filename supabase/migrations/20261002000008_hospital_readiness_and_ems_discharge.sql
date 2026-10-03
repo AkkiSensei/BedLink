@@ -57,6 +57,12 @@ BEGIN
             p_reservation_id, v_res.status;
     END IF;
 
+    -- Reservation must not be already discharged
+    IF v_res.discharged_at IS NOT NULL THEN
+        RAISE EXCEPTION 'Cannot mark bed ready: reservation % has already been discharged',
+            p_reservation_id;
+    END IF;
+
     -- Idempotency check: duplicate readiness calls return cleanly
     IF v_res.bed_ready_at IS NOT NULL THEN
         RETURN jsonb_build_object(
